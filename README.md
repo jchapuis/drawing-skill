@@ -49,3 +49,7 @@ means.
 a specific failure and the measurement that caught it; `[read: source]` marks a
 hypothesis with good pedigree and nothing more. A rule leaves this layer when a
 drawing shows it wrong.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
