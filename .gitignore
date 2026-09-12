@@ -1,0 +1,4 @@
+# The harness is a build, not a source.
+harness/node_modules/
+harness/dist/
+__pycache__/
