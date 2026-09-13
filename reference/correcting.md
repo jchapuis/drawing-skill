@@ -84,6 +84,53 @@ This is the only check in the skill that compares the drawing against itself
 rather than against the subject, and it is the one the corrective pass cannot do
 without.
 
+## The other pass: relationships, not marks
+
+Everything above is about marks disagreeing with each other. A finished picture
+has to answer a second question that no amount of trimming reaches: **do its
+parts lead in the order the subject's parts lead?** A panel can be correct part
+by part and still put its furniture in front of its subject — and that, rather
+than the thinness of the tier-3 objects, is what makes an economical drawing
+read as an unfinished one. The furniture is not too crude. It is too loud.
+
+`check.py --ranking parts.json` measures it: the spread of value inside each
+part's own box, ranked, the drawing's order against the subject's.
+
+**The move is zero-sum, and that is the useful half.** A ranking cannot be lifted
+by working harder — add marks to every part and the order comes back unchanged.
+So the only way to raise what should lead is to put down what competes with it.
+That much holds.
+
+**What does not hold is any cheap way to put it down here.** The obvious
+instrument — a translucent glaze laid over the region, ink included — was built,
+measured, and **rejected by the first person to look at it** [bought: drawing].
+The numbers said it worked: three glazes moved a panel's rank agreement with its
+subject from +0.77 to +0.80 and closed a standing describer disagreement about
+which part of the picture dominates by area. The picture said otherwise. A glaze
+does not push an object back a plane; it makes a **dirty copy of it in place** —
+the blacks lift to brown, the lights go tan, and a veiled object beside an
+unveiled neighbour of the same kind reads as a ghost rather than as distance.
+This is the clearest case on record of a whole-picture number going the right way
+while the drawing got worse, and it is exactly why `SKILL.md` says never to let
+one stand in for the verdict.
+
+**What actually recedes an object is losing its contour** and letting it weld
+into the mass behind it — a decision belonging to the masses stage, which a
+per-object ladder never offers because it has already given every object a closed
+outline of its own. That is `scene.md`'s problem, not this file's.
+
+So `--ranking` stays a **diagnostic with no pass attached to it**. Read a large
+delta as a pointer to the stage that made it.
+
+**The trap that matters** [bought: drawing]. Most large deltas are not relational
+faults at all. A flat filled in the wrong colour, a background contour drawn
+across the object in front of it, a form whose construction is wrong — each
+arrives in this report looking exactly like a weld, because a welded junction and
+a mis-filled flat have the same signature: **low spread where the subject has
+high**. On the panel that bought this section the report's two worst rows were
+both one fill in the wrong colour, and the right response was stage 9. **Crop the
+part and look.** The report names a region; it never names a repair.
+
 ## Finding them
 
 By eye at 1:1 you will not find these. They are two and three pixels wide, and

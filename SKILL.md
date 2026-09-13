@@ -277,6 +277,17 @@ else. A round that invents a new measurement to score itself by has already
 failed: each new number is a detector for the last fault and blind to the next by
 construction, so the picture regresses while the newest metric goes green.
 
+**Then one question correcting cannot reach: does the picture lead where the
+subject leads?** This stage works mark against mark. A panel can be right part by
+part and still put its furniture in front of its subject — and the furniture is
+not too crude, it is too *loud*. `--ranking` measures that. What it does **not**
+buy is a cheap repair here: a translucent glaze over what shouts was built and
+rejected on sight, because it makes a dirty copy of an object in place instead of
+pushing it back. What recedes an object is **losing its contour and letting it
+weld into the mass behind it** — a decision belonging to the masses stage, and
+one a per-object ladder never offers. See `scene.md`. Read a large delta in this
+report as a pointer to the stage that made it, not as a repair to attempt now.
+
 ## Checking your own work
 
 Each catches a class the others hide, so a check you skip is a class of error you
@@ -291,6 +302,7 @@ ship.
 | **Verdict** | Your own failure to look. Naming a difference in words is what turns looking into seeing |
 | **Detail** | Whether the marks are any good. Every other check measures *placement*; at 1:1 a well-placed bad shape and a good one occupy the same box. Magnify one feature 4x with the subject above it (`--zoom x,y,w,h`) |
 | **Weight** | A line hierarchy drifted from the subject's (`--weights`). Meaningless on tone |
+| **Ranking** | An object shouting above its tier, and a junction where two forms have **welded** into one value (`--ranking parts.json`) — the spread of value inside each part's own box, ranked, the drawing's order against the subject's. Alone among the numbers here it is **zero-sum**: adding marks everywhere leaves the order exactly where it was, so the only way to lift a part is to put another one down, which is the only move a whole-picture pass may make. Most large deltas are still upstream faults in relational costume — a flat filled in the wrong colour and a weld have the same signature, low spread where the subject has high. Crop the part and look before believing a row |
 | **Ladder audit** | A drawing that skipped the ladder, read off the *script* rather than the picture: which stages exist and how many marks each holds, how many strokes carry their own `lead=`/`tail=`, the instrument mix, the count of distinct weights against the measured span. A drawing inked straight off its block-in has no contour pass and every curve in it is a first attempt; one whose marks are nearly all `flat` has drawn its lines as filled shapes. Either passes every placement check here and reads as a diagram |
 | **Registration** | Colour and line disagreeing — a fill short of its contour, a fill past it with nothing over it, a contour that does not close (`--registration`). Cannot work on a full-bleed panel |
 | **Switch off** | Whether a correction is one. Render with the corrective stage hidden, compare at 4×. Most candidates change nothing, and then the right answer is to take the correction out and keep the fault |

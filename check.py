@@ -404,6 +404,57 @@ def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
     return sheet
 
 
+def ranking(drawing, subject, inventory):
+    """What leads the eye, ranked -- the drawing's order against the subject's.
+
+    Every other check in this file asks whether a part is *right*. This one asks
+    whether it is **loud**, then throws the magnitude away and keeps only the
+    order. That is the point. `ink` and `form` both rise wherever marks are
+    added, so both can be moved by working harder anywhere; a ranking cannot.
+    Add marks to every part and the order comes back unchanged. **The only way
+    to move a part up this list is to move another part down** -- which is the
+    only kind of change a whole-picture pass is allowed to make, and the reason
+    this is the instrument for one.
+
+    The statistic is the spread of value inside the part's own box: not how dark
+    it is, and not how much is going on in it. A thread of line on bare ground is
+    busy and quiet; a black mass against cream is one shape and shouts. Spread is
+    what the eye competes over, and it is why a tier-3 object can out-shout the
+    subject of the picture without one mark in it being wrong.
+
+    Read it in both directions:
+
+    - A part far ABOVE its subject rank is **competing with what it should be
+      supporting**. Knock it back. This is the whole finish pass on most scenes,
+      because a panel cannot afford to build its furniture and can always afford
+      to quieten it -- and quietening the furniture is what makes the built thing
+      read as built.
+    - A part far BELOW is not carrying its share. At a **junction**, whose box
+      holds two objects meeting rather than one object, that is the specific
+      failure of two forms welding into one value: the junction has stopped
+      existing, and no amount of drawing either object will bring it back.
+
+    It ranks, it does not decide, and a box is still only a box. Crop the part
+    and look at it before believing any row.
+    """
+    drawing = drawing.resize(subject.size, Image.LANCZOS)
+    planes = [np.asarray(image.convert("L")).astype(float) for image in (subject, drawing)]
+    rows = []
+    for name, entry in inventory.items():
+        x, y, width, height = entry["box"]
+        x, y = max(0, x), max(0, y)
+        width, height = min(subject.width - x, width), min(subject.height - y, height)
+        said = entry["shape"]
+        tier = next((digit for digit in "123" if f"TIER {digit}" in said),
+                    "J" if "JUNCTION" in said else "-")
+        spread = [float(plane[y:y + height, x:x + width].std()) for plane in planes]
+        rows.append([name, tier, spread[0], spread[1], 0, 0])
+    for loud, seat in ((2, 4), (3, 5)):
+        for place, row in enumerate(sorted(rows, key=lambda one: -one[loud]), 1):
+            row[seat] = place
+    return sorted(rows, key=lambda row: -abs(row[4] - row[5]))
+
+
 def main():
     parse = argparse.ArgumentParser()
     parse.add_argument("render")
@@ -416,7 +467,10 @@ def main():
     parse.add_argument("--overlay", action="store_true",
                        help="lay the drawing over the reference instead of beside it")
     parse.add_argument("--zoom", default="",
-                       help="x,y,w,h in reference pixels: subject above, drawing below, magnified")
+                       help="x,y,w,h in the REFERENCE's own pixels — so comparing "
+                            "two renders of the same drawing needs the box in render "
+                            "coordinates, not the subject's: subject above, drawing "
+                            "below, magnified")
     parse.add_argument("--weights", default="",
                        help="comma-separated rows: print the mark widths each one crosses")
     parse.add_argument("--masses", action="store_true",
@@ -427,6 +481,9 @@ def main():
     parse.add_argument("--parts", default="",
                        help="a JSON file of {name: [x,y,w,h]} — every named part of "
                             "the picture, subject above and drawing below")
+    parse.add_argument("--ranking", default="",
+                       help="parts.json: what leads the eye, the drawing's order "
+                            "against the subject's")
     parse.add_argument("--registration", action="store_true",
                        help="report every place the colour and the line disagree")
     parse.add_argument("--paper", default="#FAF1D2", help="the ground colour")
@@ -488,6 +545,28 @@ def main():
                   "so for those this check\ncompares a box against a box and can only "
                   "see absence and displacement:\n  " + ", ".join(mute[:12])
                   + (" ..." if len(mute) > 12 else ""))
+        return
+
+    if args.ranking:
+        if not args.ref:
+            sys.exit("--ranking needs --ref")
+        subject = Image.open(args.ref).convert("RGB")
+        rows = ranking(drawing, subject, read_inventory(args.ranking))
+        print(f"what leads the eye, worst disagreement first. value spread inside each "
+              f"part's own\nbox, ranked 1..{len(rows)} in each picture. tier is read off "
+              "the shape sentence; J is a junction.\n")
+        print(f"  {'part':26s} tier {'subject':>15s} {'drawing':>15s}   moved")
+        for name, tier, loud, now, seat, place in rows:
+            move = seat - place
+            print(f"  {name[:26]:26s} {tier:4s} {loud:8.1f} #{seat:<5d} {now:8.1f} #{place:<5d} "
+                  f"{move:+4d}  " + ("LOUDER than the subject ranks it" if move > 0 else
+                                     "quieter" if move < 0 else ""))
+        print("\nmoved is the subject's rank minus the drawing's. + means the drawing "
+              "pushes the part\nforward of where the subject has it, - means it has "
+              "dropped back.\nA rank is zero-sum: this is the one number here that "
+              "adding marks cannot lift,\nso the only way up is to put something else "
+              "down. A junction that has gone\nquiet is two objects welded into one "
+              "value. Crop the part and look before\nyou believe any row.")
         return
 
     if args.registration:
