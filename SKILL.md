@@ -304,6 +304,7 @@ ship.
 | **Weight** | A line hierarchy drifted from the subject's (`--weights`). Meaningless on tone |
 | **Ranking** | An object shouting above its tier, and a junction where two forms have **welded** into one value (`--ranking parts.json`) — the spread of value inside each part's own box, ranked, the drawing's order against the subject's. Alone among the numbers here it is **zero-sum**: adding marks everywhere leaves the order exactly where it was, so the only way to lift a part is to put another one down, which is the only move a whole-picture pass may make. Most large deltas are still upstream faults in relational costume — a flat filled in the wrong colour and a weld have the same signature, low spread where the subject has high. Crop the part and look before believing a row |
 | **Ladder audit** | A drawing that skipped the ladder, read off the *script* rather than the picture: which stages exist and how many marks each holds, how many strokes carry their own `lead=`/`tail=`, the instrument mix, the count of distinct weights against the measured span. A drawing inked straight off its block-in has no contour pass and every curve in it is a first attempt; one whose marks are nearly all `flat` has drawn its lines as filled shapes. Either passes every placement check here and reads as a diagram |
+| **Doubled edge** | One boundary stated **twice, from two guesses** — the commonest mark-level fault in a scene, and invisible to everything above, because two contours 2px apart are two correct-looking contours (`--doubled ops.json`). It reads the script: two ink strokes whose centrelines run together for a large fraction of their own length. On the page the fault reads as a field of crossing loops and gets diagnosed for rounds as bad curve control, which it is not. Two strokes that meet at one shared point are a junction, not a doubling, and are excluded — count those and the check punishes the very construction that fixes it |
 | **Registration** | Colour and line disagreeing — a fill short of its contour, a fill past it with nothing over it, a contour that does not close (`--registration`). Cannot work on a full-bleed panel |
 | **Switch off** | Whether a correction is one. Render with the corrective stage hidden, compare at 4×. Most candidates change nothing, and then the right answer is to take the correction out and keep the fault |
 | **Defeat your own eye** | Habituation, in several directions, none expensive: **mirror** for proportion drift; **squint** for value and mass; **silhouette** for fused forms and tangents; **negative space** for relational error, largest gap first; **plumb** for diagonals you squared toward vertical; **overlay** for exact drift against a reference; **line off** (`--hide ink`) for whether the flats carry the composition; **big-to-small** — "am I still at big-shape scale?" |
@@ -434,6 +435,10 @@ water and reflections, architecture and interiors, foliage.
   shading, limited palettes
 - `correcting.md` — what a corrective pass may not do, aiming a trim, proving one
   by switching it off, finding faults with the registration flood
+- `redrawing.md` — redrawing a generated image rather than a photograph or a
+  life subject: the exact palette and posterised read it hands you for free, why
+  its edges invert `scene.md`'s rule, the measuring traps its flat regions set,
+  and the parts of it that must **not** be copied
 
 ## The canvas
 
@@ -476,6 +481,16 @@ says so. One measured with `brush` and applied with `flat` came out at 0.42x: a
 top tube 5px wide where 12px was asked for, and a whole bicycle arriving at
 `bicycle.md`'s "reads as wire" failure.
 
+**Then measure the width you are about to ask for — on the subject, mark by
+mark.** A calibrated ladder only guarantees you get the number you asked for, and
+the number is the half that gets guessed. Two marks on one small head, both
+placed exactly where they were measured to belong: a silhouette asked for at 9px
+where the subject's outline measures 4–5px rendered its horns as solid black
+hooks, and an eyelid bar asked for at 7.5px where the subject's measures 4px ate
+the eye white underneath it and took the expression with it. Every placement
+check passed both. The ladder is calibration; the width of *this* mark is a
+measurement, and skipping it is the same error as guessing a landmark.
+
 ### The drawing is a script, not a program
 
 **Write every mark on its own line, with its own numbers.** No function that
@@ -493,6 +508,23 @@ for it exists.
 
 The second thing a flat script buys is a forced look per mark. Where it does not
 force one — a coordinate retyped from a box — it is pure cost.
+
+**One geometry, evolved.** Measure every point once, name it once, keep it in one
+dict; strokes then name points and never retype a coordinate. Where two objects
+share an edge, they share the **entry**.
+
+That looks like the computed geometry this rule forbids, and it is not — apply
+the test rather than the rule. A dict of measured points supplies no form. It can
+only remove a contradictory *second copy* of a point you already chose, so it
+cannot produce a shape the subject does not have. Say as much in the script,
+because the next reader will reach for the rule and not the test.
+
+It is the fix for the doubled edge, and it is structural: with one entry per
+adjacency the fault **cannot recur by construction**, where a rule against it can
+only be remembered. What it removes is the second guess — not the overshoot. A
+hand runs on past an open stroke's endpoints, so two strokes meeting at one named
+point each run on into the other and rebuild a dozen pixels of the doubled edge;
+damp `hand=` on the strokes that meet.
 
 ```python
 from pen import stroke, frame, fade, erase, write

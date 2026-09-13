@@ -120,6 +120,16 @@ is standing on the near figure's shoulder.
   hole as well. State the band by running a single wide stroke along its centre
   line and let the stroke's own width be the band's. The same is true of any
   outline whose inside must stay open.
+- **A mark that bounds a small pale shape is subtracting from it**, and past a
+  certain width it has eaten the shape. An eye is the lid *and* the white
+  beneath it, so thickening the lid does not strengthen the eye — it deletes it,
+  and the expression goes with it while the lid stays exactly where it was
+  measured to be. The same arithmetic runs a nostril, a highlight, a gap between
+  two tubes, the slot inside a vent. **Where a form is stated by the gap between
+  two marks, the gap is the measurement**: take it off the subject, and let the
+  marks fall where it puts them rather than choosing a weight and hoping the
+  space survives. Halving one such mark is routinely the change that brings a
+  feature back, and it looks on the page like drawing less.
 
 Economy is a line-quality virtue, not just an editing one: *"the secret to
 drawing is not the making of lines, but the elimination of unnecessary lines."*

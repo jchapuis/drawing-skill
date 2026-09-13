@@ -227,6 +227,82 @@ def registration(drawing, paper, ink=90, floor=40):
     return sorted(found, reverse=True)
 
 
+def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
+    """Is any edge stated twice? Reads the SCRIPT, not the picture.
+
+    The commonest mark-level fault in a scene is one boundary drawn once as one
+    object's silhouette and again as its neighbour's, from two different
+    guesses. On the page it reads as a field of crossing loops and gets
+    diagnosed for rounds as bad curve control, which it is not. No check that
+    looks at pixels finds it: two contours 2px apart are two correct-looking
+    contours.
+
+    So it is checked where the fault actually lives -- in the script, as two ink
+    strokes whose centrelines run together for a long way. It is cheap, it fails
+    loudly, and it is the gate on drawing an adjacency once.
+
+    Two things make a naive version of this report roughly double and flag
+    correct work, and both are worth stating because both look right:
+
+    1. **A shared endpoint is not a doubled edge.** Two strokes that meet at one
+       named point must pass through that point, so every correct junction looks
+       like an overlap. That punishes the very construction this exists to
+       reward. Runs anchored at a shared endpoint are excluded.
+    2. **Length is arc length, not a sample count.** Densifying repeats each
+       segment's endpoint as the next segment's start, so a 4px stretch counts
+       as a dozen samples and every measured run comes back about twice its
+       size.
+
+    A true doubling runs for a large fraction of its own length; a junction runs
+    for a few pixels and then the two strokes separate.
+    """
+    lines = [(index, op.get("tag", "-"),
+              np.asarray([[point[0], point[1]] for point in op["points"]], dtype=float))
+             for index, op in enumerate(ops)
+             if op.get("op") == "stroke" and op.get("stage") == "ink"]
+    walked = [(index, tag, _walk(points), points) for index, tag, points in lines]
+    hits, worst = [], 0.0
+    for first in range(len(walked)):
+        for second in range(first + 1, len(walked)):
+            here, there = walked[first][2], walked[second][2]
+            ends = np.vstack([walked[first][3][[0, -1]], walked[second][3][[0, -1]]])
+            close = np.linalg.norm(here[:, None, :] - there[None, :, :], axis=2).min(axis=1) < touch
+            at = 0
+            while at < len(close):
+                if not close[at]:
+                    at += 1
+                    continue
+                start = at
+                while at < len(close) and close[at]:
+                    at += 1
+                run = here[start:at]
+                if len(run) < 2:
+                    continue
+                # every point of the run sitting near a shared end means the run
+                # IS the sharing, not a second copy of the edge
+                if np.linalg.norm(run[:, None, :] - ends[None, :, :], axis=2).min(axis=1).max() <= near_ends:
+                    continue
+                length = float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
+                worst = max(worst, length)
+                if length > floor:
+                    hits.append((walked[first][0], walked[first][1],
+                                 walked[second][0], walked[second][1], round(length)))
+    return hits, worst, len(walked)
+
+
+def _walk(points, step=1.0):
+    """Even samples along a polyline, without repeating the shared endpoints."""
+    out = [points[0]]
+    for at in range(len(points) - 1):
+        span = points[at + 1] - points[at]
+        length = float(np.hypot(*span))
+        if length < 1e-9:
+            continue
+        for part in range(1, max(1, round(length / step)) + 1):
+            out.append(points[at] + span * (part / max(1, round(length / step))))
+    return np.asarray(out)
+
+
 def plain(text):
     """Fold the typography a shape sentence gets written with down to what the
     default bitmap font can actually draw. An em dash rendered as a tofu box in
@@ -484,6 +560,9 @@ def main():
     parse.add_argument("--ranking", default="",
                        help="parts.json: what leads the eye, the drawing's order "
                             "against the subject's")
+    parse.add_argument("--doubled", default="",
+                       help="an ops JSON: is any edge stated twice? reads the "
+                            "script, not the render")
     parse.add_argument("--registration", action="store_true",
                        help="report every place the colour and the line disagree")
     parse.add_argument("--paper", default="#FAF1D2", help="the ground colour")
@@ -568,6 +647,20 @@ def main():
               "down. A junction that has gone\nquiet is two objects welded into one "
               "value. Crop the part and look before\nyou believe any row.")
         return
+
+    if args.doubled:
+        with open(args.doubled) as handle:
+            hits, worst, count = doubled(json.load(handle))
+        print(f"{count} ink strokes; longest non-junction overlap {worst:.0f}px")
+        for first, here, second, there, length in hits:
+            print(f"  FAIL op{first}({here}) x op{second}({there})  {length}px")
+        if not hits:
+            print("  PASSES — no edge is stated twice")
+        print("\na run at a shared endpoint is the junction, not a doubling, and is "
+              "excluded.\nwhat this finds is one boundary drawn from two guesses: the "
+              "fault that reads as\na field of crossing loops and gets diagnosed for "
+              "rounds as bad curve control.")
+        sys.exit(1 if hits else 0)
 
     if args.registration:
         paper = tuple(int(args.paper.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4))

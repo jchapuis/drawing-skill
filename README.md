@@ -10,9 +10,9 @@ black. No image model is involved at any point.
 | | |
 |---|---|
 | `SKILL.md` | The method: the principles, the ten stages and their gates, the checks, and the failure modes each one catches |
-| `reference/` | Depth loaded per task — `head`, `figure`, `scene`, `bicycle`, `quadruped`, `hands-and-feet` for subjects; `measuring`, `line`, `colour`, `tone`, `light`, `correcting` for craft |
+| `reference/` | Depth loaded per task — `head`, `figure`, `scene`, `bicycle`, `quadruped`, `hands-and-feet` for subjects; `measuring`, `line`, `colour`, `tone`, `light`, `correcting` for craft; `redrawing` for when the subject is a generated image rather than a photograph or a life subject |
 | `pen.py` | The instrument. One verb, `stroke`: you choose the control points, it supplies the hand — speed follows curvature, pressure follows speed, nothing repeats |
-| `check.py` | The instruments that look back at what you drew: masses, parts, zoom, weights, overlay, registration |
+| `check.py` | The instruments that look back at what you drew: masses, parts, ranking, zoom, weights, overlay, registration — and `doubled`, which reads the *script* to catch one edge stated twice from two guesses |
 | `harness/` | A tldraw canvas driven from the command line. The document on disk *is* the drawing, and it opens in tldraw afterwards for a human to edit |
 
 ## Installing
