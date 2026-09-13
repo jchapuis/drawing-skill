@@ -120,6 +120,16 @@ is standing on the near figure's shoulder.
   hole as well. State the band by running a single wide stroke along its centre
   line and let the stroke's own width be the band's. The same is true of any
   outline whose inside must stay open.
+- **A band drawn as a stroke sits on its CENTRE line, and a scan of the subject
+  gives you its EDGE.** The two are only the same for a hairline, and the error
+  is half the band's width on every side at once. Measured: a tyre whose points
+  were taken off the subject's outer silhouette and then drawn as a 24px stroke
+  came back 14 to 55px too wide — worst at the bottom of the wheel, where both
+  sides are nearly horizontal and the full band lands outside the form. Every
+  point was measured correctly and the object was still wrong. So after
+  measuring where a band ends, **move the path half a weight inward** before
+  drawing it — and anything radiating to that band (spokes, hatching, a joint)
+  stops at the new path, not at the old silhouette.
 - **A mark that bounds a small pale shape is subtracting from it**, and past a
   certain width it has eaten the shape. An eye is the lid *and* the white
   beneath it, so thickening the lid does not strengthen the eye — it deletes it,

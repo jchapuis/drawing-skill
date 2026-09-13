@@ -491,6 +491,15 @@ the eye white underneath it and took the expression with it. Every placement
 check passed both. The ladder is calibration; the width of *this* mark is a
 measurement, and skipping it is the same error as guessing a landmark.
 
+**And try the next rung before you record a limit.** A mark that will not reach
+its measured width is a real constraint worth writing down — but only after the
+heavier rungs have actually been asked for. One drawing recorded in its own
+script that the instrument could not draw a band wider than a few pixels and
+that a wire-thin tyre was therefore a ceiling of the tool; the next size up
+rendered it at the measured width on the first try. A limit you assumed is worse
+than a number you assumed, because it gets written down as a fact about the
+tool and nobody measures it again.
+
 ### The drawing is a script, not a program
 
 **Write every mark on its own line, with its own numbers.** No function that

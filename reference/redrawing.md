@@ -119,6 +119,43 @@ So run `scene.md`'s census against **scan data rather than against the
 impression**, and run it before the block-in. It is the one check pointed at the
 reading rather than at the marks.
 
+## Ask where the boundary EXISTS, not where to break the line
+
+Occlusion in a flat-cel source has an exact test, and it is not the one you will
+reach for. The tempting method is to draw the background line all the way and
+then break it wherever something seems to be in front — which is judgement, and
+judgement about a region you have already decided the answer for.
+
+The reliable method inverts it. **A boundary between two flats exists exactly
+where one flat is on one side of it and the other is on the other.** So walk the
+line's own path and ask, at every step, whether the subject holds the upper
+value just above it and the lower value just below. Where both hold, the
+boundary is visible; everywhere else something covers it, and you do not need to
+know what. [bought: drawing]
+
+Measured on one panel, a horizon drawn as a full-width line with two breaks
+guessed into it turned out to be visible over **two short runs totalling 85px of
+a 928px span** — the rest covered by animals, a figure and a limb. The line as
+drawn was mostly an edge the subject does not have.
+
+The same scan also recovers junctions the inventory names independently: one of
+those two runs was exactly the wedge of background showing between a forearm and
+a torso, which the parts list had recorded separately as a negative shape. **Two
+readings of one gap arriving from opposite directions is the check** — and it is
+free, because you ran the scan for something else.
+
+Two cautions, both paid for:
+
+- **A dark run is not the line you are looking for.** Scanning for "is there
+  dark here" cannot tell a background line from the dark object standing in
+  front of it, and it will report the line visible along its whole length
+  precisely where it is most thoroughly hidden. Test for the two *values*, not
+  for ink.
+- **Where a contour and an occluder land on the same path, move the contour.**
+  The occluder is the thing that was measured; the contour is the thing that can
+  be re-placed. Two marks running together read as one line drawn twice whatever
+  their depth order says.
+
 ## Measure the object, never a box round it
 
 One error recurs more than any other on this class of subject: **measuring a
