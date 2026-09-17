@@ -473,10 +473,11 @@ def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
         # 3% is genuinely not there.
         want = body[0] * pace
         gone = body[0] > 4.0 and body[1] < want / 4.0
-        pen.text((left, top + head + cell * 2 + 1),
-                 f"ink {share[0]:.0f}%->{share[1]:.0f}%  form {body[0]:.0f}%->{body[1]:.0f}%"
-                 + ("   MISSING?" if gone else ""),
+        numbers = (f"ink {share[0]:.0f}%->{share[1]:.0f}%  form {body[0]:.0f}%->{body[1]:.0f}%"
+                   + ("   MISSING?" if gone else ""))
+        pen.text((left, top + head + cell * 2 + 1), numbers,
                  fill=(200, 30, 30) if gone else (90, 90, 90))
+        print(f"  {name[:28]:28s} {numbers}")
     return sheet
 
 
@@ -563,6 +564,10 @@ def main():
     parse.add_argument("--doubled", default="",
                        help="an ops JSON: is any edge stated twice? reads the "
                             "script, not the render")
+    parse.add_argument("--ladder", default="",
+                       help="an ops JSON: which stages exist, how many marks each, "
+                            "and whether ink was laid over a gesture, block-in and "
+                            "contour. Reads the script, not the render")
     parse.add_argument("--registration", action="store_true",
                        help="report every place the colour and the line disagree")
     parse.add_argument("--paper", default="#FAF1D2", help="the ground colour")
@@ -571,15 +576,50 @@ def main():
                             "in the drawing's own coordinates")
     args = parse.parse_args()
 
+    # the script-only checks need no render, so a first build can run them
+    if args.ladder:
+        from pen import audit, LADDER
+        with open(args.ladder) as handle:
+            counts, first, failures = audit(json.load(handle))
+        for stage in LADDER + tuple(s for s in counts if s not in LADDER):
+            print(f"  {stage:14s} {counts.get(stage, 0):4d} marks"
+                  + (f"   first at op {first[stage]}" if stage in first else "   ABSENT"))
+        for failure in failures:
+            print(f"  FAIL {failure}")
+        if not failures:
+            print("  PASSES — every ink mark sits on a gesture, a block-in and a contour")
+        print("\ncounts are not a score: one token gesture stroke passes this and fools "
+              "nobody\nwho opens gesture.png. What this catches is the stage that "
+              "does not exist.")
+        sys.exit(1 if failures else 0)
+
+    if args.doubled:
+        with open(args.doubled) as handle:
+            hits, worst, count = doubled(json.load(handle))
+        print(f"{count} ink strokes; longest non-junction overlap {worst:.0f}px")
+        for first, here, second, there, length in hits:
+            print(f"  FAIL op{first}({here}) x op{second}({there})  {length}px")
+        if not hits:
+            print("  PASSES — no edge is stated twice")
+        print("\na run at a shared endpoint is the junction, not a doubling, and is "
+              "excluded.\nwhat this finds is one boundary drawn from two guesses: the "
+              "fault that reads as\na field of crossing loops and gets diagnosed for "
+              "rounds as bad curve control.")
+        sys.exit(1 if hits else 0)
+
     drawing = Image.open(args.render).convert("RGB")
     plumbs = [float(value) for value in args.plumb.split(",") if value.strip()]
 
     if args.weights:
+        rows = [int(part) for part in args.weights.split(",")]
         if not args.ref:
-            sys.exit("--weights needs --ref")
+            # a bare weight ladder: the drawing's own runs, nothing to match
+            grey = drawing.convert("L")
+            for y in rows:
+                print(f"y={y:4d}  drawing {marks(list(grey.crop((0, y, grey.width, y + 1)).getdata()))}")
+            return
         subject = Image.open(args.ref).convert("L")
-        report(subject, drawing.convert("L").resize(subject.size, Image.LANCZOS),
-               [int(part) for part in args.weights.split(",")])
+        report(subject, drawing.convert("L").resize(subject.size, Image.LANCZOS), rows)
         return
 
     if args.masses:
@@ -647,20 +687,6 @@ def main():
               "down. A junction that has gone\nquiet is two objects welded into one "
               "value. Crop the part and look before\nyou believe any row.")
         return
-
-    if args.doubled:
-        with open(args.doubled) as handle:
-            hits, worst, count = doubled(json.load(handle))
-        print(f"{count} ink strokes; longest non-junction overlap {worst:.0f}px")
-        for first, here, second, there, length in hits:
-            print(f"  FAIL op{first}({here}) x op{second}({there})  {length}px")
-        if not hits:
-            print("  PASSES — no edge is stated twice")
-        print("\na run at a shared endpoint is the junction, not a doubling, and is "
-              "excluded.\nwhat this finds is one boundary drawn from two guesses: the "
-              "fault that reads as\na field of crossing loops and gets diagnosed for "
-              "rounds as bad curve control.")
-        sys.exit(1 if hits else 0)
 
     if args.registration:
         paper = tuple(int(args.paper.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4))

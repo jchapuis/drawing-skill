@@ -209,7 +209,7 @@ Measure it; do not be impressed by it.
   each.
 - Express them as ratios and compare against the canonical proportions in
   `head.md`. **The difference is the character** — see "the deviation" under
-  Reading the subject in `SKILL.md`.
+  Reading the subject in `method.md`.
 - Draw in the reference's own coordinate space and pin the render frame, so an
   overlay comparison is exact rather than approximate.
 - Never compare from memory. You will silently revert to the symbol you already

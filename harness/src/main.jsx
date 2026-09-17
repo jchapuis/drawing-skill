@@ -12,10 +12,12 @@ import 'tldraw/tldraw.css'
 // Every mark carries the stage that made it, so a later stage can fade the
 // construction back or wipe it entirely -- the pencil under the ink.
 const STAGE_LOOK = {
-  gesture: { color: 'light-blue', size: 'm', dash: 'draw', opacity: 0.6 },
-  construction: { color: 'grey', size: 's', dash: 'draw', opacity: 0.5 },
-  blockin: { color: 'light-violet', size: 's', dash: 'solid', opacity: 0.7 },
-  contour: { color: 'grey', size: 's', dash: 'draw', opacity: 0.9 },
+  // saturated, so a stage look reads on its own and survives an overlay blend;
+  // pastel at 0.6 has no pixel a threshold can find
+  gesture: { color: 'blue', size: 'm', dash: 'draw', opacity: 0.85 },
+  construction: { color: 'grey', size: 's', dash: 'draw', opacity: 0.6 },
+  blockin: { color: 'violet', size: 's', dash: 'solid', opacity: 0.9 },
+  contour: { color: 'black', size: 's', dash: 'draw', opacity: 0.9 },
   ink: { color: 'black', size: 'm', dash: 'draw', opacity: 1 },
   fill: { color: 'orange', size: 's', dash: 'draw', opacity: 1 },
   // the corrective pass: colour repainted under the line, body colour over it

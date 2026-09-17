@@ -17,7 +17,7 @@ the reading stage should exploit that rather than squint at it.
 
 - **An exact palette.** The regions are flat and the palette is small. Sample it
   and the ground, and every flat has a right answer instead of a judgement —
-  `SKILL.md`'s "measure the ground" stops being a discipline and becomes a
+  `method.md`'s "measure the ground" stops being a discipline and becomes a
   lookup. Record **where** each entry was sampled: two points inside one region
   that disagree mean one of them landed on something else, and that is the whole
   measuring failure below arriving early and cheaply.
@@ -47,7 +47,7 @@ the question stops being *is this edge found or lost* and becomes:
 
 The failure mode moves with it — from a drawing that sticks to the picture plane,
 to a drawing that is a field of crossing loops. `--doubled` is the gate, and the
-shared-vertex construction in `SKILL.md` is the fix.
+shared-vertex construction in `method.md` is the fix.
 
 Where two **same-valued** regions abut — a dark animal against a dark animal, a
 black glove against black shorts — the edge is genuinely lost, and drawing one

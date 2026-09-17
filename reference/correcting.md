@@ -111,7 +111,7 @@ does not push an object back a plane; it makes a **dirty copy of it in place** â
 the blacks lift to brown, the lights go tan, and a veiled object beside an
 unveiled neighbour of the same kind reads as a ghost rather than as distance.
 This is the clearest case on record of a whole-picture number going the right way
-while the drawing got worse, and it is exactly why `SKILL.md` says never to let
+while the drawing got worse, and it is exactly why `method.md` says never to let
 one stand in for the verdict.
 
 **What actually recedes an object is losing its contour** and letting it weld

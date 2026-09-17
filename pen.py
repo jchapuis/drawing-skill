@@ -34,6 +34,7 @@ here produces two different strokes.
 """
 import json
 import math
+import zlib
 
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -41,16 +42,29 @@ from scipy.ndimage import gaussian_filter1d
 _HAND = np.random.default_rng(11)
 
 
+_SEED = 11
+
+
 def seed(value):
     """Re-seed the hand: same seed, same drawing; different seed, the same
     drawing made again by the same person on a different day."""
-    global _HAND
-    _HAND = np.random.default_rng(value)
+    global _SEED
+    _SEED = value
+
+
+def _hand_for(points, stage, tag):
+    """A hand seeded by the mark itself, so editing one stroke moves only that
+    stroke. Drawn from one running generator, inserting or deleting a mark
+    reshuffled the jitter of every mark after it, and a gate that had passed
+    on the far side of the picture failed again."""
+    key = zlib.crc32(repr((stage, tag, [tuple(round(float(c), 1) for c in p[:2])
+                                        for p in points])).encode())
+    return np.random.default_rng([_SEED, key])
 
 
 # --- the shape you asked for -------------------------------------------------
 
-def _catmull(points, per_span=12, alpha=0.5):
+def _catmull(points, per_span=12, alpha=0.5, closed=False):
     """Smooth curve through every control point, not near them.
 
     Catmull-Rom interpolates: the curve passes through the points you chose, so
@@ -77,7 +91,9 @@ def _catmull(points, per_span=12, alpha=0.5):
     points = [tuple(point[:2]) for point in points]
     if len(points) < 3:
         return points
-    padded = [points[0]] + points + [points[-1]]
+    # a closed curve wraps its tangents round the join instead of clamping them
+    padded = ([points[-1]] + points + [points[0], points[1]]) if closed \
+        else ([points[0]] + points + [points[-1]])
     curve = []
     for index in range(len(padded) - 3):
         knot, span = [0.0], padded[index:index + 4]
@@ -93,7 +109,7 @@ def _catmull(points, per_span=12, alpha=0.5):
                 _blend(first, second, knot[0], knot[2], t),
                 _blend(second, third, knot[1], knot[3], t),
                 knot[1], knot[2], t))
-    curve.append(points[-1])
+    curve.append(points[0] if closed else points[-1])
     return curve
 
 
@@ -372,13 +388,9 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     - **`closed=True` closes the path for you.** Repeat the first point as well
       and the spline turns through a zero-length segment, which renders as a
       cusp. A clock rim spent a round being blamed on its closure when it was
-      the duplicate point.
-    - **A small closed form takes a technical nib.** `closed=True` sets
-      `lead = tail = 0.06`, but a brush still ramps to nothing at both ends, and
-      on a 20px loop the two tapers land on the same point and cancel -- the
-      form renders OPEN at the join, and looks closed at 1:1. Seven sweat drops
-      came back as "C" shapes at 4x. `tool="pen"` closes cleanly. The smaller
-      the form, the more of it the taper eats.
+      the duplicate point. A closed stroke carries no taper -- a loop has no
+      ends -- and its closing side is built like every other side, so a
+      triangle of three points renders three sides.
     - **`fill="solid"` is a pale tint and `fill="fill"` is saturated -- until
       `--palette` repoints that colour.** `repaint()` writes one value into
       `solid`, `fill`, `semi` and `pattern`, so on a repointed name the two are
@@ -394,20 +406,26 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     - **Flats need `tool="flat"`.** At any translucency every overlap shows as
       a seam.
     """
+    global _HAND
+    _HAND = _hand_for(points, stage, tag)
     kit = INSTRUMENTS.get(tool, INSTRUMENTS["brush"])
     if nib:
         step, thickness = WEIGHTS[nib]
         look.setdefault("size", step)
         look.setdefault("scale", round(thickness * _GAUGE, 3))
     look.setdefault("dash", kit["dash"])
+    if tool == "flat":
+        look.setdefault("fill", "fill")   # a flat with no fill is an outline
     if kit["alpha"] < 1.0:
         look.setdefault("opacity", kit["alpha"])
 
-    path = _catmull(points, per_span) if (smooth and len(points) > 2) \
-        else _densify([tuple(point[:2]) for point in points])
-    if closed and path[0] != path[-1]:
-        path = path + [path[0]]
-        lead = tail = 0.06
+    flat_points = [tuple(point[:2]) for point in points]
+    if closed:
+        # a loop has no ends: close the CONTROL points, so the closing side is
+        # densified or interpolated like every other, and carry no taper
+        lead = tail = 0.0
+    path = _catmull(flat_points, per_span, closed=closed) if (smooth and len(points) > 2) \
+        else _densify(flat_points + ([flat_points[0]] if closed else []))
     body = np.asarray(path, dtype=float)
     if len(body) < 4:
         return _emit(body, np.full(len(body), 0.5 * weight), stage, tag, closed, look)
@@ -496,8 +514,87 @@ def back(stage="fill"):
     return {"op": "back", "stage": stage}
 
 
-def write(path, ops):
-    """Flatten the ops and save them.
+LADDER = ("gesture", "blockin", "contour", "ink")
+
+
+def audit(ops):
+    """The ladder, read off the script. Returns (counts, first index per stage,
+    list of failures). A failure is an ink stage with no gesture, block-in or
+    contour stage under it, or a stage whose first mark comes after the first
+    mark of the stage above it."""
+    counts, first = {}, {}
+    for index, op in enumerate(ops):
+        if op.get("op") != "stroke":
+            continue
+        stage = op.get("stage", "ink")
+        counts[stage] = counts.get(stage, 0) + 1
+        first.setdefault(stage, index)
+    failures = []
+    if counts.get("ink"):
+        for stage in LADDER[:-1]:
+            if not counts.get(stage):
+                failures.append(f"ink with no {stage} stage: the ladder was skipped")
+        # gesture, then block-in, then ink. The contour is required to exist,
+        # not to come first: an assembled scene holds its parts' contours where
+        # the parts were placed, and forms drawn in depth order interleave
+        ordered = ("gesture", "blockin", "ink")
+        order = [first[stage] for stage in ordered if stage in first]
+        if order != sorted(order):
+            failures.append("stages out of order: "
+                            + " > ".join(f"{stage}@{first[stage]}" for stage in ordered if stage in first))
+    return counts, first, failures
+
+
+def load(path):
+    """A part's ops, as written by its own script."""
+    with open(path) as handle:
+        return json.load(handle)
+
+
+def place(ops, origin, scale, only=None, drop=None, stage=None):
+    """Transfer a part drawn in its own crop into the panel: the pounce.
+
+    A part is drawn at `scale` times panel size in a crop whose top-left
+    corner sits at `origin` in the panel. Every stroke's points are divided by
+    `scale` and moved by `origin`, and its width with them, so a line measured
+    in the crop lands at the width the panel needs. Only strokes transfer --
+    the part's own erase/fade/back decisions belong to the part's document.
+
+    `only` keeps the strokes carrying any of these tags; `drop` removes
+    strokes carrying any of these -- an edge the scene has decided is lost.
+    `stage` relabels every transferred stroke, so the scene can hold a part's
+    ink as its own ink. This supplies no form: it moves marks that were
+    chosen in the crop, and nothing else.
+    """
+    only = set(only or [])
+    drop = set(drop or [])
+    ox, oy = origin
+    out = []
+    for op in ops:
+        if op.get("op") != "stroke":
+            continue
+        tags = set(str(op.get("tag", "")).split("+")) - {""}
+        if only and not (tags & only):
+            continue
+        if tags & drop:
+            continue
+        moved = dict(op)
+        moved["points"] = [[round(ox + x / scale, 2), round(oy + y / scale, 2), z]
+                           for x, y, z in op["points"]]
+        moved["scale"] = round(float(op.get("scale", 1.0)) / scale, 3)
+        if stage:
+            moved["stage"] = stage
+        out.append(moved)
+    return out
+
+
+def write(path, ops, swatch=False):
+    """Flatten the ops, audit the ladder, and save them.
+
+    Refuses to write ink that has no gesture, block-in and contour stage under
+    it -- a drawing inked straight off its measurements passes every placement
+    check and reads as a diagram. `swatch=True` skips the audit, for a weight
+    ladder or a calibration strip that is not a drawing.
 
     Stock colours are 13 fixed names, but the palette is mutable: pass
     `--palette colours.json` to the CLI to repoint any name at a real hex value.
@@ -518,6 +615,9 @@ def write(path, ops):
     flat = []
     for op in ops:
         flat.extend(op) if isinstance(op, list) else flat.append(op)
+    counts, _, failures = audit(flat)
+    if failures and not swatch:
+        raise SystemExit("ladder: " + "; ".join(failures) + f"  (stages on the page: {counts})")
     with open(path, "w") as handle:
         json.dump(flat, handle)
     return path

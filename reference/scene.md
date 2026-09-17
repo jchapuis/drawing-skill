@@ -23,6 +23,13 @@ for want of work.
 So the variable you control is not how unevenly you spend. It is whether the
 picture is designed as one thing before it is drawn as many.
 
+One thing does divide, and it is not the marks: **the eye**. A render is looked
+at at a fixed size, so a feature that is 10% of a single-object crop is 1–3% of
+a panel, below what can be judged as a shape [bought: drawing]. That is why the
+focus objects are drawn in their own crop at their own scale and transferred
+(below), and it is a separate fact from the design one: an object drawn well at
+its own scale and dropped into an undesigned panel still breaks the picture.
+
 ## The mass is the unit, and objects are named afterwards [read: source]
 
 This is the whole reversal, and every painting tradition reached states it.
@@ -108,11 +115,23 @@ marks per object still yields **a closed contour per object**, which is the thin
 that breaks the picture. The instruction is not *fewer marks*; it is *no
 silhouette*.
 
+A middle tier — "stated": only the edges that differ, drawn at panel scale —
+was tried and is refuted [bought: drawing]. On one panel every object given
+that treatment came out crude, the furniture as much as the figure's body: a
+lamp became a diamond on a stick, a strip of tape four floating squares, a
+torso one bean with no shoulder, while the one object drawn in its own crop at
+four times the panel's scale came out well. The eye that draws at panel scale
+is the eye that cannot see at panel scale, and no economy of marks changes
+that. So there are two tiers:
+
 | tier | what it is | treatment |
 |---|---|---|
-| **focus** | The one to three objects the picture is about | The single-subject ladder, unchanged, to the full quality bar |
-| **stated** | Objects that differ in value from their surround | Only the edges that differ. No closed contour, weight decaying with distance from the focus |
+| **part** | Every object that must be recognisable — the figure, the vehicle, the lamp, the picture on the wall — each an *object*, never a feature of one | The single-subject ladder in its own crop, at the scale its smallest feature needs, then placed. Emphasis is the weight pitch and the edge count it is drawn with, decided at stage 0; a far part is drawn lighter and sparer *in its crop*, not thinner on the panel |
 | **welded** | Everything else, and it is most of the list | Inside a mass. No contour, no marks of its own |
+
+The cost is real and has no shortcut: a figure or a vehicle is a whole
+single-subject run; a lamp is a tenth of one. A named object is either paid
+for or welded, and the reading decides which before any part is begun.
 
 ### Named devices for what is not rendered [read: source]
 
@@ -166,8 +185,13 @@ across the whole panel. Nobody starts from eighty-four parts.
   are exactly the gap between two boxes, and no check looks there unless named.
 - **Draw the interface at the same time as both objects it joins.** A hand drawn
   onto a finished bar is a hand stuck on.
-- **Occlusion is drawn, not filled over.** The far object's contour stops where
-  the near one crosses and restarts beyond it — a flat cannot hide ink.
+- **Occlusion is order.** Marks render in the order they are written, and a
+  flat is opaque, so a nearer group's fills laid *after* a farther group's ink
+  cover it exactly where the near form is. Place each depth group as its fills
+  then its ink, back to front, and never send every fill to the back of an
+  assembled scene — under that rule a flat cannot hide ink and every far
+  contour has to be cut by hand. What remains to draw at the crossing is the
+  accent where the two forms touch.
 - **Decide the depth order per crossing in writing, at stage 0**, in an `in front`
   column beside the interface itself. No mark records it: a stroke has no z, and
   the checks have no way to ask. Without it the order is settled by whichever
@@ -182,10 +206,9 @@ across the whole panel. Nobody starts from eighty-four parts.
 one black mass, and the cause is usually not value — measure both and they are
 often the same colour in the subject too. The cause is that the far object's
 marks were drawn over the near one and nothing had decided they were behind it.
-The fix is arithmetic once the decision exists: take the near object's silhouette
-as a polygon, test the far object's points against it, and re-emit the far
-contour as the runs that fall outside. **Compute that, never judge it** — at 1:1
-a crossing that is a few pixels wrong and one that is right look identical.
+Once the decision exists the fix is the order of `place` calls, and it is exact
+by construction. **Never judge a crossing at 1:1** — one that is a few pixels
+wrong and one that is right look identical there.
 
 ## Studies, and how they buy back the budget [read: comics and atelier practice]
 
@@ -214,26 +237,32 @@ does not show, you have not studied it — you have copied it.**
 
 ### Where a study lives, and how the panel gets it
 
-Studies go in **their own document**. The panel's instance is then drawn in the
-panel, tagged, and worked with the object filtered into view:
+Studies and the panel's instance both go in **their own document**, at their
+own scale: the object is cut out with `crop.py` at a magnification where its
+smallest feature is ~40px or more, drawn there on the whole object ladder with
+its own gates, and transferred into the panel by `place` — the pounce. The
+instance is not redrawn in the panel; a coordinate transform moves the marks
+that were chosen in the crop, and their widths with them.
 
 ```bash
-node harness/cli.mjs DOC.json --only bike --only blockin --only frame --png bike.png
-python3 check.py drawing.png --ref subject.png --zoom 340,600,420,400 --out crop-bike.png
+python3 crop.py subject.png 200,560,460,540 2 parts/bike/subject.png   # prints the place(...) call
+node harness/cli.mjs DOC.json --only bike,frame --png bike.png          # the part in the assembled panel
 ```
 
-`stroke` takes `tag=` for the object alongside `stage=` for the ladder phase, and
-both `--only` and `--hide` match either. Filtering keeps the object's marks in the
-panel's own coordinates, so nothing has to be fitted afterwards.
+`stroke` takes `tag=` for the object and for the edge alongside `stage=` for
+the ladder phase, and `--only` / `--hide` / `place(only=, drop=)` all match
+tags.
 
 **Order the depth per tube, not per object.** "Draw the bike, then the figure" is
 the wrong grain: the top tube passes in front of the far leg and the seat tube
-passes behind the near one. An object is not at one depth.
+passes behind the near one. An object is not at one depth, so a part is placed
+in tagged depth groups, each interleaved with the other objects' groups.
 
 **The interfaces need both objects present**, so they are drawn in the assembled
 panel and nowhere else. Give them the budget the tier list saved.
 
-Which objects get the 4x detail pass: the focus, and nothing else.
+Which parts get the 4x detail pass at their own stage 10: the one at the centre
+of interest, and nothing else; the rest pass their own gates and stop.
 
 ## Splitting a scene across drawers [bought: drawing]
 
@@ -281,16 +310,19 @@ has no box to be absent from.
 
 ### Accept a delegated drawing by its script, before looking at it
 
-Run the ladder audit from `SKILL.md` on what comes back. A drawing that measured
+Run `check.py --ladder ops.json` on what comes back. A drawing that measured
 honestly and skipped stages 6 and 8 comes back with its lines as filled shapes and
 not one mark carrying its own taper, and it will pass every placement check here.
 
 ### Budget, and why a self-reported one is not a budget
 
-Studying one object to this depth and then painting it can cost more than an entire
-panel has ever cost, which is the whole reason the focus tier is one to three
-objects. Enforce the cap from outside the drawer: a drawer's own estimate of what
-it has spent has come back low by more than a factor of two.
+Studying one object to this depth and then painting it can cost more than an
+entire flat panel once did, and a scene is as many of those as it has parts —
+which is why the part list is fixed at stage 0 and why a scene with many
+recognisable objects is expensive by construction rather than by accident.
+Enforce the cap from outside the drawer, in checkpoints: after the masses,
+after the first part, after the assembled panel. A drawer's own estimate of
+what it has spent has come back low by more than a factor of two.
 
 ## Order of work
 
@@ -312,12 +344,16 @@ Steps 0–3 are the reversal. Nothing here draws an object.
 3. **Block the masses** in straights, lay the middle tone over the whole, then
    the light shapes, then the darks, honouring the sharp/lost decisions. *Done
    when* the downsampled render matches step 2.
-4. **The focus objects: run the single-subject ladder**, unchanged, on one to
-   three objects only, to the full quality bar.
-5. **Emphasis gradient.** Everything outside the focus gets only the edges that
-   differ in value from their surround; weight and detail decay with distance
-   from the focus and with depth. *Done when* **no object beyond the focus has a
-   full contour**.
+4. **Every part: run the single-subject ladder**, unchanged, each in its own
+   crop at its own scale, then placed into the panel by depth group. The part
+   at the centre of interest goes to the full quality bar; the others pass
+   their gates at the lighter pitch decided in step 2 and stop.
+5. **Emphasis gradient.** Decided before the parts are drawn and confirmed
+   here: each part's weight pitch and edge count fall with distance from the
+   centre of interest and with depth, and it was drawn that way in its own
+   crop. Nothing is drawn at panel scale to make it so. *Done when* **no part
+   beyond the focus carries the focus's weight** and every part is still named
+   by a describer.
 6. **Junction pass, as its own enumerated stage.** Walk every place two things
    meet; decide lost or found; put the occlusion accent where forms touch; break
    tangents by overlap or separation. *Done when* every junction has a recorded
