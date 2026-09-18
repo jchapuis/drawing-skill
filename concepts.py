@@ -1,35 +1,43 @@
 #!/usr/bin/env python3
-"""What a blind viewer thinks each part IS, scored against the subject.
+"""What a blind viewer takes away from each part, scored against the subject.
 
 Every other instrument here measures presence, placement, value or design, and
-an object can pass all of them while reading as a different object entirely: a
-helmet that is present, in its box, at the right weight, inside a design that
-matches, and that a viewer calls a plate of food. Nothing else in the kit sees
-that, because nothing else asks what the thing IS.
+an object can pass all of them while reading as a different object: present,
+in its box, at the right weight, inside a design that matches — and a viewer
+calls it a plate of food. Nothing else in the kit asks what the thing IS.
 
-This crops each part's box out of BOTH images, asks a blind viewer for its top
-three identifications with a confidence each, and scores the drawing by the
-confidence it earns on the subject's own first answer:
+Three steps, and the separation between them is the whole method:
 
-    score = drawing's confidence in the subject's top concept
-            ----------------------------------------------
-            subject's confidence in its own top concept
+1. A blind viewer writes a PARAGRAPH about the subject's crop. Never a name.
+   A name is too coarse to score with: asked to name a crude mask a viewer
+   says "face", which matches the subject's "laughing woman's face" on its
+   head word and scores full marks. A paragraph has to commit to the kind of
+   thing, its proportions, its parts and its angle, so losing any of that
+   shows up as a difference in the text.
+2. A second blind viewer writes a paragraph about the drawing's crop.
+3. A judge that has seen NEITHER IMAGE reads only the two paragraphs and
+   scores how fully the second conveys the same specific thing as the first,
+   with vagueness penalised and contradiction penalised harder.
 
-1.00 means the part is as recognisable as the thing it was drawn from. The
-subject's own top-1 usually lands at 0.90-0.95, so the denominator is close to
-flat and the ratio is readable directly.
-
-Read the losing answers, not only the number. They are a worklist: "animal paw"
-says toes instead of fingers and no cuff; "plate of food" says a flat dish with
-objects lying on it and no shell curvature. A confident wrong concept is a
-better diagnosis than a low score.
-
-SCOPE: this scores RECOGNITION, never likeness. A face can score 1.00 as a
-laughing woman and still be the wrong shape for the woman in the subject.
-Never quote it as a quality score.
+Keeping the judge away from the pictures is what makes it hard to flatter: it
+cannot see that the candidate is a drawing, so it cannot be kind to it.
 
     python3 concepts.py subject.png drawing.png parts.json
-    python3 concepts.py subject.png drawing.png parts.json --tier 1 --bar 0.8
+    python3 concepts.py subject.png drawing.png parts.json --bar 0.7
+
+Read MISSING and WRONG, not only the number. They are the worklist, and a
+confident wrong reading is a better diagnosis than any score: "an animal paw
+with toes and a heel pad" says fingers became toes and the cuff is gone;
+"an oval seen front-on" says a profile was drawn without its depth.
+
+NOISE: three blind passes stack, so a part's score moves about +/-0.1 between
+runs and a mean moves with it. The RANKING is stable and the ranking is what
+you spend against; do not read a 0.05 change between rounds as progress. Run
+it twice at a gate that decides something.
+
+SCOPE: this measures what a viewer takes away — kind, specificity, parts,
+proportion, angle. It does not judge the marks. A part can score well and
+still be drawn badly, and a low score never says which stage to go back to.
 """
 import argparse
 import concurrent.futures
@@ -42,42 +50,58 @@ import tempfile
 
 from PIL import Image
 
-PROMPT = """This image shows one object cropped out of a larger picture.
-Say what it is. Give your top 3 candidate identifications, most likely first,
-each with a confidence between 0.00 and 1.00 (they need not sum to 1).
-Judge only what is visible. Do not be generous: a low confidence is the right
-answer for an unclear shape.
-Output exactly three lines, nothing else:
-1. <name> <confidence>
-2. <name> <confidence>
-3. <name> <confidence>"""
+DESCRIBE = """This image shows one object cropped out of a larger picture.
+Describe what it is in one paragraph of 4-6 sentences, for someone who cannot
+see it. Be specific and concrete: what kind of thing it is, its shape and
+proportions, its parts, its materials, its angle to the viewer, and if it
+shows a person, their apparent age, sex and expression.
+Describe only what is visible. Where something is unclear, say so plainly
+rather than guessing."""
+
+JUDGE = """Below are two descriptions, A and B, each written by someone who saw
+one picture and not the other. They may or may not describe the same thing.
+You cannot see either picture. Judge only from the text.
+
+A (the reference):
+{reference}
+
+B (the candidate):
+{candidate}
+
+Answer in exactly this format:
+SCORE: <0.00-1.00> how fully B conveys the same specific thing as A. 1.00 means
+a reader of B would picture what A describes, at A's level of specificity.
+Penalise vagueness: if B is merely a less specific version of A, that is NOT a
+high score. Penalise contradictions harder.
+MISSING: <the specific things A states that B does not, semicolon separated, max 5>
+WRONG: <the things B states that contradict A, semicolon separated, or: none>"""
 
 
-def identify(path, timeout):
-    """Top three concepts for one crop, blind: a fresh process, one file."""
-    asked = (f"Use the Read tool to look at exactly one file: {path}. "
-             f"Do not read anything else.\n{PROMPT}")
+def call(prompt, image=None, timeout=300):
+    """One blind pass. With `image`, the viewer may read that file and no other;
+    without it, the judge gets text alone and no tools at all."""
+    if image:
+        prompt = (f"Use the Read tool to look at exactly one file: {image}. "
+                  f"Do not read anything else.\n{prompt}")
+    reading = ["--allowedTools", "Read"] if image else []
     done = subprocess.run(
         ["perl", "-e", "alarm shift; exec @ARGV", str(timeout),
-         "claude", "-p", asked, "--model", "sonnet", "--allowedTools", "Read"],
+         "claude", "-p", prompt, "--model", "sonnet"] + reading,
         capture_output=True, text=True)
-    found = re.findall(r"^\s*\d\.\s*(.+?)\s+([01]?\.\d+|[01])\s*$", done.stdout, re.M)
-    return [(name.strip().lower(), float(score)) for name, score in found][:3]
+    return done.stdout.strip()
 
 
-def agrees(concept, answer):
-    """Whether one answer names the same thing as the subject's top concept.
-
-    Both are noun phrases from a free-text answer, so compare on their head
-    words rather than as strings: "bicycle front wheel" and "front wheel of a
-    bicycle" are the same answer, "bicycle wheel" and "wagon wheel" are not.
-    """
-    stop = {"a", "an", "the", "of", "with", "and", "in", "on", "or", "front",
-            "rear", "left", "right", "held", "two", "cartoon", "illustration"}
-    heads = lambda text: {word for word in re.findall(r"[a-z]+", text)
-                          if word not in stop and len(word) > 2}
-    concept_words, answer_words = heads(concept), heads(answer)
-    return bool(concept_words & answer_words)
+def verdict(pair):
+    reference, candidate, timeout = pair
+    if not reference or not candidate:
+        return None, "a describer returned nothing — re-run", ""
+    said = call(JUDGE.format(reference=reference, candidate=candidate), timeout=timeout)
+    score = re.search(r"SCORE:\s*([01]?\.\d+|[01])", said)
+    missing = re.search(r"MISSING:\s*(.+)", said)
+    wrong = re.search(r"WRONG:\s*(.+)", said)
+    return (float(score.group(1)) if score else None,
+            missing.group(1).strip() if missing else "",
+            wrong.group(1).strip() if wrong else "")
 
 
 def main():
@@ -86,12 +110,11 @@ def main():
     parse.add_argument("subject")
     parse.add_argument("drawing")
     parse.add_argument("inventory", help="parts.json; every entry with a box is scored")
-    parse.add_argument("--bar", type=float, default=0.8,
-                       help="a part below this has not earned its name (default 0.8)")
-    parse.add_argument("--tier", type=int, default=0,
-                       help="only entries at or above this tier, if the inventory has tiers")
+    parse.add_argument("--bar", type=float, default=0.7,
+                       help="a part below this has not earned its place (default 0.7)")
     parse.add_argument("--width", type=int, default=520, help="crop is scaled to this width")
     parse.add_argument("--timeout", type=int, default=300)
+    parse.add_argument("--full", action="store_true", help="print both paragraphs per part")
     args = parse.parse_args()
 
     subject = Image.open(args.subject).convert("RGB")
@@ -101,56 +124,60 @@ def main():
 
     inventory = json.load(open(args.inventory))
     parts = {name: entry["box"] for name, entry in inventory.items()
-             if isinstance(entry, dict) and entry.get("box")
-             and entry.get("tier", 1) <= (args.tier or 99)}
+             if isinstance(entry, dict) and entry.get("box")}
     if not parts:
         sys.exit("no inventory entry has a box")
 
     holding = tempfile.mkdtemp(prefix="concepts.")
-    jobs = {}
+    crops = {}
     for name, (x, y, w, h) in parts.items():
         for tag, image in (("subject", subject), ("drawing", drawing)):
-            crop = image.crop((x, y, x + w, y + h))
-            crop = crop.resize((args.width, max(1, round(crop.height * args.width / crop.width))),
-                               Image.LANCZOS)
+            cut = image.crop((x, y, x + w, y + h))
+            cut = cut.resize((args.width, max(1, round(cut.height * args.width / cut.width))),
+                             Image.LANCZOS)
             path = os.path.join(holding, f"{name.replace('/', '_')}.{tag}.png")
-            crop.save(path)
-            jobs[(name, tag)] = path
+            cut.save(path)
+            crops[(name, tag)] = path
 
-    with concurrent.futures.ThreadPoolExecutor(min(16, len(jobs))) as pool:
-        answers = dict(zip(jobs, pool.map(lambda path: identify(path, args.timeout),
-                                          jobs.values())))
+    with concurrent.futures.ThreadPoolExecutor(min(16, len(crops))) as pool:
+        paragraphs = dict(zip(crops, pool.map(
+            lambda path: call(DESCRIBE, path, args.timeout), crops.values())))
 
-    print(f"{'part':16s} {'subject reads as':34s} {'drawing reads as':34s}  score")
-    scores, failed = {}, []
+    with concurrent.futures.ThreadPoolExecutor(min(8, len(parts))) as pool:
+        scored = dict(zip(parts, pool.map(verdict, [
+            (paragraphs[(name, "subject")], paragraphs[(name, "drawing")], args.timeout)
+            for name in parts])))
+
+    rows, failed = {}, []
     for name in parts:
-        said, drew = answers[(name, "subject")], answers[(name, "drawing")]
-        if not said or not drew:
-            print(f"{name:16s} no answer — describer failed, re-run")
+        score, missing, wrong = scored[name]
+        if score is None:
+            print(f"{name:16s}   —   {missing}")
             continue
-        concept, ceiling = said[0]
-        earned = next((score for answer, score in drew if agrees(concept, answer)), 0.0)
-        score = min(earned / ceiling, 1.0) if ceiling else 0.0
-        scores[name] = score
+        rows[name] = score
+        print(f"{name:16s} {score:.2f}   missing: {missing[:96]}")
+        if wrong and wrong.lower() != "none":
+            print(f"{'':16s}        WRONG: {wrong[:96]}")
+        if args.full:
+            print(f"{'':16s}   subject: {paragraphs[(name, 'subject')]}")
+            print(f"{'':16s}   drawing: {paragraphs[(name, 'drawing')]}")
         if score < args.bar:
-            failed.append((name, score, drew[0][0]))
-        show = lambda got: f"{got[0][0][:28]} {got[0][1]:.2f}"
-        print(f"{name:16s} {show(said):34s} {show(drew):34s}  {score:.2f}")
+            failed.append((name, score))
 
-    if scores:
-        mean = sum(scores.values()) / len(scores)
-        print(f"\nmean conceptual fidelity {mean:.2f} over {len(scores)} parts "
-              f"(1.00 = as recognisable as the subject)")
-    for name, score, reading in sorted(failed, key=lambda row: row[1]):
-        print(f"  FAIL {name} {score:.2f} — a viewer calls it {reading!r}")
+    if rows:
+        print(f"\nmean conceptual fidelity {sum(rows.values()) / len(rows):.2f} "
+              f"over {len(rows)} parts (1.00 = as legible as the subject)")
+    for name, score in sorted(failed, key=lambda row: row[1]):
+        print(f"  FAIL {name} {score:.2f}")
     if failed:
-        print("\na part that has not earned its own name is a failed stage, not a known\n"
-              "fault: it goes back to its ladder before it is placed. Spend the next\n"
-              "round's budget in this order, and none of it on a part already at 1.00.\n"
-              "The losing concept is the diagnosis — read it before choosing a mark.")
+        print("\na part a viewer cannot take the right thing from is a failed stage,\n"
+              "not a known fault: it goes back to its ladder before it is placed.\n"
+              "Spend the next round in this order and none of it on a part already\n"
+              "at the bar. WRONG before MISSING — a contradiction is a fault, an\n"
+              "omission is often a choice.")
     else:
-        print("\nevery part earns its name. This says nothing about likeness: a part\n"
-              "can be the right KIND of thing and the wrong one.")
+        print("\nevery part carries its own reading. This judges what a viewer takes\n"
+              "away, never how well it is drawn.")
     sys.exit(1 if failed else 0)
 
 
