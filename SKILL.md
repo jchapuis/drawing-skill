@@ -102,12 +102,12 @@ junctions between parts and the blacks across them.
 | S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its crop box (small enough that the part fills a render) and its scale (large enough to draw its smallest feature), its nested parts (a face inside a figure at a higher scale again), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing; the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
 | S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops | `describe.sh gesture.png`: the event and the big shape read |
 | S2 | **Masses** | `stage="blockin"` straights for the welded shapes, then their flats `stage="fill"` — the middle tone over the whole, then lights, then darks, honouring sharp/lost. **Every object's mass goes in here, part or welded**: the part/welded split decides whether an object gets *marks*, never whether its *value* exists. A part left out is a hole in the tone plan, and when a whole value family lives inside parts — the darks usually do — the gate cannot pass at all until they are in. A flat is not ink, so this costs nothing at the gate. No object's *marks* yet | `--masses` against the subject at thumbnail size; **no object has an ink contour** (`--ladder` shows ink 0) |
-| S3 | **Every part, each alone** | `crop.py` each part into `parts/<name>/subject.png` at its scale; run the whole object ladder there with its own `palette.json` (the scene's), `regions.json`, `parts.json`, `draw.py`, `build.sh`. A part may hold parts: a figure at 2x carries its face in `parts/<figure>/parts/face/` at 4x, placed into the figure the way the figure is placed into the scene; `build.sh` recurses. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. A simple manufactured form — a lamp, a strip of tape, a frame — keeps the tracer's contour nearly whole and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | each part passes its own gates before it is placed, and a describer on its crop names it. A part is a small subject again and gets a small subject's attention |
+| S3 | **Every part, each alone** | `crop.py` each part into `parts/<name>/subject.png` at its scale; run the whole object ladder there with its own `palette.json` (the scene's), `regions.json`, `parts.json`, `draw.py`, `build.sh`. A part may hold parts: a figure at 2x carries its face in `parts/<figure>/parts/face/` at 4x, placed into the figure the way the figure is placed into the scene; `build.sh` recurses. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. A simple manufactured form — a lamp, a strip of tape, a frame — keeps the tracer's contour nearly whole and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | each part passes its own gates before it is placed, and **`concepts.py` scores it at or above the bar** — a part a viewer cannot name has not earned its place and does not get one. A part is a small subject again and gets a small subject's attention |
 | S4 | **Place** | in `draw.py`, `place(load("parts/x/ops.json"), origin, scale, only=[...])` per **depth group**, back to front — a bicycle is not at one depth, so a part is placed in tagged groups, each with its fills then its ink. A nearer group's opaque flats cover the farther group's ink: **occlusion is order**, not cutting. `drop=[...]` removes the edges S0 marked lost. **A part's S2 mass is scaffolding and comes out as the part arrives** — leave both and every part carries a fringe wherever the stand-in and the drawn form disagree | `--ladder` and `--doubled` on the assembled `ops.json`; `--parts` shows every part present at its box |
 | S5 | **Emphasis** | nothing is drawn at panel scale here. Emphasis was decided at S0 as each part's weight pitch and edge count, and the far parts were drawn lighter and with fewer edges *in their own crops*. Walk the placed panel and confirm the gradient: weight and detail decay from the centre of interest and with depth; welded objects have no marks | no part beyond the focus carries the focus's weight; a describer names every part |
 | S6 | **Interfaces** | the enumerated pass over the interfaces table, in the assembled panel and nowhere else: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
 | S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern; the whole drawing's silhouette against the paper | `--ranking parts.json`: the focus leads, nothing shouts above its tier |
-| S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice | the acceptance list; `--ranking` still shows one focus |
+| S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice. `concepts.py` on the assembled panel ranks the round: the lowest-scoring parts get the budget, in that order | the acceptance list; `--ranking` still shows one focus; **mean conceptual fidelity**, and no part under the bar. A mean that stops moving between rounds is the stopping rule |
 
 **Budget by stage.** On a scene S0 is a large share of the job, and the parts
 are the rest: a figure or a vehicle costs about as much as a whole flat panel
@@ -252,6 +252,21 @@ and must not be gated on — otherwise a stage is held against a target that
 does not survive its own noise. Run it on part crops as well: a face can
 pass at 1:1 and carry the opposite expression at 4x.
 
+**Concepts** — `concepts.py subject.png drawing.png parts.json`. Crops every
+part's box out of both images, asks a blind viewer for its top three
+identifications with a confidence each, and scores the drawing by the
+confidence it earns on the subject's own first answer. **This is the only
+instrument that asks what a thing IS.** Every other one measures presence,
+placement, value or design, and an object passes all of them while reading as
+a different object: present, in its box, at the right weight, inside a design
+that matches — and a viewer calls it a plate of food. A part below the bar is
+a failed stage and goes back to its ladder before it is placed; the losing
+concept is the diagnosis, and a confident wrong answer is worth more than the
+number. Spend each correction round in this ranking and nothing on a part
+already at 1.00. **It scores recognition, never likeness** — a face reads as a
+laughing woman at 1.00 and is still the wrong shape for the woman in the
+subject. Never quote it as a quality score.
+
 **Critic** — a fresh agent given both images, told which is which, asked for
 the N worst ways the drawing is worse *as a drawing of the same thing*: no
 style, no praise, no guesses at how it was made or how to fix it. Asked for N
@@ -276,6 +291,7 @@ reproduce on the form it names is often real on the form next to it.
 | `--ladder ops.json` | the stage that does not exist |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x |
+| `concepts.py` (own script) | what a blind viewer thinks each part **is**, scored against the subject. The only gate that fails a blob |
 | `--weights rows` | the line hierarchy against the subject's |
 | `--overlay` | exact drift against the subject |
 
@@ -308,7 +324,9 @@ and the acceptance list; a judge only says whether they are now true.
   the picture is where forms touch; a tangent is a near miss and reads as
   neither.
 - **A part that is absent or unrecognisable is a failed stage**, not a known
-  fault. Go back and put it in.
+  fault. Go back and put it in. `--parts` answers the first half and
+  `concepts.py` the second; a part can sit exactly in its box, at exactly its
+  weight, and be a different object.
 - **Stage 10 runs before anyone sees the picture**, and a correction that
   changes nothing when switched off comes out. A fault wrong in shape or along
   its whole length goes back to its stage, not into a correction; a stage 10
