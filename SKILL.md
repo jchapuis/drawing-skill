@@ -143,8 +143,15 @@ run that is going wrong is stopped before it has spent the rest.
    and the number of correction rounds; then the acceptance list. For a
    scene, also everything S0 asks for above.
 5. **Inventory** — `parts.json`: small, ranked, every entry a shape sentence
-   with a box read off `regions.json`. Name the junctions as entries of their
-   own — hand/bar, foot/pedal, hip/saddle, tyre/ground, and every joint —
+   with a box read off `regions.json`. **An entry descends to the sub-forms
+   that make the object what it is**, each with its own box and its own
+   sentence: a wheel is a tyre, a rim, its spokes and a hub, not "a wheel"; a
+   glove is its fingers, its thumb and its cuff. One sentence for a whole
+   object buys one silhouette, and a silhouette is what a viewer calls a
+   different object — the census counts these sub-forms already, and this is
+   where they become marks. Stop descending where the next level down would
+   not survive at the scale you will draw it. Name the junctions as entries of
+   their own — hand/bar, foot/pedal, hip/saddle, tyre/ground, and every joint —
    because that is where every scene fails. Then cut a plain image crop of
    the subject at each tier-1/2 box plus a fifth (not a part; a PIL crop is
    enough), `describe.sh` the crop, and where it does not
@@ -299,6 +306,43 @@ Every number is a worklist, never a score. The cheap way to move a
 mark-counting number is more marks, and a whole-picture pixel difference goes
 *up* on a round that made the drawing better. The target is the shape sentence
 and the acceptance list; a judge only says whether they are now true.
+
+## The correction cycle
+
+Corrections are where a drawing is won or abandoned, so the loop is fixed
+rather than left to judgement.
+
+**Iterate one part, never the panel.** A panel costs an order of magnitude more
+per round and tells you less: its faults are per-part anyway, and a round spent
+re-assembling is a round not spent drawing. Take the lowest-scoring part, work
+it alone in its own ladder, and put it back when it passes.
+
+```
+concepts.py, twice           -> score, WRONG, MISSING
+  score >= bar               -> pass, place it, take the next-lowest part
+  no gain over two cycles    -> plateau: stop, and report what it plateaued on
+  budget spent               -> stop
+  otherwise
+    each WRONG item          -> measure it on subject AND drawing
+                             -> name the stage it belongs to
+                             -> fix it there, not with a correction mark
+    re-render, re-score
+```
+
+**WRONG before MISSING**: a contradiction is a fault, an omission is often a
+choice. An item no measurement reproduces gets no mark and goes to
+`refuted.md`. A fault wrong in shape or along a whole length goes back to its
+stage; only a local, bounded fault earns a `correct` mark.
+
+**Append every cycle's score to `scores.md` in the part's directory** — cycle,
+score, what was changed. A campaign has to leave a curve, because the one
+thing a plateau looks like from inside is progress.
+
+**A supervisor is not a gate.** Someone reading each render grades it against
+the previous render rather than against the subject, and after a few rounds
+signs off on work that has improved and is still bad. Let the score decide
+pass, plateau and ranking; a person looks at the end of a campaign, beside the
+subject, at the same scale — and is worth more there than in every round.
 
 ## Rules
 
