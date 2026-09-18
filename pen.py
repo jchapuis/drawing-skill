@@ -560,6 +560,9 @@ def place(ops, origin, scale, only=None, drop=None, stage=None):
     in the crop lands at the width the panel needs. Only strokes transfer --
     the part's own erase/fade/back decisions belong to the part's document.
 
+    A part's own `frame` is dropped: it is a stroke like any other, and
+    transferring it prints the part's crop rectangle across the panel.
+
     `only` keeps the strokes carrying any of these tags; `drop` removes
     strokes carrying any of these -- an edge the scene has decided is lost.
     `stage` relabels every transferred stroke, so the scene can hold a part's
@@ -571,7 +574,7 @@ def place(ops, origin, scale, only=None, drop=None, stage=None):
     ox, oy = origin
     out = []
     for op in ops:
-        if op.get("op") != "stroke":
+        if op.get("op") != "stroke" or op.get("stage") == "frame":
             continue
         tags = set(str(op.get("tag", "")).split("+")) - {""}
         if only and not (tags & only):

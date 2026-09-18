@@ -9,10 +9,16 @@
 #
 # To describe a part, crop it to its own PNG first and describe that. Never
 # hand it a sheet that also shows the subject: then it is not blind.
+#
+# The describer normally answers in ~20s, but when it hangs it hangs silently
+# and takes the whole run with it, so every call is capped and retried once.
+# `timeout` is not on macOS; perl's alarm is everywhere. Override with
+# DESCRIBE_TIMEOUT.
 set -e
 IMAGE="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OUT="${IMAGE%.*}.describe.md"
-claude -p "Use the Read tool to look at exactly one file: $IMAGE. Do not read anything else.
+TIMEOUT="${DESCRIBE_TIMEOUT:-180}"
+PROMPT="Use the Read tool to look at exactly one file: $IMAGE. Do not read anything else.
 You are describing a picture to someone who cannot see it. Report only what is visible.
 Do not judge quality, do not say whether anything is wrong, do not comment on style,
 do not guess how it was made. If you cannot tell, say 'cannot tell'.
@@ -21,5 +27,15 @@ Answer each in one to three plain sentences:
 2. What is the big shape of the main subject — one or two simple forms?
 3. What is every figure or animal physically doing? Standing, seated, riding, leaning, looking where, hands on what, feet on what.
 4. What touches what? Name each contact between the main subject and the things around it.
-5. What does the main face express?" --model sonnet --allowedTools Read > "$OUT"
+5. What does the main face express?"
+
+ask() {
+  perl -e 'alarm shift; exec @ARGV or exit 127' "$TIMEOUT" \
+    claude -p "$PROMPT" --model sonnet --allowedTools Read
+}
+
+if ! ask > "$OUT"; then
+  echo "describe.sh: no answer within ${TIMEOUT}s — retrying once" >&2
+  ask > "$OUT"
+fi
 cat "$OUT"

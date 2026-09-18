@@ -64,7 +64,20 @@ def contact(panels, pad=14, label_height=26):
     return sheet
 
 
-def marks(row, dark=100):
+def marks(row, dark=None):
+    """Runs of mark in one row, widest last.
+
+    The threshold is the midpoint between the row's ground and its darkest
+    value, not a fixed level: a ladder drawn at the `fill` stage sits well
+    above any constant a line ladder would use, and a fixed threshold reports
+    it as an empty row — the instrument silently failing on exactly the stage
+    the skill asks you to calibrate.
+    """
+    if dark is None:
+        ground, deepest = max(row), min(row)
+        if ground - deepest < 12:
+            return []
+        dark = (ground + deepest) / 2
     widths, run = [], 0
     for value in row:
         if value < dark:

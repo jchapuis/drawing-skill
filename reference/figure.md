@@ -310,3 +310,13 @@ whatever the torso turns out to be.
 8. **Walk the inventory, joints included, before passing any stage.** A median
    form ratio of 0.98 across 81 boxes is what this drawing scored with no
    shoulder in it.
+9. **A garment drawn as one closed mass reads as furniture** — a bag, a
+   cushion, a bundle the figure rests against. Correct width and correct
+   placement do not save it: what makes cloth read as worn is the **hem that
+   interrupts the limb it covers**, with the limb continuing out of it. Give
+   every garment its openings — the two arcs where the thighs leave shorts,
+   the cuff the forearm leaves, the collar the neck leaves — as contours of
+   the garment, not of the limb. A mass that *ends* where a limb begins reads
+   as an object the limb is behind; a mass the limb *emerges from* reads as
+   clothing. This fault survives every numeric gate and the describer names it
+   plainly, so a garment is worth one describer run of its own.
