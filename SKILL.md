@@ -106,18 +106,31 @@ are for the event and the placement, and the ground is judged on
 ## The scene ladder
 
 The object ladder, wrapped. Stages S0–S2 draw no object: they design the
-picture. Then every part runs the object ladder in `parts/<name>/` at its own
-scale — the figure, the vehicle, the lamp, the picture on the wall, each one.
-Then the scene is assembled, and what is drawn at panel scale is only the
-junctions between parts and the blacks across them.
+picture. Then every object is drawn **into that same document, in the panel's
+own coordinates**, at a working resolution high enough to draw its smallest
+feature — 4x the delivered size is a reasonable default, and the whole panel at
+4x renders in seconds. There is one `draw.py` and one `ops.json`. Nothing is
+cropped out, nothing is placed back, and there is no second coordinate space
+anywhere.
+
+**Objects drawn in their own crop and composited back came out as blobs; the
+same objects drawn whole came out well.** What a crop really buys is that it
+forces you to look at the object magnified, and that service is worth having —
+so take it as a gate instead of as an architecture: **`--zoom` every object
+before you call it done, always.** An object built from numbers and never
+zoomed comes back as fat lozenges and scratches and looks passable at panel
+size. Everything else a crop costs — a second coordinate space, nibs divided by
+a crop scale, scaffolding masses to remove, interfaces deferred to an assembly
+stage, a palette and a weight ladder per part — goes away, and the junctions
+become write-order rather than a plan.
 
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its crop box (small enough that the part fills a render) and its scale (large enough to draw its smallest feature), its nested parts (a face inside a figure at a higher scale again), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing; the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
 | S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops | `describe.sh gesture.png`: the event and the big shape read |
 | S2 | **Masses** | `stage="blockin"` straights for the welded shapes, then their flats `stage="fill"` — the middle tone over the whole, then lights, then darks, honouring sharp/lost. **Every object's mass goes in here, part or welded**: the part/welded split decides whether an object gets *marks*, never whether its *value* exists. A part left out is a hole in the tone plan, and when a whole value family lives inside parts — the darks usually do — the gate cannot pass at all until they are in. A flat is not ink, so this costs nothing at the gate. No object's *marks* yet | `--masses` against the subject at thumbnail size; **no object has an ink contour** (`--ladder` shows ink 0) |
-| S3 | **Every part, each alone** | `crop.py` each part into `parts/<name>/subject.png` at its scale; run the whole object ladder there with its own `palette.json` (the scene's), `regions.json`, `parts.json`, `draw.py`, `build.sh`. A part may hold parts: a figure at 2x carries its face in `parts/<figure>/parts/face/` at 4x, placed into the figure the way the figure is placed into the scene; `build.sh` recurses. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. A simple manufactured form — a lamp, a strip of tape, a frame — keeps the tracer's contour nearly whole and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | each part passes its own gates before it is placed, and **`concepts.py` scores it at or above the bar** — a part a viewer cannot name has not earned its place and does not get one. A part is a small subject again and gets a small subject's attention |
-| S4 | **Place** | in `draw.py`, `place(load("parts/x/ops.json"), origin, scale, only=[...])` per **depth group**, back to front — a bicycle is not at one depth, so a part is placed in tagged groups, each with its fills then its ink. A nearer group's opaque flats cover the farther group's ink: **occlusion is order**, not cutting. `drop=[...]` removes the edges S0 marked lost. **A part's S2 mass is scaffolding and comes out as the part arrives** — leave both and every part carries a fringe wherever the stand-in and the drawn form disagree | `--ladder` and `--doubled` on the assembled `ops.json`; `--parts` shows every part present at its box |
+| S3 | **Every object, in place** | run stages 4 to 9 of the object ladder on each object, in the one `draw.py`, in panel coordinates, working from the furthest object forward. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same flat, so there is no stand-in to remove and no fringe. A simple manufactured form keeps the tracer's contour nearly whole and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — this is the gate the crop used to enforce and it is not optional. Then its own ladder gates, `--faces` and `--unfilled` |
+| S4 | **Junctions** | nothing to assemble: every object was drawn where it belongs, with its neighbours already on the page, so the interfaces table was satisfied as you went rather than afterwards. Walk it once and confirm each row — the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; every row of the interfaces table has a recorded decision and a look |
 | S5 | **Emphasis** | nothing is drawn at panel scale here. Emphasis was decided at S0 as each part's weight pitch and edge count, and the far parts were drawn lighter and with fewer edges *in their own crops*. Walk the placed panel and confirm the gradient: weight and detail decay from the centre of interest and with depth; welded objects have no marks | no part beyond the focus carries the focus's weight; a describer names every part |
 | S6 | **Interfaces** | the enumerated pass over the interfaces table, in the assembled panel and nowhere else: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
 | S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern; the whole drawing's silhouette against the paper | `--ranking parts.json`: the focus leads, nothing shouts above its tier |
@@ -230,6 +243,18 @@ write("ops.json", ops)
   through it, a form whose boundary threads into its own interior. Dropping
   points breaks the walk; keeping it whole fills as spikes and holes. Abandon
   the traced path there and draw a plain polygon from measured extents.
+- **Chain rows to find a form, rather than choosing its shape.** For any flat
+  subject: scan each row for the runs of the target value *inside the eroded
+  silhouette*, chain those runs across rows into forms, and emit each form as
+  its **left chain going down and its right chain coming back up**. Both ends
+  taper to a point because the chain ends, not because you chose a nice shape,
+  and choosing the shape is exactly how a slot becomes a lozenge and a finger
+  becomes a lobe. It also counts the forms for you — a morphological opening
+  merges two narrow ones into a fat one and silently corrects your census
+  downward — and it is the only thing that shows a structure running the wrong
+  way, a groove that narrows where you drew it widening. Use it before you
+  decide what a group of marks is; looking at the whole object does not reveal
+  it.
 - **A region outline is not a silhouette, and a scan run is not a contour.**
   A flat is split by ink into several objects — a shoe and the straps on it,
   an ear and the spiral inside it — and the tracer and a row scan return the
@@ -240,6 +265,11 @@ write("ops.json", ops)
   corners render as a lens. `closed=True` must not repeat its first
   point. A small closed form takes `tool="pen"`. A flat takes `tool="flat"`
   with `size`/`scale` pinned, or its outline renders 5px wider than you asked.
+- **On a scene, `gauge` does not apply and the named nibs are unusable.** At a
+  4x working resolution a named nib arrives at a width that has nothing to do
+  with the subject's line. Draw the ladder with the tool you will use, read it
+  back with `--weights`, and pin `size`/`scale` by hand — once, for the whole
+  document, since there is only one.
 - **Draw a weight ladder first**, one *vertical* stroke per `nib=`, spaced
   apart, with the tool you will use, written with `write(..., swatch=True)`,
   and read it back with `--weights` on a row that crosses them. Each tool has
@@ -310,8 +340,8 @@ reproduce on the form it names is often real on the form next to it.
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice from two guesses. A worklist: two bands meant to run together (a rim inside a tyre) are listed too, so look before you merge |
 | `--ladder ops.json` | the stage that does not exist |
-| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that |
-| `--unfilled` (needs `--ref`) | bare ground where the subject carries the object — a flat that stopped short of its own ink. `--registration` sees only paper the line walls in completely; a flat short along an OPEN edge leaves a bay the flood reaches, and that is the commoner fault |
+| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It compares against the traced region, so a form that is *deliberately* straight — a ground band, a step riser — fails it whenever objects intrude into that region and drive its point count up; read those as false and move on. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that |
+| `--unfilled` (needs `--ref`) | bare ground where the subject carries the object — a flat that stopped short of its own ink. **Pass a `--paper` the drawing never paints with**: if the ground is a colour you also fill with, every such flat reads as bare and the gate is pure noise. `--registration` sees only paper the line walls in completely; a flat short along an OPEN edge leaves a bay the flood reaches, and that is the commoner fault |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x |
 | `concepts.py` (own script) | what a blind viewer thinks each part **is**, scored against the subject. The only gate that fails a blob |

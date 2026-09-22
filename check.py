@@ -283,6 +283,18 @@ def unfilled(drawing, subject, paper, ink=90, thickness=3):
     """
     drawing = drawing.convert("RGB").resize(subject.size, Image.LANCZOS)
     drawn = np.asarray(drawing, dtype=np.int16)
+    try:
+        painted = json.load(open("palette.json"))
+        clash = [name for name, value in painted.items()
+                 if name != "background" and isinstance(value, str)
+                 and value.lstrip("#").lower() ==
+                 "".join(f"{int(c):02x}" for c in paper)]
+        if clash:
+            print(f"WARNING: --paper is also {', '.join(clash)} in palette.json. "
+                  f"Every flat\nyou paint in it will read as bare ground and this "
+                  f"gate is then noise.\nPass a colour the drawing never paints with.\n")
+    except (OSError, ValueError):
+        pass
     shown = np.asarray(subject.convert("RGB"), dtype=np.int16)
     paper = np.asarray(paper, dtype=np.int16)
 
