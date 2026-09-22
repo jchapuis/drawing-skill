@@ -266,6 +266,48 @@ def _flatten(image, colours):
     return Image.fromarray(table[label].astype(np.uint8), "RGB")
 
 
+def unfilled(drawing, subject, paper, ink=90, thickness=3):
+    """Paper inside the subject's silhouette: a flat that stops short of its ink.
+
+    `--registration` alone finds only paper the line art walls in completely. A
+    fill that falls short along an OPEN boundary leaves a bay, not an island —
+    the background flood reaches it and the gate calls it outside. That bay is
+    the commoner fault by far, and it reads as a pale notch bitten out of the
+    object wherever the ink is thin or the contour bulges.
+
+    The subject settles it: anywhere the subject carries the object, the drawing
+    must carry ink or colour and never bare paper. The rule this enforces is
+    already in the ladder — a flat is drawn PAST where its ink will go, so the
+    ink covers the flat's edge, never the other way round. Trap outward by at
+    least half the heaviest nib.
+    """
+    drawing = drawing.convert("RGB").resize(subject.size, Image.LANCZOS)
+    drawn = np.asarray(drawing, dtype=np.int16)
+    shown = np.asarray(subject.convert("RGB"), dtype=np.int16)
+    paper = np.asarray(paper, dtype=np.int16)
+
+    object_here = np.abs(shown - paper).max(axis=2) > 24
+    bare = np.abs(drawn - paper).max(axis=2) <= 18
+    bare &= drawn.mean(axis=2) >= ink
+    holes = ndimage.binary_opening(object_here & bare, np.ones((thickness, thickness)))
+
+    labels, count = ndimage.label(holes)
+    if not count:
+        print("no bare paper inside the subject's silhouette: every flat reaches its ink.")
+        return 0
+    sizes = ndimage.sum(holes, labels, range(1, count + 1))
+    keep = [index for index in range(1, count + 1) if sizes[index - 1] >= 120]
+    print(f"{len(keep)} unfilled patch(es) — bare paper where the subject has the object:")
+    for index in sorted(keep, key=lambda i: -sizes[i - 1])[:12]:
+        ys, xs = np.nonzero(labels == index)
+        print(f"  {int(sizes[index - 1]):6d}px at x {xs.min()}-{xs.max()}, y {ys.min()}-{ys.max()}")
+    print("\na flat is drawn PAST where its ink will go, so the ink covers the flat's\n"
+          "edge. Taking a fill's outline from the tracer puts it at the colour\n"
+          "transition, which is INSIDE the ink: the flat then falls short by half a\n"
+          "line width and the ground shows through wherever the contour bulges out.")
+    return len(keep)
+
+
 def registration(drawing, paper, ink=90, floor=40):
     """Where colour and line disagree — the flatter's own check, run on a render.
 
@@ -639,6 +681,8 @@ def main():
                             "two renders of the same drawing needs the box in render "
                             "coordinates, not the subject's: subject above, drawing "
                             "below, magnified")
+    parse.add_argument("--unfilled", action="store_true",
+                       help="with --ref: bare paper where the subject has the object")
     parse.add_argument("--faces", default="",
                        help="ops.json — flag fills simpler than their traced region")
     parse.add_argument("--regions", default="regions.json")
@@ -704,6 +748,12 @@ def main():
 
     drawing = Image.open(args.render).convert("RGB")
     plumbs = [float(value) for value in args.plumb.split(",") if value.strip()]
+
+    if args.unfilled:
+        if not args.ref:
+            sys.exit("--unfilled needs --ref")
+        sys.exit(1 if unfilled(Image.open(args.render), Image.open(args.ref).convert("RGB"),
+                               tuple(int(v) for v in args.paper.split(","))) else 0)
 
     if args.faces:
         sys.exit(1 if faces(args.faces, args.regions, args.face_ratio) else 0)
