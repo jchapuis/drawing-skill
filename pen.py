@@ -361,9 +361,48 @@ INSTRUMENTS = {
 
 # --- marks -------------------------------------------------------------------
 
+def trap_outward(points, distance):
+    """Grow a closed flat outward, so its ink covers its edge rather than the
+    ground showing between them.
+
+    A fill outline measured off the tracer sits at the colour transition, which
+    is INSIDE the ink line. Rendered verbatim the flat falls short by half a line
+    width, and wherever the contour bulges outward the ground shows through as a
+    pale notch bitten out of the object. Printers have always solved this by
+    trapping: the colour is made slightly larger than the line that will cover
+    it, so no registration error can open a gap. Nothing about the drawing wants
+    the flat's true edge to be visible, because it never is -- the ink is on top
+    of it.
+
+    A miter offset along each vertex's angle bisector, with the spike at a sharp
+    corner clamped rather than allowed to shoot off.
+    """
+    import numpy as _np
+    seen = _np.asarray([[float(p[0]), float(p[1])] for p in points])
+    if len(seen) < 3 or distance <= 0:
+        return points
+    twice_area = float(_np.sum(seen[:, 0] * _np.roll(seen[:, 1], -1)
+                               - _np.roll(seen[:, 0], -1) * seen[:, 1]))
+    facing = 1.0 if twice_area > 0 else -1.0
+
+    def unit(vectors):
+        length = _np.hypot(vectors[:, 0], vectors[:, 1])
+        length[length < 1e-9] = 1e-9
+        return vectors / length[:, None]
+
+    into = unit(seen - _np.roll(seen, 1, axis=0))
+    outof = unit(_np.roll(seen, -1, axis=0) - seen)
+    normal_in = _np.stack([into[:, 1], -into[:, 0]], axis=1) * facing
+    normal_out = _np.stack([outof[:, 1], -outof[:, 0]], axis=1) * facing
+    bisector = unit(normal_in + normal_out)
+    reach = _np.clip(_np.sum(bisector * normal_in, axis=1), 0.3, 1.0)
+    moved = seen + bisector * (distance / reach)[:, None]
+    return [(float(x), float(y)) + tuple(p[2:]) for (x, y), p in zip(moved, points)]
+
+
 def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
            tail=0.22, smooth=True, per_span=12, hand=1.0, tool="brush", nib=None,
-           **look):
+           trap=None, **look):
     """One mark. `points` are your decisions; everything else is the hand.
 
     `tool` picks the instrument and `nib` the weight; a crayon returns several
@@ -406,6 +445,16 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     - **Flats need `tool="flat"`.** At any translucency every overlap shows as
       a seam.
     """
+
+    # `trap=<px>` grows a closed flat outward so the ink laid over it covers its
+    # edge. OPT-IN, and deliberately not a default: trapping is directional. It
+    # belongs on a body flat, whose edge is meant to be hidden under a contour,
+    # and it ruins any flat that is a mark in its own right -- a vent, an eye, a
+    # cast shadow, a shade. Applied to every closed flat it swells the interior
+    # shapes until they eat the form. `--unfilled` says which flats need it.
+    if tool == "flat" and closed and trap and len(points) >= 3:
+        points = trap_outward(points, float(trap))
+
     global _HAND
     _HAND = _hand_for(points, stage, tag)
     kit = INSTRUMENTS.get(tool, INSTRUMENTS["brush"])
