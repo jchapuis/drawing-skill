@@ -170,6 +170,15 @@ Flat regions make it worse rather than better, because a wrong sample comes back
 as a clean, confident palette entry rather than as noise. There is nothing in the
 answer to signal that it came from the wrong place.
 
+The recipe that does work on a flat-cel subject: **isolate by the ground, not by
+the object.** Scan each column for a long run — say 45px or more — of anything
+that is *not* the background flat, and take the object as the union of those
+runs. Thresholding on darkness fails because every ink line in the picture is
+dark and the ink network is continuous, so one component swallows the whole
+frame; a long-run test throws away every thin line by construction and keeps
+only the filled body of a form. Measure the background's own value first, since
+everything here is judged against it.
+
 Four fixes, all cheap:
 
 - **isolate the thing** — render it alone (`--only <tag>`) rather than reasoning

@@ -89,7 +89,10 @@ them stage-major, every fill and then every ink, and the far form's outline is
 laid down after the near form's flat and draws straight across it: a stray edge
 through the middle of the nearer object, which reads as a crease or a seam that
 is not there. **Occlusion is the order you write in, and nothing else provides
-it.**
+it.** A **hole** — a vent, a window, an eyelet — is the same rule seen from the
+other side: it is not a nearer form but an absence in this one, so its flat is
+written *after* the ink of the surface it pierces, or that surface's own
+contour runs across the opening.
 
 Going back up the ladder invalidates everything above it: re-run every stage
 after the one you changed. The script re-renders in one call, so that is the
@@ -303,11 +306,11 @@ reproduce on the form it names is often real on the form next to it.
 | flag | sees |
 |---|---|
 | `--masses` | the wrong shape, with line closed away |
-| `--parts parts.json` | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable*, and for a small part those are different questions — an unrecognisable part passes this, `--ranking` and its own crop's describer together. Only a describer on the assembled panel answers the second |
-| `--ranking parts.json` | a part shouting above its tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
+| `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable*, and for a small part those are different questions — an unrecognisable part passes this, `--ranking` and its own crop's describer together. Only a describer on the assembled panel answers the second |
+| `--ranking parts.json` (needs `--ref`) | a part shouting above its tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice from two guesses. A worklist: two bands meant to run together (a rim inside a tyre) are listed too, so look before you merge |
 | `--ladder ops.json` | the stage that does not exist |
-| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away |
+| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x |
 | `concepts.py` (own script) | what a blind viewer thinks each part **is**, scored against the subject. The only gate that fails a blob |
