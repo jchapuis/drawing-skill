@@ -51,12 +51,20 @@ import tempfile
 from PIL import Image
 
 DESCRIBE = """This image shows one object cropped out of a larger picture.
-Describe what it is in one paragraph of 4-6 sentences, for someone who cannot
-see it. Be specific and concrete: what kind of thing it is, its shape and
-proportions, its parts, its materials, its angle to the viewer, and if it
-shows a person, their apparent age, sex and expression.
-Describe only what is visible. Where something is unclear, say so plainly
-rather than guessing."""
+
+Describe THE THING ITSELF, not the picture of it. In one paragraph of 4-6
+sentences, for someone who cannot see it: what kind of thing it is, its shape
+and proportions, its parts and how they are arranged, its angle to the viewer,
+and if it shows a person, their apparent age, sex and expression.
+
+Say NOTHING about how the image is made or how it looks as an image. No
+mention of sharpness, blur, focus, resolution, grain or image quality; none of
+photograph, illustration, drawing, render, cartoon, cel shading, vector,
+outlines, line weight, brushwork or artistic style. A reader must not be able
+to tell from your paragraph whether this is a photograph or a drawing.
+
+Describe only what is visible. Where the thing itself is unclear, say plainly
+that you cannot tell what it is, rather than guessing."""
 
 JUDGE = """Below are two descriptions, A and B, each written by someone who saw
 one picture and not the other. They may or may not describe the same thing.
@@ -68,13 +76,32 @@ A (the reference):
 B (the candidate):
 {candidate}
 
+Judge ONLY the thing described, never the manner of depiction. Ignore entirely
+any difference in sharpness, blur, focus, resolution, grain, image quality,
+medium, or whether one reads as a photograph and the other as a drawing. Those
+are properties of the two pictures, not of the thing, and a difference there is
+NOT a contradiction. If a paragraph mentions them, discount that clause.
+
+Work claim by claim, not as an impression. Do not rate how similar the two
+paragraphs feel — two people describing the same thing word it differently and
+that is not a difference in the thing.
+
+1. Extract from A every concrete claim about the thing: what it is, its parts,
+   their number and arrangement, its proportions, its orientation. Ignore
+   hedges, atmosphere and anything about the picture rather than the thing.
+2. For each claim, mark it against B only:
+   SUPPORTED   - B states it, or states something that entails it
+   CONTRADICTED- B states something incompatible with it
+   ABSENT      - B neither states nor contradicts it
+   Wording need not match; the same fact said differently is SUPPORTED.
+
 Answer in exactly this format:
-SCORE: <0.00-1.00> how fully B conveys the same specific thing as A. 1.00 means
-a reader of B would picture what A describes, at A's level of specificity.
-Penalise vagueness: if B is merely a less specific version of A, that is NOT a
-high score. Penalise contradictions harder.
-MISSING: <the specific things A states that B does not, semicolon separated, max 5>
-WRONG: <the things B states that contradict A, semicolon separated, or: none>"""
+CLAIMS: <total number of claims extracted from A>
+SUPPORTED: <count>
+CONTRADICTED: <count>
+SCORE: <(SUPPORTED - CONTRADICTED) / CLAIMS, clamped to 0.00-1.00, two decimals>
+MISSING: <the absent claims, semicolon separated, max 5>
+WRONG: <the contradicted claims, semicolon separated, or: none>"""
 
 
 def call(prompt, image=None, timeout=300):
@@ -89,6 +116,22 @@ def call(prompt, image=None, timeout=300):
          "claude", "-p", prompt, "--model", "sonnet"] + reading,
         capture_output=True, text=True)
     return done.stdout.strip()
+
+
+def hedges(paragraph):
+    """Whether the reference itself failed to read.
+
+    A box whose crop the SUBJECT cannot carry is not a box the drawing can be
+    scored against: the reference paragraph is then a guess, it moves between
+    runs, and the score measures that movement. This is the skill's "a clause
+    the drawing will not earn", detected instead of chased. The usual cause is
+    a box small enough that magnifying it yields out-of-focus gradients.
+    """
+    unsure = ("cannot tell", "can't tell", "unclear", "hard to tell",
+              "difficult to tell", "impossible to tell", "not clear what",
+              "ambiguous", "indeterminate", "cannot determine", "abstract")
+    said = paragraph.lower()
+    return sum(said.count(phrase) for phrase in unsure) >= 2
 
 
 def verdict(pair):
@@ -114,6 +157,9 @@ def main():
                        help="a part below this has not earned its place (default 0.7)")
     parse.add_argument("--width", type=int, default=520, help="crop is scaled to this width")
     parse.add_argument("--timeout", type=int, default=300)
+    parse.add_argument("--floor", type=float, default=0.45,
+                       help="a box whose subject-vs-itself ceiling is below this cannot "
+                            "be scored at all (default 0.45)")
     parse.add_argument("--full", action="store_true", help="print both paragraphs per part")
     args = parse.parse_args()
 
@@ -139,23 +185,53 @@ def main():
             cut.save(path)
             crops[(name, tag)] = path
 
-    with concurrent.futures.ThreadPoolExecutor(min(16, len(crops))) as pool:
-        paragraphs = dict(zip(crops, pool.map(
-            lambda path: call(DESCRIBE, path, args.timeout), crops.values())))
+    # Three paragraphs per part, not two. The subject is described TWICE, by two
+    # independent blind viewers, because two viewers shown the same picture do
+    # not write the same paragraph and a judge scores their agreement well below
+    # 1.00. That agreement is this instrument's ceiling, it differs per box, and
+    # without dividing it out the raw score says more about describer variance
+    # than about the drawing. Measuring it costs one extra pass and is the only
+    # thing that makes the number mean anything.
+    passes = [(name, tag) for name in parts for tag in ("subject", "subject2", "drawing")]
+    with concurrent.futures.ThreadPoolExecutor(min(24, len(passes))) as pool:
+        paragraphs = dict(zip(passes, pool.map(
+            lambda job: call(DESCRIBE, crops[(job[0], job[1].replace("2", ""))], args.timeout),
+            passes)))
 
-    with concurrent.futures.ThreadPoolExecutor(min(8, len(parts))) as pool:
-        scored = dict(zip(parts, pool.map(verdict, [
+    with concurrent.futures.ThreadPoolExecutor(min(16, 2 * len(parts))) as pool:
+        raw = dict(zip(parts, pool.map(verdict, [
             (paragraphs[(name, "subject")], paragraphs[(name, "drawing")], args.timeout)
             for name in parts])))
+        ceiling = dict(zip(parts, pool.map(verdict, [
+            (paragraphs[(name, "subject")], paragraphs[(name, "subject2")], args.timeout)
+            for name in parts])))
 
-    rows, failed = {}, []
+    scored = {}
+    for name in parts:
+        got, missing, wrong = raw[name]
+        top = ceiling[name][0]
+        if got is None or top is None or top < args.floor:
+            scored[name] = (None, missing or
+                            f"ceiling {top} — the subject does not describe consistently "
+                            f"enough for this box to be scored", wrong)
+        else:
+            scored[name] = (min(got / top, 1.0), missing, wrong)
+    ceilings = {name: ceiling[name][0] for name in parts}
+
+    rows, failed, broken, unscoreable = {}, [], [], []
     for name in parts:
         score, missing, wrong = scored[name]
         if score is None:
+            broken.append(name)
             print(f"{name:16s}   —   {missing}")
             continue
+        if hedges(paragraphs[(name, "subject")]):
+            unscoreable.append(name)
+            print(f"{name:16s}   —   the SUBJECT's own crop does not read; box unscoreable")
+            continue
         rows[name] = score
-        print(f"{name:16s} {score:.2f}   missing: {missing[:96]}")
+        print(f"{name:16s} {score:.2f}  (raw {raw[name][0]:.2f} / ceiling "
+              f"{ceilings[name]:.2f})  missing: {missing[:70]}")
         if wrong and wrong.lower() != "none":
             print(f"{'':16s}        WRONG: {wrong[:96]}")
         if args.full:
@@ -164,12 +240,25 @@ def main():
         if score < args.bar:
             failed.append((name, score))
 
-    if rows:
-        print(f"\nmean conceptual fidelity {sum(rows.values()) / len(rows):.2f} "
-              f"over {len(rows)} parts (1.00 = as legible as the subject)")
+    if broken:
+        print(f"\n{len(broken)} of {len(parts)} parts returned nothing: "
+              f"{', '.join(broken)}.\nThat is the describer failing, not the drawing. "
+              f"Re-run before reading anything below.")
+    if unscoreable:
+        print(f"\n{len(unscoreable)} box(es) unscoreable — the subject's own crop does not "
+              f"read: {', '.join(unscoreable)}.\nEither the box is too small to magnify or "
+              f"it is on nothing. Fix the box or record it\nat S0 as a clause the drawing "
+              f"will not earn. It is excluded from the mean.")
+    if not rows:
+        sys.exit("\nnothing was scored. No mean, no verdict, no pass.")
+    usable = [ceilings[n] for n in rows if ceilings[n]]
+    print(f"\nmean conceptual fidelity {sum(rows.values()) / len(rows):.2f} over "
+          f"{len(rows)} scored parts, against a measured ceiling of "
+          f"{sum(usable)/len(usable):.2f}\n(1.00 = the drawing reads as consistently as "
+          f"the subject reads against itself)")
     for name, score in sorted(failed, key=lambda row: row[1]):
         print(f"  FAIL {name} {score:.2f}")
-    if failed:
+    if failed or broken or unscoreable:
         print("\na part a viewer cannot take the right thing from is a failed stage,\n"
               "not a known fault: it goes back to its ladder before it is placed.\n"
               "Spend the next round in this order and none of it on a part already\n"
@@ -178,7 +267,7 @@ def main():
     else:
         print("\nevery part carries its own reading. This judges what a viewer takes\n"
               "away, never how well it is drawn.")
-    sys.exit(1 if failed else 0)
+    sys.exit(1 if (failed or broken or unscoreable) else 0)
 
 
 if __name__ == "__main__":

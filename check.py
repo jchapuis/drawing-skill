@@ -64,6 +64,84 @@ def contact(panels, pad=14, label_height=26):
     return sheet
 
 
+
+def corners(points, tolerance):
+    """Ramer-Douglas-Peucker: the vertices a polyline actually turns on.
+
+    A stroke in ops.json is the RENDERED polyline, interpolated to hundreds of
+    points whatever was authored, so counting its points measures the renderer.
+    Simplifying it back down measures the drawing: how many faces this shape
+    really has.
+    """
+    if len(points) < 3:
+        return len(points)
+    start, end = np.array(points[0], float), np.array(points[-1], float)
+    line = end - start
+    length = np.hypot(*line)
+    coords = np.array(points, float)
+    if length < 1e-9:
+        away = np.hypot(*(coords - start).T)
+    else:
+        away = np.abs(np.cross(line, coords - start)) / length
+    worst = int(np.argmax(away))
+    if away[worst] <= tolerance:
+        return 2
+    return (corners(points[:worst + 1], tolerance)
+            + corners(points[worst:], tolerance) - 1)
+
+
+def faces(ops_path, regions_path, ratio):
+    """A flat simpler than the form it lies on.
+
+    An interior flat — a shade, a highlight, a cast shadow lying on a form — is
+    bounded by that form's curvature and cannot be simpler than it. Drawn as a
+    quad on a form the tracer returns with twenty-five points, it reads as a
+    paste-on: a hard-edged patch sitting on the object rather than a turn of its
+    surface. No other gate sees it: the flat is the right colour, in the right
+    place, covering the right area, and the describer has no word for it.
+
+    Not an absolute floor. A paving joint or a step riser IS a quad, and adding
+    points to it only adds noise. The count comes from the traced region the
+    flat sits in, so the subject sets it.
+    """
+    drawn = [op for op in json.load(open(ops_path))
+             if op.get("op") == "stroke" and op.get("stage") == "fill"]
+    regions = json.load(open(regions_path))
+    regions = regions if isinstance(regions, list) else regions.get("regions", [])
+    boxed = [(reg.get("box"), len(reg.get("blockin") or [])) for reg in regions
+             if reg.get("box")]
+    print(f"{'fill':>5s} {'faces':>6s} {'region':>7s}  verdict")
+    thin = 0
+    for index, op in enumerate(drawn):
+        points = [(p[0], p[1]) for p in (op.get("points") or [])]
+        if len(points) < 3:
+            continue
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+        width, height = max(xs) - min(xs), max(ys) - min(ys)
+        if width * height < 2500:
+            continue
+        centre = (sum(xs) / len(xs), sum(ys) / len(ys))
+        here = [count for box, count in boxed
+                if box[0] <= centre[0] <= box[0] + box[2]
+                and box[1] <= centre[1] <= box[1] + box[3]
+                and box[2] * box[3] >= width * height * 0.5]
+        if not here:
+            continue
+        want = min(here)
+        # tolerance scales with the shape, so a big flat is not flattered by size
+        has = corners(points, max(width, height) * 0.02)
+        short = has < want * ratio
+        thin += short
+        print(f"{index:5d} {has:6d} {want:7d}{'  TOO FEW FACES' if short else ''}")
+    print(f"\n{thin} flat(s) turn fewer corners than the region they sit in. A flat\n"
+          f"cannot turn a corner the form under it does not turn: take the count\n"
+          f"from the tracer, not from the four corners the shape suggests at a\n"
+          f"glance. A shade drawn as a quad on a curved form reads as a patch\n"
+          f"stuck to the object rather than as its surface turning away.")
+    return thin
+
+
 def marks(row, dark=None):
     """Runs of mark in one row, widest last.
 
@@ -561,6 +639,10 @@ def main():
                             "two renders of the same drawing needs the box in render "
                             "coordinates, not the subject's: subject above, drawing "
                             "below, magnified")
+    parse.add_argument("--faces", default="",
+                       help="ops.json — flag fills simpler than their traced region")
+    parse.add_argument("--regions", default="regions.json")
+    parse.add_argument("--face-ratio", type=float, default=0.5)
     parse.add_argument("--weights", default="",
                        help="comma-separated rows: print the mark widths each one crosses")
     parse.add_argument("--masses", action="store_true",
@@ -622,6 +704,9 @@ def main():
 
     drawing = Image.open(args.render).convert("RGB")
     plumbs = [float(value) for value in args.plumb.split(",") if value.strip()]
+
+    if args.faces:
+        sys.exit(1 if faces(args.faces, args.regions, args.face_ratio) else 0)
 
     if args.weights:
         rows = [int(part) for part in args.weights.split(",")]

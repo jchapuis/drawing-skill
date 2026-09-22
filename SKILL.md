@@ -80,6 +80,17 @@ refuses ink that has no gesture, block-in and contour stage under it.
 | 9 | **Fill** | flats refined; blacks massed as one value before anything is graded | `--hide ink` still separates figure from ground |
 | 10 | **Correct** | `stage="correct"` marks aimed by the judges, N rounds fixed at stage 0; `refuted.md` for every item that did not survive its measurement | `describe.sh drawing.png` matches the acceptance list clause by clause; `--registration`, `--parts`, `--ranking` |
 
+**Stages 5 to 8 interleave per form; they are not four passes over the whole
+drawing.** The table numbers them because each one commits less than the next,
+not because you finish one everywhere before starting the next. As soon as two
+forms overlap, write them depth-major — the far form's fill, the far form's
+ink, then the near form's fill *over that ink*, then the near form's ink. Group
+them stage-major, every fill and then every ink, and the far form's outline is
+laid down after the near form's flat and draws straight across it: a stray edge
+through the middle of the nearer object, which reads as a crease or a seam that
+is not there. **Occlusion is the order you write in, and nothing else provides
+it.**
+
 Going back up the ladder invalidates everything above it: re-run every stage
 after the one you changed. The script re-renders in one call, so that is the
 cheap answer.
@@ -296,6 +307,7 @@ reproduce on the form it names is often real on the form next to it.
 | `--ranking parts.json` | a part shouting above its tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice from two guesses. A worklist: two bands meant to run together (a rim inside a tyre) are listed too, so look before you merge |
 | `--ladder ops.json` | the stage that does not exist |
+| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x |
 | `concepts.py` (own script) | what a blind viewer thinks each part **is**, scored against the subject. The only gate that fails a blob |
