@@ -59,6 +59,36 @@ is the difference between a helmet a viewer names and a striped loaf.
 The symptom to watch for, because it is silent: forms arriving with three to
 nine points each where the object plainly has more structure than that.
 
+**And then: a rich trace does not name anything.** Fixing the measurement
+removes the excuse for a starved form; it does not remove the work, and it is
+seductive precisely because the numbers look so much better. Which regions
+compose an object, and which single form a viewer reads as that object, is the
+reading, and it costs the same on a rich trace as on a poor one. Taking the
+largest region per object and drawing that is the failure this invites: a limb
+comes back as its lit strip with the shade band as a separate flat and nothing
+between them, so it reads as two ribbons; a garment comes back as the two
+patches either side of its zip, with no shoulders, because the shoulders are
+other flats; an object with no dominant region at all — a sock, a sole, a lace,
+a neck — is simply never drawn, and passes unnoticed because nothing counts it.
+
+So before any mark, for each object, write down three things:
+
+1. **Which traced regions compose it**, by box, and **what each one is** — the
+   lit strip, the shade band, a cast shadow, the ink, a hole punched through it
+   by something in front.
+2. **Which single form a viewer reads as this object** — its silhouette. That
+   is what has to be right; the internal flats sit inside it.
+3. **Where the traced contour is the right measurement and where it is not** —
+   right for a silhouette, wrong for a slot or a hole, wrong for a re-entrant
+   region.
+
+If you cannot write those three for an object, you are not ready to draw it,
+and taking the largest region is what will happen instead. **A lit strip and
+its shade band are one form with two values**, never two flats laid side by
+side. And check the part list against what is actually on the canvas before
+calling a panel assembled: the objects that go missing are the ones no region
+was ever dominant for.
+
 ## One object or a scene
 
 **A single object is drawn on one ladder, at one scale.** A scene is designed
@@ -238,6 +268,14 @@ run that is going wrong is stopped before it has spent the rest.
    on the subject means the part reads only in context, so judge it in
    context later. An entry for a thing the subject does not have propagates
    into every stage below it, and this is the only check that can remove one.
+   **A describer on a panel-scale crop under-counts a group of repeated small
+   forms** — vents, fingers, teeth, spokes, louvres. It counts blobs at the
+   resolution it was given, so the census is wrong before a single mark exists
+   and every later stage inherits the wrong number. Count them on the object's
+   own working-resolution crop, and cross-check that count against the number
+   of **closed** regions the per-object trace returns: where the two disagree,
+   the difference is usually forms left open at one end by a surface curving
+   away, and that mismatch is itself the signal to go and look.
 
 ```json
 {
@@ -451,7 +489,7 @@ reproduce on the form it names is often real on the form next to it.
 | `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It compares against the traced region, so a form that is *deliberately* straight — a ground band, a step riser — fails it whenever objects intrude into that region and drive its point count up; read those as false and move on. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that |
 | `--unfilled` (needs `--ref`) | bare ground where the subject carries the object — a flat that stopped short of its own ink. **Pass a `--paper` the drawing never paints with**: if the ground is a colour you also fill with, every such flat reads as bare and the gate is pure noise. `--registration` sees only paper the line walls in completely; a flat short along an OPEN edge leaves a bay the flood reaches, and that is the commoner fault |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
-| `--zoom x,y,w,h` | whether the marks are any good, at 4x |
+| `--zoom x,y,w,h` | whether the marks are any good, at 4x. **The primary gate on any object, not a step in a list.** Three versions of one object — one drawn from traced interiors, one from chained forms, one from a starved trace — all passed `--ladder`, all sat inside their boxes, all carried the right palette and the right mass, and they ranged from a beetle to a thing a blind viewer named on its first words. Only the magnified pair beside the subject told them apart |
 | a blind viewer on a part's crop | what the part **is**. The only gate that fails a blob — and a detector, not a meter: act on a wrong name, read nothing into a right one |
 | `--weights rows` | the line hierarchy against the subject's |
 | `--overlay` | exact drift against the subject |
