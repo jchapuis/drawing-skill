@@ -325,6 +325,18 @@ write("ops.json", ops)
   way, a groove that narrows where you drew it widening. Use it before you
   decide what a group of marks is; looking at the whole object does not reveal
   it.
+- **A traced contour measures a silhouette; it does not measure a slot.** The
+  tracer stops at the colour transition, so what it returns for a vent, an
+  eyelet, a gap between fingers or any other dark opening is that opening's
+  *pale interior* — a short fat blob. What a viewer reads as a slot is the dark
+  shape **including the ink that bounds it**, and the thin rib between two
+  slots carries a dark line of its own. Draw the interiors and you get spots on
+  a dome: a helmet becomes a beetle. **This is independent of how good the
+  measurement is** — a group of vents built from rich traced contours at twenty
+  points each came back *worse* than the same vents built from a starved trace,
+  because a rich measurement of the wrong thing is still the wrong thing. For
+  any dark opening, chain the dark inside the eroded silhouette and take the
+  ribs as the network's own centre lines.
 - **A region outline is not a silhouette, and a scan run is not a contour.**
   A flat is split by ink into several objects — a shoe and the straps on it,
   an ear and the spiral inside it — and the tracer and a row scan return the
