@@ -27,13 +27,37 @@ the `claude` CLI. One directory per drawing holds `subject.png` and everything
 below; nothing goes in `/tmp`. Copy `build.sh` in beside it and set `SKILL=` to
 this directory. Your script is `draw.py`; it writes `ops.json`.
 
-On a panel-sized subject three things bite immediately. **Trace at 1:1 and
-project**: `trace.py` on a 17-megapixel subject does not finish, while tracing
-the delivered-size image with `--space <working w,h>` returns the same
-coordinates in seconds. **Set `Image.MAX_IMAGE_PIXELS=None`** before opening a
+On a panel-sized subject three things bite immediately. **Trace each object's
+own crop, never the whole panel**: `trace.py` on a 17-megapixel subject does
+not finish, and the obvious escape — tracing the delivered-size image and
+projecting the coordinates up with `--space` — is a trap that costs more than
+it saves. See below. **Set `Image.MAX_IMAGE_PIXELS=None`** before opening a
 comparison: `--masses` writes an image past PIL's decompression-bomb limit and
 the gate dies on its own output. And **macOS has no `timeout`** — it is
 `gtimeout`, or `perl -e 'alarm N; exec @ARGV' --`.
+
+### Where your measurements come from is an architectural decision
+
+Drawing in one document does not mean **measuring** in one pass, and conflating
+the two is the most expensive mistake available here. A panel-wide trace
+resolves every object at *panel* scale: a small object comes back with a
+handful of points per form, and no amount of care at the drawing stage recovers
+what was never measured. Tracing the delivered-size image and multiplying the
+coordinates is worse still — it quantises every region boundary to the
+projection factor, so a 4x working space gets boundaries on a 4px lattice.
+
+**Crop each object out of the working-resolution subject, trace that, and
+offset the coordinates into panel space.** It is not a compromise with the
+one-document rule: you still draw every mark in panel coordinates, in one
+`draw.py`, with no second coordinate space for marks and no placement step.
+Only the *measuring* is per object. Measured on one object: a panel-wide 1:1
+trace gave it 77 regions and 872 contour points, while its own crop at working
+resolution gave 156 regions and 3878 points — **4.4× the detail, in 1.5
+seconds.** The same object drawn from the rich trace and from the starved one
+is the difference between a helmet a viewer names and a striped loaf.
+
+The symptom to watch for, because it is silent: forms arriving with three to
+nine points each where the object plainly has more structure than that.
 
 ## One object or a scene
 
@@ -280,10 +304,15 @@ write("ops.json", ops)
   script**: a form whose outline was chosen by eye arrives with five to eight
   points; the same form chained arrives with sixteen to eighteen, because the
   chain emits one point per row per side. Before inking any such group, look at
-  the point counts in `draw.py`. If they are single-digit, you chose the shapes,
-  and a viewer will name the object something else — a helmet becomes a beetle,
-  a glove becomes a shoe. The other tell is that chosen forms come back
-  near-identical to each other and chained ones do not.
+  the point counts in `draw.py`. If they are single-digit, a viewer will name
+  the object something else — a helmet becomes a beetle, a glove becomes a
+  shoe. **A single-digit count has two causes and they need different fixes:**
+  you chose the shape by eye, or the trace you took it from was starved and
+  never offered more. Check the region's own point count before blaming
+  yourself; if the trace is thin, re-trace that object's crop at working
+  resolution rather than chaining against a measurement that is not there.
+  The other tell is that chosen forms come back near-identical to each other
+  and chained ones do not.
   For any flat
   subject: scan each row for the runs of the target value *inside the eroded
   silhouette*, chain those runs across rows into forms, and emit each form as
