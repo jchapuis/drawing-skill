@@ -78,6 +78,37 @@ width applied across a drawing goes wrong at both ends — it stands clear of
 every hairline and vanishes under every heavy contour. A 5px trap under a 4px
 line is not a trap, it is a 5px band of colour lying beside the drawing.
 
+## A band is not a body, and trapping one edits its width
+
+Trapping offsets every vertex outward from the flat's own outline. On a **body**
+— a form whose edge is its silhouette — that is exactly the intent. On a
+**band** it is not: a strip, a rim inside a tyre, a hem, a strap, a shade along
+a limb, any joint line thick enough to be a flat rather than a stroke. A band's
+two long edges face outward in *opposite* directions, so both move apart and
+**the band gains twice the trap in width** — and at a trap correctly sized to
+half the ink, that is a whole ink width added to a measured quantity of the
+form. It happens on every band in the drawing at once, in the direction that
+makes them all fatter, and no gate reports it: the flats are present, filled,
+registered and in their boxes.
+
+Where two bands lie **concentric or parallel**, this is worse than an error in
+either one, because **what makes the pair read is the ratio between them**, and
+trapping does not preserve it — it adds the same absolute amount to both, so
+the narrower band gains the larger share and the two converge. A wide band
+beside a narrow one is a surface with an edge. The same two at equal width are
+two stripes, and a viewer names the object differently.
+
+So: trap a band's **ends**, where they tuck under something, and never its
+length. Or draw the pair as one body flat in the wider band's colour, trapped
+once on its outer silhouette, with the narrower band written over it as an
+untrapped flat — then only the edge that is a silhouette is grown, and the edge
+that is a *measurement* is left where you put it.
+
+**The general form of the rule: trap an edge that is a silhouette; never trap
+an edge that is a measurement.** A vent, an eye, a cast shadow, a shade and a
+band all have edges of the second kind, and trapping them swells the interior
+shapes until they eat the form.
+
 **But the wander must never exceed the trap.** There is a hard line between the
 two failures, and they look nothing alike:
 

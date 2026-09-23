@@ -59,8 +59,21 @@ a bike read as wire.
 - **Spokes are a tone, not thirty-two lines.** Draw enough to establish the
   radial direction and let the rest be the value they average to. Every spoke
   drawn is a wheel that reads as a dinner plate.
-- The tyre is a **dark band of real width**; the rim is a narrower, usually
-  lighter band inside it. Two concentric weights, not one circle.
+- A wheel is **two concentric bands, not one circle**: a dark tread outside and
+  a lighter rim inside it. Which of the two is wider is a fact about the wheel
+  in front of you and not about wheels — a deep-section rim is far wider than
+  its tread, a balloon tyre the reverse — so **measure both along a radius**
+  rather than assuming either. Cut from the hub outward and record the run of
+  each value: that one scan settles the radii, both widths and the ink between
+  them at once, and it is the only reliable way to read a band that curves.
+- **The ratio between those two bands is what makes a wheel read as a wheel.**
+  One band clearly dominant plus a narrow one reads as a surface with an edge.
+  The same two at *equal* width read as two ribbons with a stripe between them,
+  and the wheel stops being a wheel — a failure that survives correct radii,
+  correct placement, correct colours and every numeric gate, because each band
+  is present and in its box. Preserve the ratio, not just the presence.
+  Anything that grows both bands by the same absolute amount converges that
+  ratio; `colour.md` has the trapping case.
 
 ## Where the machine and the rider meet
 

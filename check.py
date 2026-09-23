@@ -435,6 +435,76 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
     return hits, worst, len(walked)
 
 
+def depth(ops, inventory):
+    """Does the write order deliver the occlusion the inventory decided on?
+
+    Occlusion is the order marks are written in and nothing else provides it: a
+    flat cannot hide ink, because the ink is above it. So for any two forms that
+    overlap, every ink stroke of the FAR one has to be written before the first
+    flat of the NEAR one. Write them the other way round -- all the fills
+    together, then all the inks, which is how the ladder reads if the stages are
+    taken as four passes over the whole drawing -- and the far form's outline is
+    laid down on top of the near form's colour and runs straight across it. On
+    the page that is a stray edge through the middle of the nearer object, and
+    it reads as a crease or a seam that is not there.
+
+    Nothing that looks at pixels finds it, because there is nothing wrong with
+    the pixels: every flat is present, filled, registered and inside its box,
+    and the stray edge is a perfectly good line. It is checked here, in the
+    script, against the `in_front` column the interfaces table already records.
+
+    Two things a naive version gets wrong:
+
+    1. **It is the far form's LAST ink against the near form's FIRST fill.** A
+       form is many ops, so comparing any other pair of extremes passes a
+       document that interleaves the two forms wrongly in the middle.
+    2. **An unmatched name must fail, not pass.** The gate can only see a pair
+       whose inventory names and stroke tags are one vocabulary. If the tags use
+       a private shorthand, every pair silently resolves to nothing and the gate
+       prints a clean bill over an unchecked drawing -- the worst thing a gate
+       can do. Unresolved rows are reported as loudly as failures and exit
+       non-zero.
+    """
+    def owns(tag, name):
+        return any(part == name or part.startswith(name + ".")
+                   for part in str(tag).split("+"))
+
+    pairs = []
+    for key, entry in inventory.items():
+        near = entry.get("in_front") if isinstance(entry, dict) else None
+        if not near:
+            continue
+        sides = key.split("/")
+        far = [side for side in sides if side != near]
+        pairs.append((key, near, far[0] if len(sides) == 2 and len(far) == 1 else None))
+
+    names = {name for _, near, far in pairs for name in (near, far) if name}
+    first_fill, last_ink = {}, {}
+    for index, op in enumerate(ops):
+        tag = op.get("tag")
+        if not tag:
+            continue
+        for name in names:
+            if not owns(tag, name):
+                continue
+            if op.get("stage") == "fill":
+                first_fill.setdefault(name, index)
+            elif op.get("stage") == "ink":
+                last_ink[name] = index
+
+    hits, unresolved = [], []
+    for key, near, far in pairs:
+        if far is None:
+            unresolved.append((key, f"the key does not name exactly two objects either side of '{near}'"))
+        elif near not in first_fill:
+            unresolved.append((key, f"no fill is tagged '{near}'"))
+        elif far not in last_ink:
+            unresolved.append((key, f"no ink is tagged '{far}'"))
+        elif last_ink[far] > first_fill[near]:
+            hits.append((key, far, last_ink[far], near, first_fill[near]))
+    return hits, unresolved, len(pairs)
+
+
 def _walk(points, step=1.0):
     """Even samples along a polyline, without repeating the shared endpoints."""
     out = [points[0]]
@@ -715,6 +785,8 @@ def main():
     parse.add_argument("--doubled", default="",
                        help="an ops JSON: is any edge stated twice? reads the "
                             "script, not the render")
+    parse.add_argument("--depth", nargs=2, metavar=("OPS", "PARTS"), default=None,
+                       help="write order against the inventory's in_front column")
     parse.add_argument("--ladder", default="",
                        help="an ops JSON: which stages exist, how many marks each, "
                             "and whether ink was laid over a gesture, block-in and "
@@ -743,6 +815,28 @@ def main():
               "nobody\nwho opens gesture.png. What this catches is the stage that "
               "does not exist.")
         sys.exit(1 if failures else 0)
+
+    if args.depth:
+        with open(args.depth[0]) as handle:
+            marks = json.load(handle)
+        with open(args.depth[1]) as handle:
+            hits, unresolved, count = depth(marks, json.load(handle))
+        print(f"{count} interface rows carry an in_front decision")
+        for key, far, ink_at, near, fill_at in hits:
+            print(f"  FAIL {key}: ink of '{far}' at op{ink_at} is written AFTER "
+                  f"the fill of '{near}' at op{fill_at} — that edge draws across it")
+        for key, why in unresolved:
+            print(f"  UNRESOLVED {key}: {why}")
+        if not hits and not unresolved and count:
+            print("  PASSES — every recorded occlusion is delivered by the write order")
+        if not count:
+            print("  NOTHING TO CHECK — no inventory entry carries in_front")
+        print("\nthe far form's ink must precede the near form's fill: a flat cannot "
+              "hide ink,\nso written the other way the far outline runs straight across "
+              "the nearer object\nand reads as a crease that is not there. an UNRESOLVED "
+              "row is not a pass — it\nmeans the stroke tags and the inventory names are "
+              "not one vocabulary, and the\npair went unchecked.")
+        sys.exit(1 if (hits or unresolved or not count) else 0)
 
     if args.doubled:
         with open(args.doubled) as handle:

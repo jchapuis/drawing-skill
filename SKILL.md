@@ -74,7 +74,7 @@ refuses ink that has no gesture, block-in and contour stage under it.
 | 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the event does not read here, no later stage puts it in |
 | 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1/2 region as its `blockin` straights from `regions.json`, junctions as points shared by name | `check.py blockin.png --ref subject.png --overlay`: the straights sit on the subject's edges |
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
-| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, **drawn past where the ink will go** — `trap=<px>` on a BODY flat grows it outward by that much, so the contour covers its edge. Only a body flat: a flat that is a mark in its own right — a vent, an eye, a cast shadow, a shade — is ruined by it, and trapping every closed flat swells the interior shapes until they eat the form. A fill outline taken from the tracer sits at the colour transition, which is INSIDE the ink, so used verbatim it falls short by half a line width and the ground shows through wherever the contour bulges. Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line and the object can then not occlude itself | `check.py drawing.png --ref subject.png --masses` — the two read as the same shape, said in words |
+| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, **drawn past where the ink will go** — `trap=<px>` on a BODY flat grows it outward by that much, so the contour covers its edge. **Trap an edge that is a silhouette; never trap an edge that is a measurement.** A flat that is a mark in its own right — a vent, an eye, a cast shadow, a shade — is ruined by it, and trapping every closed flat swells the interior shapes until they eat the form. A **band** is the silent case: a strip, a rim inside a tyre, a hem, a strap — its two long edges face opposite ways, so trapping moves both and **the band gains twice the trap in width**, on every band at once, with every gate still passing. Where two bands run concentric or parallel it is their *ratio* that makes the pair read, and trapping converges it. Trap a band's ends, never its length A fill outline taken from the tracer sits at the colour transition, which is INSIDE the ink, so used verbatim it falls short by half a line width and the ground shows through wherever the contour bulges. Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line and the object can then not occlude itself | `check.py drawing.png --ref subject.png --masses` — the two read as the same shape, said in words |
 | 6 | **Contour** | `stage="contour"`: the real edge, curved where the subject curves, from `contour` in `regions.json` | `--overlay` again |
 | 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states; `fade`/`erase` blockin and contour | `check.py drawing.png --doubled ops.json` and `--ladder ops.json` pass |
 | 9 | **Fill** | flats refined; blacks massed as one value before anything is graded | `--hide ink` still separates figure from ground |
@@ -89,7 +89,11 @@ them stage-major, every fill and then every ink, and the far form's outline is
 laid down after the near form's flat and draws straight across it: a stray edge
 through the middle of the nearer object, which reads as a crease or a seam that
 is not there. **Occlusion is the order you write in, and nothing else provides
-it.** A **hole** — a vent, a window, an eyelet — is the same rule seen from the
+it** — and `--depth ops.json parts.json` is the only gate on it, which works
+only if your stroke tags and your inventory names are the same vocabulary. Tag
+by the inventory's names, never a private shorthand, or the gate resolves
+nothing and reports a clean bill over an unchecked drawing.
+A **hole** — a vent, a window, an eyelet — is the same rule seen from the
 other side: it is not a nearer form but an absence in this one, so its flat is
 written *after* the ink of the surface it pierces, or that surface's own
 contour runs across the opening.
@@ -130,11 +134,11 @@ become write-order rather than a plan.
 | S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops | `describe.sh gesture.png`: the event and the big shape read |
 | S2 | **Masses** | `stage="blockin"` straights for the welded shapes, then their flats `stage="fill"` — the middle tone over the whole, then lights, then darks, honouring sharp/lost. **Every object's mass goes in here, part or welded**: the part/welded split decides whether an object gets *marks*, never whether its *value* exists. A part left out is a hole in the tone plan, and when a whole value family lives inside parts — the darks usually do — the gate cannot pass at all until they are in. A flat is not ink, so this costs nothing at the gate. No object's *marks* yet | `--masses` against the subject at thumbnail size; **no object has an ink contour** (`--ladder` shows ink 0) |
 | S3 | **Every object, in place** | run stages 4 to 9 of the object ladder on each object, in the one `draw.py`, in panel coordinates, working from the furthest object forward. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same flat, so there is no stand-in to remove and no fringe. A simple manufactured form keeps the tracer's contour nearly whole and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — this is the gate the crop used to enforce and it is not optional. Then its own ladder gates, `--faces` and `--unfilled` |
-| S4 | **Junctions** | nothing to assemble: every object was drawn where it belongs, with its neighbours already on the page, so the interfaces table was satisfied as you went rather than afterwards. Walk it once and confirm each row — the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; every row of the interfaces table has a recorded decision and a look |
+| S4 | **Junctions** | nothing to assemble: every object was drawn where it belongs, with its neighbours already on the page, so the interfaces table was satisfied as you went rather than afterwards. Walk it once and confirm each row — the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; `--depth ops.json parts.json` clean, with no UNRESOLVED row; every row of the interfaces table has a recorded decision and a look |
 | S5 | **Emphasis** | nothing is drawn at panel scale here. Emphasis was decided at S0 as each part's weight pitch and edge count, and the far parts were drawn lighter and with fewer edges *in their own crops*. Walk the placed panel and confirm the gradient: weight and detail decay from the centre of interest and with depth; welded objects have no marks | no part beyond the focus carries the focus's weight; a describer names every part |
 | S6 | **Interfaces** | the enumerated pass over the interfaces table, in the assembled panel and nowhere else: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
 | S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern; the whole drawing's silhouette against the paper | `--ranking parts.json`: the focus leads, nothing shouts above its tier |
-| S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice. `concepts.py` on the assembled panel ranks the round: the lowest-scoring parts get the budget, in that order | the acceptance list; `--ranking` still shows one focus; **mean conceptual fidelity**, and no part under the bar. A mean that stops moving between rounds is the stopping rule |
+| S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice. A blind viewer on each part's crop ranks the round: the **misnamed** parts get the budget first, then the parts whose shape sentences are untrue | the acceptance list; `--ranking` still shows one focus; no part misnamed. An item that returns after a round that addressed it is the stopping rule |
 
 **Budget by stage.** On a scene S0 is a large share of the job, and the parts
 are the rest: a figure or a vehicle costs about as much as a whole flat panel
@@ -177,7 +181,15 @@ run that is going wrong is stopped before it has spent the rest.
    object buys one silhouette, and a silhouette is what a viewer calls a
    different object — the census counts these sub-forms already, and this is
    where they become marks. Stop descending where the next level down would
-   not survive at the scale you will draw it. Name the junctions as entries of
+   not survive at the scale you will draw it.
+   **Two instances of one object class get the same sub-form list.** Where the
+   subject shows the same kind of thing twice — two wheels, two hands, two
+   shoes — the second is read with less attention than the first and comes back
+   with fewer entries, and the missing sub-form is then missing from every gate
+   that works off the inventory. The asymmetry is the tell: if one entry
+   descends and its twin does not, the twin was under-read, not simpler. Line
+   them up and reconcile before leaving stage 0 — or write down, as a clause,
+   what the second one genuinely lacks that the first has. Name the junctions as entries of
    their own — hand/bar, foot/pedal, hip/saddle, tyre/ground, and every joint —
    because that is where every scene fails. Then cut a plain image crop of
    the subject at each tier-1/2 box plus a fifth (not a part; a PIL crop is
@@ -303,20 +315,34 @@ and must not be gated on — otherwise a stage is held against a target that
 does not survive its own noise. Run it on part crops as well: a face can
 pass at 1:1 and carry the opposite expression at 4x.
 
-**Concepts** — `concepts.py subject.png drawing.png parts.json`. Crops every
-part's box out of both images, asks a blind viewer for its top three
-identifications with a confidence each, and scores the drawing by the
-confidence it earns on the subject's own first answer. **This is the only
-instrument that asks what a thing IS.** Every other one measures presence,
-placement, value or design, and an object passes all of them while reading as
-a different object: present, in its box, at the right weight, inside a design
-that matches — and a viewer calls it a plate of food. A part below the bar is
-a failed stage and goes back to its ladder before it is placed; the losing
-concept is the diagnosis, and a confident wrong answer is worth more than the
-number. Spend each correction round in this ranking and nothing on a part
-already at 1.00. **It scores recognition, never likeness** — a face reads as a
-laughing woman at 1.00 and is still the wrong shape for the woman in the
-subject. Never quote it as a quality score.
+**Naming a part** — crop a part's box out of the subject and out of the
+drawing (a plain PIL crop), `describe.sh` each, and read the two paragraphs
+side by side. **This is the only instrument that asks what a thing IS.** Every
+other one measures presence, placement, value or design, and an object passes
+all of them while reading as a different object: present, in its box, at the
+right weight, inside a design that matches — and a viewer calls it a plate of
+food.
+
+**Ask for a paragraph, never a name.** Shown a crude mask a viewer says "face",
+which matches the subject's "a laughing woman's face" on its head word and
+tells you nothing. A paragraph has to commit to the kind of thing, its
+proportions, its parts and its angle, so anything lost shows up as a
+difference you can point at.
+
+**It is a detector, never a meter.** A wrong name — "animal paw", "a plate of
+food" — is a true and useful diagnosis, and the losing concept is the
+diagnosis. A *right* name proves nothing at all, and the confidence attached to
+it measures nothing: scoring a subject against **itself** does not come back at
+1.00, and a visibly wrong drawing scores the same as a faithful copy. The
+spread between two blind viewers on one image is as large as the difference any
+such score would need to resolve, so a number built on it cannot rank parts,
+cannot detect a plateau, and cannot decide a pass. Use the name; never build a
+score, a bar or a ranking out of it, and do not rebuild the scorer.
+
+Even the name only reaches recognition, never likeness — a face can be named
+correctly and still be the wrong shape for the person in the subject. What
+answers likeness is the shape sentence, read beside the subject at the same
+scale.
 
 **Critic** — a fresh agent given both images, told which is which, asked for
 the N worst ways the drawing is worse *as a drawing of the same thing*: no
@@ -339,12 +365,13 @@ reproduce on the form it names is often real on the form next to it.
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable*, and for a small part those are different questions — an unrecognisable part passes this, `--ranking` and its own crop's describer together. Only a describer on the assembled panel answers the second |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice from two guesses. A worklist: two bands meant to run together (a rim inside a tyre) are listed too, so look before you merge |
+| `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink written after the near form's fill, which draws that edge straight across the nearer object. The only gate on depth order, and it reads the script, since the pixels are all correct. An **UNRESOLVED** row is not a pass — it means the stroke tags and the inventory names are not one vocabulary and the pair went unchecked |
 | `--ladder ops.json` | the stage that does not exist |
 | `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It compares against the traced region, so a form that is *deliberately* straight — a ground band, a step riser — fails it whenever objects intrude into that region and drive its point count up; read those as false and move on. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that |
 | `--unfilled` (needs `--ref`) | bare ground where the subject carries the object — a flat that stopped short of its own ink. **Pass a `--paper` the drawing never paints with**: if the ground is a colour you also fill with, every such flat reads as bare and the gate is pure noise. `--registration` sees only paper the line walls in completely; a flat short along an OPEN edge leaves a bay the flood reaches, and that is the commoner fault |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x |
-| `concepts.py` (own script) | what a blind viewer thinks each part **is**, scored against the subject. The only gate that fails a blob |
+| a blind viewer on a part's crop | what the part **is**. The only gate that fails a blob — and a detector, not a meter: act on a wrong name, read nothing into a right one |
 | `--weights rows` | the line hierarchy against the subject's |
 | `--overlay` | exact drift against the subject |
 
@@ -360,19 +387,24 @@ rather than left to judgement.
 
 **Iterate one part, never the panel.** A panel costs an order of magnitude more
 per round and tells you less: its faults are per-part anyway, and a round spent
-re-assembling is a round not spent drawing. Take the lowest-scoring part, work
-it alone in its own ladder, and put it back when it passes.
+re-working everything is a round not spent drawing. Take one part, work it in
+its own ladder, and leave it when it passes.
+
+**There is no score, so the loop is driven by the acceptance list.** Order the
+parts by the clauses they break, worst first: a part a blind viewer **misnames**
+outranks one whose shape sentence is merely inexact, which outranks a part that
+is only absent.
 
 ```
-concepts.py, twice           -> score, WRONG, MISSING
-  score >= bar               -> pass, place it, take the next-lowest part
-  no gain over two cycles    -> plateau: stop, and report what it plateaued on
-  budget spent               -> stop
-  otherwise
-    each WRONG item          -> measure it on subject AND drawing
-                             -> name the stage it belongs to
-                             -> fix it there, not with a correction mark
-    re-render, re-score
+per part: --zoom beside the subject, and a blind viewer on its crop
+  the crop is misnamed        -> the worst fault there is. Its stage failed;
+                                 go back to that stage, not to a correction mark
+  named, sentence untrue      -> measure the clause on subject AND drawing
+                              -> name the stage it belongs to, fix it there
+  named, every sentence true  -> pass; take the next part
+  the same item returns after
+  a round that addressed it   -> plateau: stop, and report what it plateaued on
+  budget spent                -> stop
 ```
 
 **WRONG before MISSING**: a contradiction is a fault, an omission is often a
@@ -380,15 +412,19 @@ choice. An item no measurement reproduces gets no mark and goes to
 `refuted.md`. A fault wrong in shape or along a whole length goes back to its
 stage; only a local, bounded fault earns a `correct` mark.
 
-**Append every cycle's score to `scores.md` in the part's directory** — cycle,
-score, what was changed. A campaign has to leave a curve, because the one
-thing a plateau looks like from inside is progress.
+**Log every cycle in `notes.md` beside the drawing** — cycle, what was changed,
+what the viewer called each crop, which clauses went true. A campaign has to
+leave a trail, because the one thing a plateau looks like from inside is
+progress, and with no curve to plot the trail is all there is.
 
-**A supervisor is not a gate.** Someone reading each render grades it against
-the previous render rather than against the subject, and after a few rounds
-signs off on work that has improved and is still bad. Let the score decide
-pass, plateau and ranking; a person looks at the end of a campaign, beside the
-subject, at the same scale — and is worth more there than in every round.
+**A person is the gate, and a person grades against the wrong thing.** Someone
+reading each render compares it to the *previous* render, and after a few
+rounds signs off on work that has improved and is still bad. There is no number
+that can be trusted to replace them, so fix the procedure instead: every
+judgement is made **beside the subject, at the same scale, in one image**, and
+the question is never "is this better" but "is this clause true". Look at the
+render itself — a viewer's words or a gate's number reported as the verdict is
+not a look.
 
 ## Rules
 
@@ -415,7 +451,7 @@ subject, at the same scale — and is worth more there than in every round.
   neither.
 - **A part that is absent or unrecognisable is a failed stage**, not a known
   fault. Go back and put it in. `--parts` answers the first half and
-  `concepts.py` the second; a part can sit exactly in its box, at exactly its
+  a blind viewer on its crop the second; a part can sit exactly in its box, at exactly its
   weight, and be a different object.
 - **Stage 10 runs before anyone sees the picture**, and a correction that
   changes nothing when switched off comes out. A fault wrong in shape or along
