@@ -12,9 +12,19 @@ colour and keeps its own region. Each connected region of one colour then
 becomes an entry:
 
     {"id": 3, "colour": "orange", "area": 22641, "box": [x, y, w, h],
-     "centre": [x, y],
+     "centre": [x, y],            # the CENTROID -- often not inside the region
+     "inside": [x, y],            # the region's deepest point: probe HERE
+     "median": "#d37201",         # the region's own median pixel
      "blockin": [[x, y], ...],    # the outline as a few straights (6px tolerance)
      "contour": [[x, y], ...]}    # the outline as a curve (1.5px tolerance)
+
+`centre` is a centroid, and a centroid is not a point in the region: on any
+crescent, ring or bent form it lands in a neighbour. Probing there returns the
+NEIGHBOUR's colour, which looks exactly like proof that the region is an
+anti-aliasing artefact -- and culling on that basis throws away real flats and
+flattens the form they were shading. Probe `inside`, or compare `median`
+against the palette entry, which needs no probe at all: an artefact's median
+sits between two palette colours, a real flat's sits on one.
 
 This is the measuring instrument for stages 2, 3 and 6. It cannot supply a form
 the subject does not have, which is the test a tool here must pass. What it does
@@ -71,6 +81,7 @@ def outline(mask, tolerance):
 
 
 def trace(image, palette, ink, line, min_area):
+    image_rgb = np.asarray(image.convert("RGB"))
     names, labels = classify(image, palette)
     labels = absorb_ink(labels, [names.index(name) for name in ink if name in names], line)
     regions = []
@@ -82,11 +93,21 @@ def trace(image, palette, ink, line, min_area):
             if area < min_area:
                 continue
             ys, xs = np.nonzero(mask)
+            # `centre` is a centroid and a centroid is NOT a point in the region:
+            # any crescent, ring or bent form puts it in a neighbour. Probing
+            # there reports the neighbour's colour and reads as proof that the
+            # region is an anti-aliasing artefact, so real flats get culled.
+            # `inside` is the deepest point of the region itself; probe that.
+            deep = cv2.distanceTransform(mask.astype(np.uint8), cv2.DIST_L2, 3)
+            iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
+            median = np.median(image_rgb[mask], axis=0)
             regions.append({
                 "colour": name, "area": area,
                 "box": [int(xs.min()), int(ys.min()),
                         int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
                 "centre": [round(float(xs.mean()), 1), round(float(ys.mean()), 1)],
+                "inside": [int(ix), int(iy)],
+                "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
                 "blockin": outline(mask, 6.0),
                 "contour": outline(mask, 1.5),
             })
@@ -103,6 +124,7 @@ def rescale(regions, sx, sy):
         x, y, w, h = region["box"]
         region["box"] = [round(x * sx, 1), round(y * sy, 1), round(w * sx, 1), round(h * sy, 1)]
         region["centre"] = point(region["centre"])
+        region["inside"] = point(region["inside"])
         region["blockin"] = [point(p) for p in region["blockin"]]
         region["contour"] = [point(p) for p in region["contour"]]
     return regions

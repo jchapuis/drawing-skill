@@ -363,6 +363,23 @@ write("ops.json", ops)
   way, a groove that narrows where you drew it widening. Use it before you
   decide what a group of marks is; looking at the whole object does not reveal
   it.
+- **Never probe a region at its `centre`.** That field is a centroid, and a
+  centroid is not a point inside the region: on any crescent, ring, bent or
+  C-shaped form it lands in a *neighbour*. Probe it and you get the neighbour's
+  colour, which looks exactly like proof that the region is an anti-aliasing
+  artefact — so you cull a real flat, and the form it was shading goes flat.
+  Measured on one object's crop, **eleven of the fourteen largest regions had a
+  centroid outside themselves**, and every one of them was genuine. Probe
+  `inside`, or compare the region's `median` against its palette entry and skip
+  probing altogether: a real flat's median sits on a palette colour, an
+  artefact's sits between two. **A cull is a decision and needs the same
+  measurement discipline as a mark** — it is a mark you are choosing not to
+  make, and nothing downstream will ever tell you it was wrong.
+- **A region-growing measurement needs a bound that is not a colour.** Seeding
+  a silhouette on a palette name runs it into every other object carrying that
+  flat — a garment seeded on its two colours swallowed a bicycle that shared
+  one of them. The object's box is already written down in the inventory; pass
+  it as the bound.
 - **A traced contour measures a silhouette; it does not measure a slot.** The
   tracer stops at the colour transition, so what it returns for a vent, an
   eyelet, a gap between fingers or any other dark opening is that opening's
