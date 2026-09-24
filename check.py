@@ -801,9 +801,11 @@ def main():
 
     # the script-only checks need no render, so a first build can run them
     if args.ladder:
-        from pen import audit, LADDER
+        import os
+        from pen import audit, LADDER, provenance, script_source
         with open(args.ladder) as handle:
-            counts, first, failures = audit(json.load(handle))
+            ops = json.load(handle)
+        counts, first, failures = audit(ops)
         for stage in LADDER + tuple(s for s in counts if s not in LADDER):
             print(f"  {stage:14s} {counts.get(stage, 0):4d} marks"
                   + (f"   first at op {first[stage]}" if stage in first else "   ABSENT"))
@@ -811,10 +813,25 @@ def main():
             print(f"  FAIL {failure}")
         if not failures:
             print("  PASSES — every ink mark sits on a gesture, a block-in and a contour")
+        source = script_source(ops, os.path.dirname(os.path.abspath(args.ladder)))
+        facts, generated = provenance(ops, source)
+        literal = "not read" if facts["literal"] is None else f"{facts['literal']:.1%}"
+        print(f"\n  authored: {facts['strokes']} stroke calls, {facts['points']} control "
+              f"points, {literal} of them written as numbers in the script")
+        if source is None:
+            generated.append("the script these ops name was not found beside them, so "
+                             "nothing says the points were written there")
+        for failure in generated:
+            print(f"  FAIL {failure}")
+        if not generated:
+            print("  PASSES — every mark was written in the script, one call each, "
+                  "from numbers written there")
         print("\ncounts are not a score: one token gesture stroke passes this and fools "
               "nobody\nwho opens gesture.png. What this catches is the stage that "
-              "does not exist.")
-        sys.exit(1 if failures else 0)
+              "does not exist,\nand the mark that was generated rather than drawn. "
+              "Generated output pasted into\nthe script as literal lines passes it; "
+              "the rule forbids that, not this gate.")
+        sys.exit(1 if failures or generated else 0)
 
     if args.depth:
         with open(args.depth[0]) as handle:

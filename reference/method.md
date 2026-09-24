@@ -513,6 +513,16 @@ for it exists.
 The second thing a flat script buys is a forced look per mark. Where it does not
 force one — a coordinate retyped from a box — it is pure cost.
 
+**A measuring program is fair; a drawing program is not.** Scans, traces and row
+chains are how the subject is seen exactly, and what they hand back is numbers
+you read. Once a program's output is the op list — ink skeletonised off the
+subject and emitted a stroke per segment, flats emitted a region at a time —
+nothing in the drawing was chosen, so nothing in it can be sent back to its
+stage: a panel built that way passed every gate and was a vectorised copy with
+the tracer's artefacts in it [bought: drawing]. `pen.write` refuses strokes
+called from another file, stamped by one call site, or whose points are not
+written as numbers in the script.
+
 **One geometry, evolved.** Measure every point once, name it once, keep it in one
 dict; strokes then name points and never retype a coordinate. Where two objects
 share an edge, they share the **entry**.

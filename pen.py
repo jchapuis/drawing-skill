@@ -32,8 +32,12 @@ here produces two different strokes.
     from pen import stroke, write
     write("ops.json", [stroke([(340, 280), (360, 275), (385, 284)], stage="ink")])
 """
+import ast
+import itertools
 import json
 import math
+import os
+import sys
 import zlib
 
 import numpy as np
@@ -452,6 +456,7 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     # and it ruins any flat that is a mark in its own right -- a vent, an eye, a
     # cast shadow, a shade. Applied to every closed flat it swells the interior
     # shapes until they eat the form. `--unfilled` says which flats need it.
+    look["authored"] = _origin(points)
     if tool == "flat" and closed and trap and len(points) >= 3:
         points = trap_outward(points, float(trap))
 
@@ -594,6 +599,126 @@ def audit(ops):
     return counts, first, failures
 
 
+_CALLS = itertools.count()
+
+
+def _origin(points):
+    """Where a stroke's points were written: the script line that asked for it,
+    the file the call itself sits in, and the points as given, before trapping.
+    `at` carries the instruction offset too, so two calls on one line differ and
+    one call reached twice -- a loop, a comprehension, an import -- does not."""
+    here = os.path.abspath(__file__)
+    main = getattr(sys.modules.get("__main__"), "__file__", None)
+    main = os.path.abspath(main) if main else None
+    by = at = None
+    frame = sys._getframe(1)
+    while frame is not None:
+        name = os.path.abspath(frame.f_code.co_filename)
+        if by is None and name != here:
+            by = f"{os.path.basename(name)}:{frame.f_lineno}"
+        if name == main:
+            at = [frame.f_lineno, frame.f_lasti]
+        frame = frame.f_back
+    return {"call": next(_CALLS), "script": os.path.basename(main) if main else None,
+            "by": by, "at": at,
+            "points": [[round(float(p[0]), 2), round(float(p[1]), 2)] for p in points]}
+
+
+def _literal_pairs(source):
+    """Every (x, y) written as two numbers in the script's own text."""
+    pairs = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.Tuple, ast.List)) and len(node.elts) >= 2:
+            values = []
+            for element in node.elts[:2]:
+                sign = 1.0
+                if isinstance(element, ast.UnaryOp) and isinstance(element.op, ast.USub):
+                    sign, element = -1.0, element.operand
+                if isinstance(element, ast.Constant) and isinstance(element.value, (int, float)) \
+                        and not isinstance(element.value, bool):
+                    values.append(round(sign * float(element.value), 2))
+            if len(values) == 2:
+                pairs.add(tuple(values))
+    return pairs
+
+
+LITERAL_FLOOR = 0.9
+
+
+def provenance(ops, source=None):
+    """Were these marks written by the drawer, in the script, or generated?
+
+    Returns (facts, failures). Three signals, each chosen because authored work
+    cannot trip it, measured on six hand-written drawings (89 to 498 strokes):
+
+    - a stroke whose call sits in another file than the script -- a generated
+      section module, a helper library. Authored: 0 of 1,674 strokes.
+    - one call site in the script reached more than once -- a loop, a
+      comprehension, or an `import` of a module that draws. Authored: 0.
+    - control points that are not written as numbers in the script's own text:
+      loaded from JSON, computed from pixels, scaled. Authored: at least 99.5% are
+      literal (the rest are frame corners written as W, H); a drawing whose points
+      come out of a skeleton or a trace is at 0.2%. The floor is LITERAL_FLOOR.
+
+    What none of them can see is generated output pasted into the script as
+    literal lines. That is still a generated drawing, and the rule, not this
+    gate, is what forbids it.
+    """
+    strokes = [op for op in ops if op.get("op") == "stroke" and op.get("stage") != "frame"]
+    calls, unrecorded = {}, 0
+    for op in strokes:
+        origin = op.get("authored")
+        if origin is None:
+            unrecorded += 1
+        else:
+            calls.setdefault(origin["call"], origin)
+    origins = list(calls.values())
+    failures = []
+    if unrecorded:
+        failures.append(f"{unrecorded} strokes carry no record of where they were written: "
+                        "built outside `stroke`, loaded from a file, or written by an older pen")
+    foreign = [origin for origin in origins
+               if origin["script"] and not str(origin["by"]).startswith(origin["script"] + ":")]
+    if foreign:
+        files = sorted({str(origin["by"]).split(":")[0] for origin in foreign})
+        failures.append(f"{len(foreign)} strokes are called from outside the script, in "
+                        + ", ".join(files) + ": a mark is written in the script, not generated into it")
+    sites = {}
+    for origin in origins:
+        if origin["at"]:
+            sites.setdefault(tuple(origin["at"]), []).append(origin)
+    stamped = {site: group for site, group in sites.items() if len(group) > 1}
+    if stamped:
+        worst = max(stamped.items(), key=lambda item: len(item[1]))
+        failures.append(f"{sum(len(group) for group in stamped.values())} strokes come from "
+                        f"{len(stamped)} call sites reached more than once (line {worst[0][0]} "
+                        f"made {len(worst[1])}): a loop, a comprehension or an import that draws")
+    points = [tuple(point) for origin in origins for point in origin["points"]]
+    literal = None
+    if source is not None and points:
+        written = _literal_pairs(source)
+        literal = sum(1 for point in points if point in written) / len(points)
+        if literal < LITERAL_FLOOR:
+            failures.append(f"only {literal:.1%} of the control points are written as numbers in "
+                            f"the script (floor {LITERAL_FLOOR:.0%}): the rest were loaded or computed")
+    facts = {"strokes": len(origins), "points": len(points), "literal": literal,
+             "unrecorded": unrecorded}
+    return facts, failures
+
+
+def script_source(ops, beside=None):
+    """The text of the script these ops name, looked for beside `beside`."""
+    names = {op["authored"]["script"] for op in ops
+             if op.get("op") == "stroke" and op.get("authored") and op["authored"]["script"]}
+    if len(names) != 1:
+        return None
+    path = os.path.join(beside or ".", names.pop())
+    if not os.path.exists(path):
+        return None
+    with open(path) as handle:
+        return handle.read()
+
+
 def load(path):
     """A part's ops, as written by its own script."""
     with open(path) as handle:
@@ -645,8 +770,10 @@ def write(path, ops, swatch=False):
 
     Refuses to write ink that has no gesture, block-in and contour stage under
     it -- a drawing inked straight off its measurements passes every placement
-    check and reads as a diagram. `swatch=True` skips the audit, for a weight
-    ladder or a calibration strip that is not a drawing.
+    check and reads as a diagram. Refuses, too, marks the script did not write:
+    strokes generated in another file, stamped by a loop, or whose points were
+    loaded or computed rather than written down (see `provenance`). `swatch=True`
+    skips both, for a weight ladder or a calibration strip that is not a drawing.
 
     Stock colours are 13 fixed names, but the palette is mutable: pass
     `--palette colours.json` to the CLI to repoint any name at a real hex value.
@@ -670,6 +797,12 @@ def write(path, ops, swatch=False):
     counts, _, failures = audit(flat)
     if failures and not swatch:
         raise SystemExit("ladder: " + "; ".join(failures) + f"  (stages on the page: {counts})")
+    if not swatch:
+        main = getattr(sys.modules.get("__main__"), "__file__", None)
+        beside = os.path.dirname(os.path.abspath(main)) if main else None
+        _, generated = provenance(flat, script_source(flat, beside))
+        if generated:
+            raise SystemExit("authored: " + "; ".join(generated))
     with open(path, "w") as handle:
         json.dump(flat, handle)
     return path
