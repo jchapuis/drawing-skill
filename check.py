@@ -1026,24 +1026,33 @@ def census(drawing, subject, inventory_path, palette_path, min_area):
         raw = json.load(handle)
     with open(palette_path) as handle:
         palette = json.load(handle)
-    names = [name for name in palette if name != "background"]
+    # the ground is classified too, never counted: left out, it went to the
+    # nearest real name and a field of ground counted as one of the forms
+    names = list(palette)
     colours = np.array([[int(palette[name][at:at + 2], 16) for at in (1, 3, 5)]
                         for name in names], dtype=float)
     drawing = drawing.resize(subject.size, Image.NEAREST) if drawing.size != subject.size else drawing
+    # a form must be THICK, not merely large: an upscale's ramp along every line
+    # classifies as specks of a real flat, thin and long, and at 4x an area floor
+    # counted 90 of a subject's 14 droplets. An inscribed radius of a quarter of
+    # the line's half-width counts 14 and drops no real form, at 1x or 4x alike
+    thick = _line_radius(subject) / 4
     rows = []
     for key, entry in raw.items():
         if not isinstance(entry, dict) or "count" not in entry:
             continue
         x, y, width, height = (int(round(value)) for value in entry["box"])
         wanted = [names.index(name) for name in str(entry.get("value", "black")).split("+")
-                  if name in names]
+                  if name in names and name != "background"]
         found = []
         for image in (subject, drawing):
             pixels = np.asarray(image.crop((x, y, x + width, y + height)), dtype=float)
             labels = np.argmin((colours ** 2).sum(-1) - 2 * pixels @ colours.T, axis=2)
             forms, count = ndimage.label(np.isin(labels, wanted), structure=np.ones((3, 3)))
-            sizes = ndimage.sum(np.ones_like(forms), forms, range(1, count + 1))
-            found.append(int((np.asarray(sizes) >= min_area).sum()))
+            sizes = np.asarray(ndimage.sum(np.ones_like(forms), forms, range(1, count + 1)))
+            depth = np.asarray(ndimage.maximum(ndimage.distance_transform_edt(forms > 0), forms,
+                                               range(1, count + 1)))
+            found.append(int(((sizes >= min_area) & (depth >= thick)).sum()) if count else 0)
         rows.append((key, int(entry["count"]), found[0], found[1]))
     return rows
 

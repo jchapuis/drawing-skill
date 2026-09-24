@@ -8,6 +8,7 @@
 set -e
 cd "$(dirname "$0")"
 SKILL="${SKILL:-$(dirname "$(readlink -f "$0")")}"
+[ -f "$SKILL/check.py" ] || { echo "build.sh: no check.py in $SKILL -- a copied build.sh must have SKILL= set to the skill directory" >&2; exit 1; }
 export PYTHONPATH="$SKILL${PYTHONPATH:+:$PYTHONPATH}"   # so draw.py can `from pen import ...`
 DOC=doc.json
 

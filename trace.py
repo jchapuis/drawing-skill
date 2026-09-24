@@ -56,7 +56,10 @@ panel 8px off, silently. --local keeps a crop's own coordinates.
 --measure-line prints the width of the --ink line and exits: for every ink pixel
 the run through it along its row and along its column, the SMALLER of the two
 (an axis scan across a diagonal reads it too wide), as percentiles over pixels.
-Runs wider than --cap are flats -- a tyre, a pair of shorts -- and are left out.
+Runs wider than --cap are flats -- a tyre, a pair of shorts -- and are left out;
+the default cap is 1.5% of the shorter side, the fraction check.py reads a line
+by. At 4% a panel's filled blacks (a mouth, a moustache) counted as line and
+moved its p90 from 35 to 51, where a panel with no such blacks read 20 at either.
 Pass the p90 as --line. Measured on one panel: 6 at delivered size and 20, not
 24, on its 4x bilinear upscale, because the ramp thins the core that classifies
 as ink. Measure in the space you trace in; never multiply.
@@ -155,8 +158,8 @@ def run_lengths(mask):
 
 def line_width(mask, cap=None):
     """Per-pixel min(row run, column run) over `mask`, runs wider than `cap`
-    (default 4% of the shorter side) dropped as flats. Returns the widths."""
-    cap = cap or max(4, round(0.04 * min(mask.shape)))
+    (default 1.5% of the shorter side) dropped as flats. Returns the widths."""
+    cap = cap or max(12, round(0.015 * min(mask.shape)))
     across = np.minimum(run_lengths(mask), run_lengths(mask.T).T)
     return across[mask & (across <= cap)]
 
@@ -272,7 +275,7 @@ def main():
                        help="print the --ink line's width percentiles and exit")
     parse.add_argument("--cap", type=int, default=0,
                        help="--measure-line: runs wider than this are flats "
-                            "(default 4%% of the shorter side)")
+                            "(default 1.5%% of the shorter side)")
     args = parse.parse_args()
 
     opened = Image.open(args.subject)

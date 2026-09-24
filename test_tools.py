@@ -162,6 +162,27 @@ def _():
         assert code == 1 and "FAIL culled" in said and "UNCHECKED" in said, said
 
 
+@case("--census counts thick forms, not thin ramp specks of the same value")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        subject = Image.new("RGB", (1200, 800), PALETTE["background"])
+        pen = ImageDraw.Draw(subject)
+        pen.rectangle([20, 20, 1180, 780], outline=PALETTE["black"], width=12)
+        for x in (200, 500, 800):
+            pen.ellipse([x, 200, x + 60, 260], fill=PALETTE["orange"])
+        for x in range(100, 1000, 60):
+            pen.line([(x, 500), (x + 40, 500)], fill=PALETTE["orange"], width=2)
+        subject.save(f"{folder}/subject.png")
+        subject.save(f"{folder}/drawing.png")
+        with open(f"{folder}/palette.json", "w") as handle:
+            json.dump(PALETTE, handle)
+        with open(f"{folder}/parts.json", "w") as handle:
+            json.dump({"drops": {"box": [0, 0, 1200, 800], "count": 3, "value": "orange"}}, handle)
+        code, said = tool(f"{HERE}/check.py", "drawing.png", "--ref", "subject.png",
+                          "--census", "parts.json", cwd=folder)
+        assert code == 0 and "all agree" in said, said
+
+
 @case("--faces compares a flat with the region it overlaps, not one whose box holds it")
 def _():
     with tempfile.TemporaryDirectory() as folder:
