@@ -64,14 +64,24 @@ the `claude` CLI. One directory per drawing holds `subject.png` and everything
 below; nothing goes in `/tmp`. Copy `build.sh` in beside it and set `SKILL=` to
 this directory. Your script is `draw.py`; it writes `ops.json`.
 
-On a panel-sized subject three things bite immediately. **Trace each object's
-own crop, never the whole panel**: `trace.py` on a 17-megapixel subject does
-not finish, and the obvious escape — tracing the delivered-size image and
-projecting the coordinates up with `--space` — is a trap that costs more than
-it saves. See below. **Set `Image.MAX_IMAGE_PIXELS=None`** before opening a
-comparison: `--masses` writes an image past PIL's decompression-bomb limit and
-the gate dies on its own output. And **macOS has no `timeout`** — it is
-`gtimeout`, or `perl -e 'alarm N; exec @ARGV' --`.
+**A scene's working space is the delivered size times four**, and every mark,
+measurement and render lives in it. Make it once: `subject.png` is the
+delivered image upscaled 4x with `Image.BILINEAR`, and the delivered image is
+kept beside it as `subject_1x.png` for the describer and the panel-level
+reading. Not LANCZOS or BICUBIC: both overshoot, and the halo they leave beside
+every dark line classifies as the ground colour — measured on a panel, LANCZOS
+overshot the local range on 0.12% of pixels, about twenty thousand, BICUBIC on
+0.013%, BILINEAR on none. Even so the ramp beside each line is a mid-tone that
+traces as a ring region round every outlined form: trace an upscaled subject
+with `--fringe 60`. The harness exports at device pixel ratio 2, so render with
+`./build.sh --scale 0.5` to get renders 1:1 with `subject.png`. **macOS has no
+`timeout`** — it is `gtimeout`, or `perl -e 'alarm N; exec @ARGV' --`.
+
+**Measure `--line` in the space you trace in**: the p90 width of runs bounded by
+non-ink on both sides, scanned along rows *and* columns and taking the smaller
+of the two at each crossing, since an axis scan across a diagonal reads it too
+wide. At 4x it is four times the delivered figure. Every near-black that is line
+goes in `--ink`, not only the darkest.
 
 ### Where your measurements come from is an architectural decision
 
@@ -97,6 +107,15 @@ is the difference between a helmet a viewer names and a striped loaf.
 
 The symptom to watch for, because it is silent: forms arriving with three to
 nine points each where the object plainly has more structure than that.
+
+**The welded masses are the one thing measured panel-wide**: trace
+`subject_1x.png` and read their outlines off that. They carry no ink, so its
+1px-at-delivered-size lattice costs nothing, and there are five to twelve of
+them — typed into `draw.py` like every other mark, from the trace, at the point
+count their silhouettes need. A mass layer of hundreds of flats, one per traced
+region, is the generated drawing again. Where two ink-less masses meet, the
+edge is one shared entry in the dict, and the far mass runs past it under the
+nearer one written after, so no hairline of ground opens along the join.
 
 **And then: a rich trace does not name anything.** Fixing the measurement
 removes the excuse for a starved form; it does not remove the work, and it is
@@ -261,7 +280,8 @@ run that is going wrong is stopped before it has spent the rest.
    repoint a stock name whose own flat is expendable, and record the swap in
    `reading.md` beside the palette.
 2. **Trace.** `python3 trace.py subject.png palette.json --png regions.png`,
-   then look at `regions.png`. Every flat comes back as a region with its
+   then look at `regions.png` — on a scene, `subject_1x.png` for the reading
+   and the welded masses, and each part's own crop when you reach it. Every flat comes back as a region with its
    outline as straights and as a curve, in the subject's own coordinates. A
    region is a flat, not an object: naming them is the reading.
 3. **Describe the subject.** `describe.sh subject.png`. Its answers 3 (what
@@ -514,8 +534,8 @@ reproduce on the form it names is often real on the form next to it.
 | `--doubled ops.json` | one edge stated twice from two guesses. A worklist: two bands meant to run together (a rim inside a tyre) are listed too, so look before you merge |
 | `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink written after the near form's fill, which draws that edge straight across the nearer object. The only gate on depth order, and it reads the script, since the pixels are all correct. An **UNRESOLVED** row is not a pass — it means the stroke tags and the inventory names are not one vocabulary and the pair went unchecked |
 | `--ladder ops.json` | the stage that does not exist, and the mark the script did not write: strokes called from another file, stamped by a loop or an import, or with points loaded or computed rather than written down. Pasted generated literals pass it |
-| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It compares against the traced region, so a form that is *deliberately* straight — a ground band, a step riser — fails it whenever objects intrude into that region and drive its point count up; read those as false and move on. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that |
-| `--unfilled` (needs `--ref`) | bare ground where the subject carries the object — a flat that stopped short of its own ink. **Pass a `--paper` the drawing never paints with**: if the ground is a colour you also fill with, every such flat reads as bare and the gate is pure noise. `--registration` sees only paper the line walls in completely; a flat short along an OPEN edge leaves a bay the flood reaches, and that is the commoner fault |
+| `--faces ops.json` | a flat simpler than the form it lies on. A shade drawn as a quad on a form the tracer gives twenty-five points reads as a patch stuck to the object, not as its surface turning away. It compares against the traced region, so a form that is *deliberately* straight — a ground band, a step riser — fails it whenever objects intrude into that region and drive its point count up; read those as false and move on. It counts corners, never where they fall: a flat whose corners bunch at two ends passes with a long straight boundary running where the form curves, and `--masses` is what sees that. On a scene pass `--regions` the object's own trace, offset into panel coordinates: flats outside its regions are skipped |
+| `--unfilled` (needs `--ref`) | bare ground where the subject carries the object — a flat that stopped short of its own ink. **Pass a `--paper` the drawing never paints with**: if the ground is a colour you also fill with, every such flat reads as bare and the gate is pure noise. Where the drawing must paint the ground's own colour — a pale sky on a pale ground — render a check copy with a palette whose `background` is repointed to a colour nothing uses, and pass that as `--paper`. `--registration` sees only paper the line walls in completely; a flat short along an OPEN edge leaves a bay the flood reaches, and that is the commoner fault |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x. **The primary gate on any object, not a step in a list.** Three versions of one object — one drawn from traced interiors, one from chained forms, one from a starved trace — all passed `--ladder`, all sat inside their boxes, all carried the right palette and the right mass, and they ranged from a beetle to a thing a blind viewer named on its first words. Only the magnified pair beside the subject told them apart |
 | a blind viewer on a part's crop | what the part **is**. The only gate that fails a blob — and a detector, not a meter: act on a wrong name, read nothing into a right one |

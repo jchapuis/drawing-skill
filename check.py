@@ -26,6 +26,10 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage
 
+# a 4x working panel is past PIL's decompression-bomb limit, and so is what
+# --masses would make of it; these are our own images
+Image.MAX_IMAGE_PIXELS = None
+
 
 def fit(image, width):
     return image.resize((width, round(image.height * width / image.width)), Image.LANCZOS)
@@ -233,6 +237,13 @@ def masses(drawing, subject, box=None, colours=5, blow=3):
         x, y, width, height = box
         subject = subject.crop((x, y, x + width, y + height))
         drawing = drawing.crop((x, y, x + width, y + height))
+    # a design is read at thumbnail size: a working-resolution panel is brought
+    # down to it first, and only a small crop is blown up
+    fit_to = 900
+    shrink = min(1.0, fit_to / max(subject.size))
+    size = (max(1, round(subject.width * shrink)), max(1, round(subject.height * shrink)))
+    subject, drawing = subject.resize(size, Image.BOX), drawing.resize(size, Image.BOX)
+    blow = max(1, min(blow, fit_to // max(size)))
     flat = [_flatten(image, colours).resize((image.width * blow, image.height * blow),
                                             Image.NEAREST)
             for image in (subject, drawing)]

@@ -2,21 +2,23 @@
 """Measure a flat-cel subject's regions once, mechanically, in its own space.
 
     python3 trace.py subject.png palette.json [--out regions.json] [--png regions.png]
-                     [--ink black] [--line 8] [--min-area 150] [--offset X,Y] [--space W,H]
+                     [--ink black] [--line 8] [--min-area 150] [--fringe 0]
+                     [--offset X,Y] [--space W,H]
 
 Every pixel is classified to its nearest palette entry. Pixels of the ink colour
 that lie in a run no wider than --line are handed to whichever region is
 nearest, so two flats that share a drawn line meet along that line's centre --
 which is where the ink stroke belongs. Ink wider than a line is a flat of that
-colour and keeps its own region. Each connected region of one colour then
-becomes an entry:
+colour and keeps its own region. Regions are cut before the line is handed out,
+so two flats of one colour that a line separates stay two. Each becomes an entry:
 
     {"id": 3, "colour": "orange", "area": 22641, "box": [x, y, w, h],
      "centre": [x, y],            # the CENTROID -- often not inside the region
      "inside": [x, y],            # the region's deepest point: probe HERE
      "median": "#d37201",         # the region's own median pixel
      "blockin": [[x, y], ...],    # the outline as a few straights (6px tolerance)
-     "contour": [[x, y], ...]}    # the outline as a curve (1.5px tolerance)
+     "contour": [[x, y], ...],    # the outline as a curve (1.5px tolerance)
+     "holes": [[[x, y], ...]]}    # every hole's outline: a ring is not a disc
 
 `centre` is a centroid, and a centroid is not a point in the region: on any
 crescent, ring or bent form it lands in a neighbour. Probing there returns the
@@ -30,8 +32,19 @@ This is the measuring instrument for stages 2, 3 and 6. It cannot supply a form
 the subject does not have, which is the test a tool here must pass. What it does
 not do is decide anything: which regions matter, which edges are stated and
 which are lost, what is left out, and what weight a line takes are still the
-drawing. Regions come out largest first; a region under --min-area is
-anti-aliasing and is dropped.
+drawing -- and it writes no mark: its points are read, and the ones that carry
+a form are typed into the script. Regions come out largest first.
+
+What it drops is a decision too. A region under --min-area is gone, and so is
+every dark form narrower than --line, which is handed to its neighbours as line:
+a spray of droplets or a thin tail vanishes here, silently. Compare the census
+against the regions before trusting the count. --ink takes every palette name
+that is line, not only the darkest: a near-black a few levels off the ink
+classifies as its own flat and the line network comes back as one huge region.
+A small ink-coloured region where three lines meet is a junction, where the
+lines are wider than --line, not a flat. On an upscaled subject, --fringe 60
+hands the ramp beside every line to the line; without it the ramp comes back as
+a ring region round every outlined form.
 
 --offset X,Y shifts every coordinate by a crop's corner, so an object measured in
 its own crop (crop.py prints the offset) comes back in panel coordinates.
@@ -58,63 +71,89 @@ def classify(image, palette):
     return names, labels.reshape(image.height, image.width)
 
 
-def absorb_ink(labels, ink, line):
-    """Give every LINE pixel the label of the nearest non-line pixel.
+def separate(labels, ink, line):
+    """Split the classified subject into regions, and give every LINE pixel to
+    the region nearest it.
 
     The ink colour is also a flat wherever it is wider than a line -- a tyre, a
     pair of shorts, a shoe -- so only what a disc of the line's width can pass
-    through is line. Anything thicker keeps its own region at full extent."""
+    through is line. Anything thicker keeps its own region at full extent.
+
+    Regions are cut BEFORE the line is handed out, so two flats of one colour
+    that only a line separates -- an eye white and the sky beside it -- stay two
+    regions. Handed out first, the line joins them and the eye is the sky.
+    Returns (region id per pixel, colour index per region id)."""
+    line_mask = np.zeros(labels.shape, bool)
     mask = np.isin(labels, ink)
-    if not mask.any():
-        return labels
-    radius = max(1, int(round(line / 2)))
-    span = np.arange(-radius, radius + 1)
-    disc = (span[:, None] ** 2 + span[None, :] ** 2) <= radius ** 2
-    thick = ndimage.binary_opening(mask, structure=disc)
-    thin = mask & ~thick
-    _, (rows, cols) = ndimage.distance_transform_edt(thin, return_indices=True)
-    return labels[rows, cols]
+    if mask.any():
+        radius = max(1, int(round(line / 2)))
+        span = np.arange(-radius, radius + 1)
+        disc = (span[:, None] ** 2 + span[None, :] ** 2) <= radius ** 2
+        line_mask = mask & ~ndimage.binary_opening(mask, structure=disc)
+    ids = np.zeros(labels.shape, np.int32)
+    colour_of = [-1]
+    for index in np.unique(labels[~line_mask]):
+        parts, count = ndimage.label((labels == index) & ~line_mask, structure=np.ones((3, 3)))
+        ids[parts > 0] = parts[parts > 0] + len(colour_of) - 1
+        colour_of += [int(index)] * count
+    if line_mask.any():
+        _, (rows, cols) = ndimage.distance_transform_edt(line_mask, return_indices=True)
+        ids = ids[rows, cols]
+    return ids, colour_of
 
 
-def outline(mask, tolerance):
-    contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL,
-                                   cv2.CHAIN_APPROX_NONE)
-    longest = max(contours, key=len)
-    simplified = cv2.approxPolyDP(longest, tolerance, True)
-    return [[int(x), int(y)] for [[x, y]] in simplified]
+def outline(contour, tolerance, dx, dy):
+    simplified = cv2.approxPolyDP(contour, tolerance, True)
+    return [[int(x) + dx, int(y) + dy] for [[x, y]] in simplified]
 
 
-def trace(image, palette, ink, line, min_area):
+def trace(image, palette, ink, line, min_area, fringe=0.0):
     image_rgb = np.asarray(image.convert("RGB"))
     names, labels = classify(image, palette)
-    labels = absorb_ink(labels, [names.index(name) for name in ink if name in names], line)
+    ink_ids = [names.index(name) for name in ink if name in names]
+    if fringe and ink_ids:
+        # the ramp between a line and the flat beside it is a mid-tone, and its
+        # nearest palette entry is some third colour: left alone it comes back as
+        # a ring region round every outlined form. Steep pixels are ramp.
+        grey = np.asarray(image.convert("L"), dtype=float)
+        steep = np.hypot(ndimage.sobel(grey, 0), ndimage.sobel(grey, 1)) > fringe
+        labels = np.where(steep, ink_ids[0], labels)
+    ids, colour_of = separate(labels, ink_ids, line)
     regions = []
-    for index, name in enumerate(names):
-        components, count = ndimage.label(labels == index, structure=np.ones((3, 3)))
-        for component in range(1, count + 1):
-            mask = components == component
-            area = int(mask.sum())
-            if area < min_area:
-                continue
-            ys, xs = np.nonzero(mask)
-            # `centre` is a centroid and a centroid is NOT a point in the region:
-            # any crescent, ring or bent form puts it in a neighbour. Probing
-            # there reports the neighbour's colour and reads as proof that the
-            # region is an anti-aliasing artefact, so real flats get culled.
-            # `inside` is the deepest point of the region itself; probe that.
-            deep = cv2.distanceTransform(mask.astype(np.uint8), cv2.DIST_L2, 3)
-            iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
-            median = np.median(image_rgb[mask], axis=0)
-            regions.append({
-                "colour": name, "area": area,
-                "box": [int(xs.min()), int(ys.min()),
-                        int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
-                "centre": [round(float(xs.mean()), 1), round(float(ys.mean()), 1)],
-                "inside": [int(ix), int(iy)],
-                "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
-                "blockin": outline(mask, 6.0),
-                "contour": outline(mask, 1.5),
-            })
+    for number, where in enumerate(ndimage.find_objects(ids), 1):
+        if where is None:
+            continue
+        mask = ids[where] == number
+        area = int(mask.sum())
+        if area < min_area:
+            continue
+        top, left = where[0].start, where[1].start
+        padded = np.pad(mask, 1).astype(np.uint8)
+        found, tree = cv2.findContours(padded, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        outer = max((k for k in range(len(found)) if tree[0][k][3] < 0), key=lambda k: len(found[k]))
+        holes = [found[k] for k in range(len(found))
+                 if tree[0][k][3] == outer and cv2.contourArea(found[k]) >= min_area]
+        ys, xs = np.nonzero(mask)
+        # `centre` is a centroid and a centroid is NOT a point in the region:
+        # any crescent, ring or bent form puts it in a neighbour. Probing
+        # there reports the neighbour's colour and reads as proof that the
+        # region is an anti-aliasing artefact, so real flats get culled.
+        # `inside` is the deepest point of the region itself; probe that.
+        deep = cv2.distanceTransform(padded, cv2.DIST_L2, 3)
+        iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
+        median = np.median(image_rgb[where][mask], axis=0)
+        dx, dy = left - 1, top - 1
+        regions.append({
+            "colour": names[colour_of[number]], "area": area,
+            "box": [int(xs.min()) + left, int(ys.min()) + top,
+                    int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
+            "centre": [round(float(xs.mean()) + left, 1), round(float(ys.mean()) + top, 1)],
+            "inside": [int(ix) + dx, int(iy) + dy],
+            "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
+            "blockin": outline(found[outer], 6.0, dx, dy),
+            "contour": outline(found[outer], 1.5, dx, dy),
+            "holes": [outline(hole, 1.5, dx, dy) for hole in holes],
+        })
     regions.sort(key=lambda region: -region["area"])
     for number, region in enumerate(regions):
         region["id"] = number
@@ -161,6 +200,9 @@ def main():
                        help="widest run of the ink colour that is still a line, in px; "
                             "measure it (p90 of true line runs). Thicker ink is a flat")
     parse.add_argument("--min-area", type=int, default=150)
+    parse.add_argument("--fringe", type=float, default=0.0,
+                       help="Sobel magnitude above which a pixel is the ramp beside a line "
+                            "and goes to the line; 60 on an upscaled subject. 0 is off")
     parse.add_argument("--space", default="", help="W,H to report coordinates in")
     parse.add_argument("--offset", default="",
                        help="X,Y added to every coordinate: a crop's corner in the panel, "
@@ -170,7 +212,7 @@ def main():
     image = Image.open(args.subject).convert("RGB")
     with open(args.palette) as handle:
         palette = json.load(handle)
-    regions = trace(image, palette, args.ink.split(","), args.line, args.min_area)
+    regions = trace(image, palette, args.ink.split(","), args.line, args.min_area, args.fringe)
     if args.png:
         sheet(image, regions).save(args.png)
     if args.space:
@@ -191,7 +233,8 @@ def main():
     print("\nlargest first:")
     for region in regions[:24]:
         print(f"  #{region['id']:<3d} {region['colour']:12s} {region['area']:7d}px  box {region['box']}"
-              f"  {len(region['blockin']):2d} straights / {len(region['contour']):3d} contour points")
+              f"  {len(region['blockin']):2d} straights / {len(region['contour']):3d} contour points"
+              + (f"  {len(region['holes'])} holes" if region["holes"] else ""))
     print("\na region is a flat, not an object: one object is several regions and one\n"
           "region can span two objects of the same colour. Naming them is the reading.")
 
