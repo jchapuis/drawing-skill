@@ -127,7 +127,7 @@ that. So there are two tiers:
 | tier | what it is | treatment |
 |---|---|---|
 | **part** | Every object that must be recognisable — the figure, the vehicle, the lamp, the picture on the wall — each an *object*, never a feature of one | The single-subject ladder, in the panel's one document at the working resolution its smallest feature needs, looked at with `--zoom`. Emphasis is the weight pitch and the edge count it is drawn with, decided at stage 0; a far part is drawn lighter and sparer, not thinned afterwards |
-| **welded** | Everything else, and it is most of the list | Inside a mass. No contour, no marks of its own |
+| **welded** | Everything else, and it is most of the list | Inside a mass. No contour, no marks of its own — except in a source that inks every flat boundary, where the mass keeps its one line (`redrawing.md`) |
 
 The cost is real and has no shortcut: a figure or a vehicle is a whole
 single-subject run; a lamp is a tenth of one. A named object is either paid

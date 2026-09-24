@@ -564,7 +564,8 @@ def read_inventory(path):
           "touches": "moustache"
         }
 
-    A junction is an entry like any other -- `"hand/bar"` with a sentence saying
+    A junction is an entry like any other -- `"bike.bar/rider.hand"`, keyed in
+    the stroke-tag vocabulary so --depth can resolve it, with a sentence saying
     which is in front and how wide the gap is. It needs no machinery of its own,
     and it is where every scene here has failed.
     """
@@ -584,6 +585,44 @@ def read_inventory(path):
         else:
             inventory[name] = {"box": entry, "shape": "", "rel": ""}
     return inventory
+
+
+def census(drawing, subject, inventory_path, palette_path, min_area):
+    """The count of a group of repeated forms, on the subject and on the drawing,
+    against the number the census wrote down.
+
+    Every other gate passes cleanly on an absence. A group of small forms can be
+    culled before any drawing rule sees it -- dropped under a trace's minimum
+    area, handed to a neighbour as line, deferred at the census and never
+    counted -- and the masses gate still passes, because at thumbnail size a
+    spray of droplets does not change the design. An entry opts in with
+    `"count": N` and `"value": "black+grey"`, the palette names its forms carry;
+    each box is classified to the palette on both images and the connected forms
+    of those values are counted."""
+    with open(inventory_path) as handle:
+        raw = json.load(handle)
+    with open(palette_path) as handle:
+        palette = json.load(handle)
+    names = [name for name in palette if name != "background"]
+    colours = np.array([[int(palette[name][at:at + 2], 16) for at in (1, 3, 5)]
+                        for name in names], dtype=float)
+    drawing = drawing.resize(subject.size, Image.NEAREST) if drawing.size != subject.size else drawing
+    rows = []
+    for key, entry in raw.items():
+        if not isinstance(entry, dict) or "count" not in entry:
+            continue
+        x, y, width, height = (int(round(value)) for value in entry["box"])
+        wanted = [names.index(name) for name in str(entry.get("value", "black")).split("+")
+                  if name in names]
+        found = []
+        for image in (subject, drawing):
+            pixels = np.asarray(image.crop((x, y, x + width, y + height)), dtype=float)
+            labels = np.argmin((colours ** 2).sum(-1) - 2 * pixels @ colours.T, axis=2)
+            forms, count = ndimage.label(np.isin(labels, wanted), structure=np.ones((3, 3)))
+            sizes = ndimage.sum(np.ones_like(forms), forms, range(1, count + 1))
+            found.append(int((np.asarray(sizes) >= min_area).sum()))
+        rows.append((key, int(entry["count"]), found[0], found[1]))
+    return rows
 
 
 def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
@@ -798,6 +837,11 @@ def main():
                             "script, not the render")
     parse.add_argument("--depth", nargs=2, metavar=("OPS", "PARTS"), default=None,
                        help="write order against the inventory's in_front column")
+    parse.add_argument("--census", default="",
+                       help="parts.json (needs --ref): every entry with a count, counted "
+                            "on the subject and on the drawing")
+    parse.add_argument("--min-area", type=int, default=40,
+                       help="--census: the smallest form counted, in render pixels")
     parse.add_argument("--ladder", default="",
                        help="an ops JSON: which stages exist, how many marks each, "
                             "and whether ink was laid over a gesture, block-in and "
@@ -947,6 +991,26 @@ def main():
                   "see absence and displacement:\n  " + ", ".join(mute[:12])
                   + (" ..." if len(mute) > 12 else ""))
         return
+
+    if args.census:
+        if not args.ref:
+            sys.exit("--census needs --ref")
+        rows = census(drawing, Image.open(args.ref).convert("RGB"), args.census,
+                      "palette.json", args.min_area)
+        if not rows:
+            sys.exit("--census: no entry carries a count -- write the census into parts.json")
+        wrong = 0
+        print(f"  {'entry':34s} census subject drawing")
+        for key, want, seen, made in rows:
+            verdict = "" if made == want else ("  FAIL culled" if made < want else "  FAIL extra")
+            if seen != want:
+                verdict += "  (subject counts differently: look before trusting either)"
+            wrong += made != want
+            print(f"  {key[:34]:34s} {want:6d} {seen:7d} {made:7d}{verdict}")
+        print("\na census is the only gate that fails on an absence. A form merged, cut or "
+              "touching\nits neighbour counts differently from the subject's: zoom the box, "
+              "then decide.")
+        sys.exit(1 if wrong else 0)
 
     if args.ranking:
         if not args.ref:

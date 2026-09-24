@@ -251,9 +251,9 @@ for looking.
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its box (the `--zoom` and measuring crop), its smallest feature at working resolution, its nested parts (a face inside a figure), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing; the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
-| S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops. **The object ladder's "3–10 strokes" is a single object's budget and does not apply here** — a scene needs one per mass plus the ground and eye lines, which runs to fifteen or twenty. Too few and the describer reads one object's parts as another's: a bicycle's bar becomes the figure's outstretched arms | `describe.sh gesture.png`: the event and the big shape read. **A pose carried by value rather than by silhouette may not be statable here** — a seated figure with fully foreshortened thighs has a standing figure's outline — and then the honest move is to record that the event is gated at S2 instead, with the describer runs that show it, rather than to keep redrawing an armature that cannot carry it |
+| S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops. **The object ladder's "3–10 strokes" is a single object's budget and does not apply here** — a scene needs one per mass plus the ground and eye lines, which runs to fifteen or twenty. Too few and the describer reads one object's parts as another's: a bicycle's bar becomes the figure's outstretched arms | `describe.sh gesture.png`: the event and the big shape read. **Some events cannot be stated here**: a pose carried by value rather than by silhouette — a seated figure with fully foreshortened thighs has a standing figure's outline — or one the describer's category prior outvotes, as a figure above a bicycle reads as riding whatever the lines say. Then the honest move is to record that the event is gated at S2 instead, with the describer runs that show it, rather than to keep redrawing an armature that cannot carry it |
 | S2 | **Masses** | `stage="blockin"` straights for the welded shapes, then their flats `stage="fill"` — the middle tone over the whole, then lights, then darks, honouring sharp/lost. **Every object's mass goes in here, part or welded**: the part/welded split decides whether an object gets *marks*, never whether its *value* exists. A part left out is a hole in the tone plan, and when a whole value family lives inside parts — the darks usually do — the gate cannot pass at all until they are in. A flat is not ink, so this costs nothing at the gate. No object's *marks* yet | `--masses` against the subject at thumbnail size; **no object has an ink contour** (`--ladder` shows ink 0) |
-| S3 | **Every object, in place** | run stages 4 to 9 of the object ladder on each object, in the one `draw.py`, in panel coordinates, working from the furthest object forward. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same flat, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — not optional. Then its own ladder gates, `--faces` and `--unfilled` |
+| S3 | **Every object, in place** | run stages 4 to 9 of the object ladder on each object, in the one `draw.py`, in panel coordinates, working from the furthest object forward. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same line of `draw.py`: edit its points in place from the object's own trace, never stack a second fill over it, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — not optional. Then its own ladder gates, `--faces` and `--unfilled` |
 | S4 | **Junctions** | nothing to assemble: every object was drawn where it belongs, with its neighbours already on the page, so the interfaces table was satisfied as you went rather than afterwards. Walk it once and confirm each row — the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; `--depth ops.json parts.json` clean, with no UNRESOLVED row; every row of the interfaces table has a recorded decision and a look |
 | S5 | **Emphasis** | nothing is drawn at panel scale here. Emphasis was decided at S0 as each part's weight pitch and edge count, and the far parts were drawn lighter and with fewer edges as they were drawn. Walk the panel and confirm the gradient: weight and detail decay from the centre of interest and with depth; welded objects have no marks | no part beyond the focus carries the focus's weight; a describer names every part |
 | S6 | **Interfaces** | the enumerated pass over the interfaces table, on the whole panel: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
@@ -327,12 +327,21 @@ run that is going wrong is stopped before it has spent the rest.
    own working-resolution crop, and cross-check that count against the number
    of **closed** regions the per-object trace returns: where the two disagree,
    the difference is usually forms left open at one end by a surface curving
-   away, and that mismatch is itself the signal to go and look.
+   away, and that mismatch is itself the signal to go and look. **Write the
+   count into the entry** — `"count": 7, "value": "black+grey"` — and run
+   `check.py drawing.png --ref subject.png --census parts.json` after S2 and
+   after the object: it counts the forms of those values in the box on both
+   images, and it is the only gate that fails on an absence. A group can be
+   culled before any drawing rule sees it: the tracer drops everything under
+   `--min-area` and hands every dark form narrower than `--line` to its
+   neighbours, and `--masses` passes without a spray of droplets. A count
+   deferred to "later" is a census that was never taken.
 
 ```json
 {
   "nose": {"shape": "ON the silhouette: the profile leaves the brow, runs down and OUT to the tip, then turns back under it", "box": [540, 336, 45, 50]},
-  "hand/bar": {"shape": "the glove closes over the bar; the bar disappears behind the fingers and reappears 30px to the left. No gap", "box": [318, 470, 96, 70], "in_front": "hand"}
+  "bike.bar/rider.hand": {"shape": "the glove closes over the bar; the bar disappears behind the fingers and reappears 30px to the left. No gap", "box": [318, 470, 96, 70], "in_front": "rider.hand"},
+  "helmet.vents": {"shape": "seven slots radiating from the brow, each tapering to both ends", "box": [380, 100, 330, 200], "count": 7, "value": "black"}
 }
 ```
 
@@ -453,7 +462,9 @@ write("ops.json", ops)
   `weight=` is pressure, not width; width is `nib=` or an explicit
   `size=`/`scale=`. A
   band wider than the heaviest nib — a strap, a tyre — is a flat: give it
-  both sides as points, closed. Then measure the width of each mark on the
+  both sides as points, closed; so is a small form dark all through, a droplet
+  whose ink is wider than its interior, with the interior written over it.
+  Then measure the width of each mark on the
   subject before asking for it. Try the next rung before recording a limit.
 - **Measure the ground.** Everything on it is judged by its contrast with it.
 - **Never retype a coordinate from memory.** Re-measure it.
@@ -530,6 +541,7 @@ reproduce on the form it names is often real on the form next to it.
 |---|---|
 | `--masses` | the wrong shape, with line closed away. **A design gate, not a proportion gate** — it posterises to two values and asks whether the panel reads as the same design, so at thumbnail size a head half again too wide is still a pale blob above a dark torso in the right place and it passes. Nothing in the kit checks a part's proportion automatically; what catches it is a bounding box and a per-row width scan against the subject |
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable*, and for a small part those are different questions — an unrecognisable part passes this, `--ranking` and its own crop's describer together. Only a describer on the assembled panel answers the second |
+| `--census parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added: every entry with a `count` is counted on the subject and on the drawing in its box. The only gate that fails on an absence |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice from two guesses. A worklist: two bands meant to run together (a rim inside a tyre) are listed too, so look before you merge |
 | `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink written after the near form's fill, which draws that edge straight across the nearer object. The only gate on depth order, and it reads the script, since the pixels are all correct. An **UNRESOLVED** row is not a pass — it means the stroke tags and the inventory names are not one vocabulary and the pair went unchecked |

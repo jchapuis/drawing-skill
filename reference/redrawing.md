@@ -49,6 +49,12 @@ The failure mode moves with it — from a drawing that sticks to the picture pla
 to a drawing that is a field of crossing loops. `--doubled` is the gate, and the
 shared-vertex construction in `method.md` is the fix.
 
+That reaches the welded tier too. A welded shape in such a source keeps the line
+its boundary carries — stated once, at the far end of the weight ladder — because
+the line is the source's style, not emphasis; what welding still withholds is
+the object ladder, the sub-forms and every interior mark. Leaving the mass bare
+is a departure from the source, and belongs in `reading.md` as one.
+
 Where two **same-valued** regions abut — a dark animal against a dark animal, a
 black glove against black shorts — the edge is genuinely lost, and drawing one
 there invents an edge the subject does not have. **Decide it by measuring the two
