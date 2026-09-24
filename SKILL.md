@@ -43,15 +43,13 @@ was seventy lines of concatenation with nothing in it to revise. The same move
 was refused earlier as a *filter* — skeletonise the ink, re-stroke it with a
 simulated pen — and it is the same move at every scale.
 
-`pen.write` refuses, and `check.py --ladder` fails, a drawing with strokes
-called from another file, a call site reached more than once (a loop, a
-comprehension, an import that draws), or control points mostly not written as
-numbers in `draw.py`. On six hand-written drawings it fires on nothing; on the
-generated panel it fires on all three. **Generated output pasted into `draw.py`
-as literal lines passes it and is still forbidden**: the gate catches the
-mechanism, and the rule is what you are held to. What makes a scene affordable
-is the scene ladder's economy — five to twelve welded shapes, a part list fixed
-at S0, marks spent near the centre of interest — never a generator.
+`pen.write` refuses, and `--ladder` fails, strokes called from another file, a
+call site reached more than once (a loop, a comprehension, an import that
+draws), or control points mostly not written as numbers in `draw.py`: silent on
+six hand-written drawings, all three signals on the generated one. **Generated
+output pasted in as literal lines passes it and is still forbidden.** What makes
+a scene affordable is the scene ladder's economy — five to twelve welded
+shapes, a part list fixed at S0, marks spent near the focus — never a generator.
 
 ## Setup
 
@@ -68,12 +66,10 @@ this directory. Your script is `draw.py`; it writes `ops.json`.
 measurement and render lives in it. Make it once: `subject.png` is the
 delivered image upscaled 4x with `Image.BILINEAR`, and the delivered image is
 kept beside it as `subject_1x.png` for the describer and the panel-level
-reading. Not LANCZOS or BICUBIC: both overshoot, and the halo they leave beside
-every dark line classifies as the ground colour — measured on a panel, LANCZOS
-overshot the local range on 0.12% of pixels, about twenty thousand, BICUBIC on
-0.013%, BILINEAR on none. Even so the ramp beside each line is a mid-tone that
-traces as a ring region round every outlined form: trace an upscaled subject
-with `--fringe 60`. The harness exports at device pixel ratio 2, so render with
+reading. Not LANCZOS or BICUBIC: both overshoot into a pale halo beside every
+dark line that classifies as the ground (LANCZOS on 0.12% of a panel's pixels,
+BILINEAR on none). The ramp beside each line still traces as a ring region
+round every outlined form, so trace an upscaled subject with `--fringe 60`. The harness exports at device pixel ratio 2, so render with
 `./build.sh --scale 0.5` to get renders 1:1 with `subject.png`. **macOS has no
 `timeout`** — it is `gtimeout`, or `perl -e 'alarm N; exec @ARGV' --`.
 
@@ -83,30 +79,20 @@ of the two at each crossing, since an axis scan across a diagonal reads it too
 wide. At 4x it is four times the delivered figure. Every near-black that is line
 goes in `--ink`, not only the darkest.
 
-### Where your measurements come from is an architectural decision
+### Measure per object, even though you draw in one document
 
-Drawing in one document does not mean **measuring** in one pass, and conflating
-the two is the most expensive mistake available here. A panel-wide trace
-resolves every object at *panel* scale: a small object comes back with a
-handful of points per form, and no amount of care at the drawing stage recovers
-what was never measured. Tracing the delivered-size image and multiplying the
-coordinates is worse still — it quantises every region boundary to the
-projection factor, so a 4x working space gets boundaries on a 4px lattice.
-
-**Crop each object out of the working-resolution subject, trace that, and
-offset the coordinates into panel space** — `crop.py subject.png x,y,w,h
+A panel-wide trace resolves every object at *panel* scale, and a small object
+comes back with a handful of points per form that no care at the drawing stage
+recovers; tracing the delivered-size image and scaling it up puts every boundary
+on a lattice the size of the factor. **Crop each object out of the
+working-resolution subject and trace that** — `crop.py subject.png x,y,w,h
 meas/NAME.png` cuts it at 1:1 and prints the `trace.py ... --offset X,Y` call
-that does the offset. It is not a compromise with the
-one-document rule: you still draw every mark in panel coordinates, in one
-`draw.py`, with no second coordinate space for marks and no placement step.
-Only the *measuring* is per object. Measured on one object: a panel-wide 1:1
-trace gave it 77 regions and 872 contour points, while its own crop at working
-resolution gave 156 regions and 3878 points — **4.4× the detail, in 1.5
-seconds.** The same object drawn from the rich trace and from the starved one
-is the difference between a helmet a viewer names and a striped loaf.
-
-The symptom to watch for, because it is silent: forms arriving with three to
-nine points each where the object plainly has more structure than that.
+that brings its regions into panel coordinates. Marks stay in one `draw.py`, in
+one coordinate space; only the measuring is per object. Measured on one object:
+77 regions and 872 contour points panel-wide, 156 and 3878 from its own crop,
+in 1.5 seconds — the difference between a helmet a viewer names and a striped
+loaf. The silent symptom is forms arriving with three to nine points each where
+the object plainly has more structure.
 
 **The welded masses are the one thing measured panel-wide**: trace
 `subject_1x.png` and read their outlines off that. They carry no ink, so its
@@ -188,36 +174,26 @@ refuses ink that has no gesture, block-in and contour stage under it.
 | 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the event does not read here, no later stage puts it in |
 | 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1/2 region as its `blockin` straights from `regions.json`, junctions as points shared by name | `check.py blockin.png --ref subject.png --overlay`: the straights sit on the subject's edges |
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
-| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, **drawn past where the ink will go** — `trap=<px>` on a BODY flat grows it outward by that much, so the contour covers its edge. **Trap an edge that is a silhouette; never trap an edge that is a measurement.** A flat that is a mark in its own right — a vent, an eye, a cast shadow, a shade — is ruined by it, and trapping every closed flat swells the interior shapes until they eat the form. A **band** is the silent case: a strip, a rim inside a tyre, a hem, a strap — its two long edges face opposite ways, so trapping moves both and **the band gains twice the trap in width**, on every band at once, with every gate still passing. Where two bands run concentric or parallel it is their *ratio* that makes the pair read, and trapping converges it. Trap a band's ends, never its length A fill outline taken from the tracer sits at the colour transition, which is INSIDE the ink, so used verbatim it falls short by half a line width and the ground shows through wherever the contour bulges. Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line and the object can then not occlude itself | `check.py drawing.png --ref subject.png --masses` — the two read as the same shape, said in words |
+| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, **drawn past where the ink will go** — `trap=<px>` on a BODY flat grows it outward by that much, so the contour covers its edge. **Trap an edge that is a silhouette; never trap an edge that is a measurement.** A flat that is a mark in its own right — a vent, an eye, a cast shadow, a shade — is ruined by it, and trapping every closed flat swells the interior shapes until they eat the form. A **band** is the silent case: a strip, a rim inside a tyre, a hem, a strap — its two long edges face opposite ways, so trapping moves both and **the band gains twice the trap in width**, on every band at once, with every gate still passing. Where two bands run concentric or parallel it is their *ratio* that makes the pair read, and trapping converges it. Trap a band's ends, never its length. A fill outline taken from the tracer sits at the colour transition, which is INSIDE the ink, so used verbatim it falls short by half a line width and the ground shows through wherever the contour bulges. Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line and the object can then not occlude itself | `check.py drawing.png --ref subject.png --masses` — the two read as the same shape, said in words |
 | 6 | **Contour** | `stage="contour"`: the real edge, curved where the subject curves, from `contour` in `regions.json` | `--overlay` again |
 | 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states; `fade`/`erase` blockin and contour | `check.py drawing.png --doubled ops.json` and `--ladder ops.json` pass |
 | 9 | **Fill** | flats refined; blacks massed as one value before anything is graded | `--hide ink` still separates figure from ground |
 | 10 | **Correct** | `stage="correct"` marks aimed by the judges, N rounds fixed at stage 0; `refuted.md` for every item that did not survive its measurement | `describe.sh drawing.png` matches the acceptance list clause by clause; `--registration`, `--parts`, `--ranking` |
 
 **Stages 5 to 8 interleave per form; they are not four passes over the whole
-drawing.** The table numbers them because each one commits less than the next,
-not because you finish one everywhere before starting the next. As soon as two
-forms overlap, write them depth-major — the far form's fill, the far form's
-ink, then the near form's fill *over that ink*, then the near form's ink. Group
-them stage-major, every fill and then every ink, and the far form's outline is
-laid down after the near form's flat and draws straight across it: a stray edge
-through the middle of the nearer object, which reads as a crease or a seam that
-is not there. **Occlusion is the order you write in, and nothing else provides
-it** — and `--depth ops.json parts.json` is the only gate on it, which works
-only if your stroke tags and your inventory names are the same vocabulary. Tag
-by the inventory's names, never a private shorthand, or the gate resolves
-nothing and reports a clean bill over an unchecked drawing. Three things it
-needs that are easy to get wrong: the interface **key** must itself be written
-`far/near` **in the tag vocabulary** (`wheel.front.tyre/ground.landing`, not
-`tyre.front/ground`); `in_front` belongs only on interface entries, never on a
-plain object; and a part carrying **no ink at all** makes its rows
-unresolvable, which is why UNRESOLVED has to be read as loudly as FAIL.
-Matching is by prefix, so a sub-form's ink counts as its parent's — which also
-means a parent's rows do not clear until every one of its sub-forms is ordered.
-A **hole** — a vent, a window, an eyelet — is the same rule seen from the
-other side: it is not a nearer form but an absence in this one, so its flat is
-written *after* the ink of the surface it pierces, or that surface's own
-contour runs across the opening.
+drawing.** As soon as two forms overlap, write them depth-major — the far
+form's fill, its ink, then the near form's fill *over that ink*, then the near
+form's ink. Written stage-major, the far outline lands after the near flat and
+draws straight across it: a crease or seam that is not there. **Occlusion is
+the order you write in, and nothing else provides it**, and `--depth ops.json
+parts.json` is its only gate — which works only if stroke tags and inventory
+names are one vocabulary: the interface **key** is written `far/near` in tag
+names (`wheel.front.tyre/ground.landing`, not `tyre.front/ground`), `in_front`
+sits only on interface entries, and a part with no ink makes its rows
+UNRESOLVED, which reads as loudly as FAIL. Matching is by prefix, so a parent's
+rows clear only when every sub-form is ordered. A **hole** — a vent, a window,
+an eyelet — is an absence in this form, so its flat is written *after* the ink
+of the surface it pierces, or that contour runs across the opening.
 
 Going back up the ladder invalidates everything above it: re-run every stage
 after the one you changed. The script re-renders in one call, so that is the
@@ -231,12 +207,9 @@ are for the event and the placement, and the ground is judged on
 ## The scene ladder
 
 The object ladder, wrapped. Stages S0–S2 draw no object: they design the
-picture. Then every object is drawn **into that same document, in the panel's
-own coordinates**, at a working resolution high enough to draw its smallest
-feature — 4x the delivered size is a reasonable default, and the whole panel at
-4x renders in seconds. There is one `draw.py` and one `ops.json`. Nothing is
-cropped out, nothing is placed back, and there is no second coordinate space
-anywhere.
+picture. Then every object is drawn into that same document, in panel
+coordinates, at 4x the delivered size (see Setup). One `draw.py`, one
+`ops.json`, no second coordinate space.
 
 **Objects drawn in their own crop and composited back came out as blobs; the
 same objects drawn whole came out well.** What a crop bought was a forced look
@@ -260,13 +233,10 @@ for looking.
 | S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern; the whole drawing's silhouette against the paper | `--ranking parts.json`: the focus leads, nothing shouts above its tier |
 | S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice. A blind viewer on each part's crop ranks the round: the **misnamed** parts get the budget first, then the parts whose shape sentences are untrue | the acceptance list; `--ranking` still shows one focus; no part misnamed. An item that returns after a round that addressed it is the stopping rule |
 
-**Budget by stage.** On a scene S0 is a large share of the job, and the parts
-are the rest: a figure or a vehicle costs about as much as a whole flat panel
-once did, a lamp a tenth of that, and there is no cheaper tier that produces
-anything usable. A self-reported budget comes back low by a factor of two; fix
-the part list and the correction rounds at S0 and hold to them, and work in
-checkpoints — after S2, after the first part, after the last — so a
-run that is going wrong is stopped before it has spent the rest.
+**Budget by stage.** S0 is a large share of a scene; a figure or a vehicle
+costs a whole flat panel, a lamp a tenth of that. A self-reported budget comes
+back low by a factor of two: fix the part list and correction rounds at S0, and
+checkpoint after S2, after the first part and after the last.
 
 ## Stage 0
 
@@ -280,10 +250,9 @@ run that is going wrong is stopped before it has spent the rest.
    repoint a stock name whose own flat is expendable, and record the swap in
    `reading.md` beside the palette.
 2. **Trace.** `python3 trace.py subject.png palette.json --png regions.png`,
-   then look at `regions.png` — on a scene, `subject_1x.png` for the reading
-   and the welded masses, and each part's own crop when you reach it. Every flat comes back as a region with its
-   outline as straights and as a curve, in the subject's own coordinates. A
-   region is a flat, not an object: naming them is the reading.
+   and look at `regions.png` — on a scene, `subject_1x.png` for the reading and
+   the welded masses, each part's own crop when you reach it. A region is a
+   flat, not an object: naming them is the reading.
 3. **Describe the subject.** `describe.sh subject.png`. Its answers 3 (what
    each figure is doing), 4 (what touches what) and 5 (expression) are the
    acceptance clauses, quoted, not paraphrased. A drawing that reads as a
@@ -320,22 +289,17 @@ run that is going wrong is stopped before it has spent the rest.
    on the subject means the part reads only in context, so judge it in
    context later. An entry for a thing the subject does not have propagates
    into every stage below it, and this is the only check that can remove one.
-   **A describer on a panel-scale crop under-counts a group of repeated small
-   forms** — vents, fingers, teeth, spokes, louvres. It counts blobs at the
-   resolution it was given, so the census is wrong before a single mark exists
-   and every later stage inherits the wrong number. Count them on the object's
-   own working-resolution crop, and cross-check that count against the number
-   of **closed** regions the per-object trace returns: where the two disagree,
-   the difference is usually forms left open at one end by a surface curving
-   away, and that mismatch is itself the signal to go and look. **Write the
-   count into the entry** — `"count": 7, "value": "black+grey"` — and run
-   `check.py drawing.png --ref subject.png --census parts.json` after S2 and
-   after the object: it counts the forms of those values in the box on both
-   images, and it is the only gate that fails on an absence. A group can be
-   culled before any drawing rule sees it: the tracer drops everything under
-   `--min-area` and hands every dark form narrower than `--line` to its
-   neighbours, and `--masses` passes without a spray of droplets. A count
-   deferred to "later" is a census that was never taken.
+   **The census of a group of repeated small forms** — vents, fingers, teeth,
+   spokes, droplets — is counted on the object's own working-resolution crop,
+   never by a describer on a panel-scale crop, which counts blobs and
+   under-counts; cross-check it against the **closed** regions the object's
+   trace returns (a mismatch is usually forms left open by a surface curving
+   away). **Write it into the entry** — `"count": 7, "value": "black+grey"` —
+   and run `--census parts.json` after S2 and after the object: it is the only
+   gate that fails on an absence. The tracer drops forms under `--min-area` and
+   hands dark forms narrower than `--line` to their neighbours, and `--masses`
+   passes without a spray of droplets; a count deferred to "later" was never
+   taken.
 
 ```json
 {
@@ -354,7 +318,8 @@ P = lambda *names: [V[n] for n in names]
 ops = [frame(0, 0, 928, 1152)]
 ops.append(stroke(P("hip", "knee", "ankle"), stage="gesture", nib="fine"))
 ops.append(stroke(P("hip", "knee", "ankle"), stage="blockin", smooth=False))
-ops.append(stroke(P("hip", "knee", "ankle"), stage="ink", nib="medium", tag="leg.near+rider"))
+ops.append(stroke(P("hip", "knee"), stage="ink", nib="medium", tag="rider.leg.near.thigh"))
+ops.append(stroke(P("knee", "ankle"), stage="ink", nib="medium", tag="rider.leg.near.shin"))
 write("ops.json", ops)
 ```
 
@@ -448,24 +413,18 @@ write("ops.json", ops)
   corners render as a lens. `closed=True` must not repeat its first
   point. A small closed form takes `tool="pen"`. A flat takes `tool="flat"`
   with `size`/`scale` pinned, or its outline renders 5px wider than you asked.
-- **On a scene, `gauge` does not apply and the named nibs are unusable.** At a
-  4x working resolution a named nib arrives at a width that has nothing to do
-  with the subject's line. Draw the ladder with the tool you will use, read it
-  back with `--weights`, and pin `size`/`scale` by hand — once, for the whole
-  document, since there is only one.
-- **Draw a weight ladder first**, one *vertical* stroke per `nib=`, spaced
+- **Draw a weight ladder first**, one *vertical* stroke per width, spaced
   apart, with the tool you will use, written with `write(..., swatch=True)`,
   and read it back with `--weights` on a row that crosses them. Each tool has
-  its own ladder: `pen` is the hairline instrument and `brush` bottoms out
-  near 2px at 1:1. The nibs are pitched for a ~430px subject: on a single
-  object of another size call `gauge(subject_height)` before the first stroke.
-  `weight=` is pressure, not width; width is `nib=` or an explicit
-  `size=`/`scale=`. A
-  band wider than the heaviest nib — a strap, a tyre — is a flat: give it
-  both sides as points, closed; so is a small form dark all through, a droplet
-  whose ink is wider than its interior, with the interior written over it.
-  Then measure the width of each mark on the
-  subject before asking for it. Try the next rung before recording a limit.
+  its own ladder: `pen` is the hairline instrument and `brush` bottoms out near
+  2px at 1:1. The named nibs are pitched for a ~430px subject: on a single
+  object of another size call `gauge(subject_height)`; on a 4x scene they are
+  unusable, so pin `size`/`scale` from the ladder by hand, once for the whole
+  document. `weight=` is pressure, not width. A band wider than the heaviest
+  rung — a strap, a tyre — is a flat with both sides as points, closed; so is a
+  small form dark all through, a droplet whose ink is wider than its interior,
+  with the interior written over it. Measure each mark's width on the subject
+  before asking for it, and try the next rung before recording a limit.
 - **Measure the ground.** Everything on it is judged by its contrast with it.
 - **Never retype a coordinate from memory.** Re-measure it.
 - **A palette-exact filter measures the wrong thing on a shaded subject.**
