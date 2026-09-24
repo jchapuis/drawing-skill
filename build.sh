@@ -21,4 +21,6 @@ python3 -c "import json; json.dump([o for o in json.load(open('ops.json')) if o.
 render stages.json gesture.png --only gesture,frame "$@"
 render stages.json blockin.png --only gesture,blockin,frame "$@"
 render stages.json contour.png --only blockin,contour,fill,frame --palette palette.json "$@"
-render ops.json drawing.png --palette palette.json "$@"
+# drawing.png never shows the scaffolding: nothing in the ladder said to erase
+# construction or contour, and a masses gate read left-over gesture loops as mass
+render ops.json drawing.png --hide gesture,construction,blockin,contour --palette palette.json "$@"

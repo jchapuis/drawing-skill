@@ -45,7 +45,9 @@
  *         out and leaving a margin of bare paper the drawing never reaches.
  *         Use it with pen.frame() whenever working from a reference, so every
  *         render shares the subject's coordinate space and overlay is exact.
- * --palette  repoints any of the 13 stock colour names at a real hex value.
+ * --palette  repoints any of the 13 stock colour names at a real hex value:
+ *         black grey light-violet violet blue light-blue yellow orange green
+ *         light-green light-red red white. Any other name is refused.
  *         `background` is repointable too, but it is the ground, not a
  *         fourteenth colour: a mark may not use it. Measure it off the subject
  *         -- see pen.write's docstring for what a wrong ground costs.
@@ -57,6 +59,8 @@ import { extname, join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 
+const STOCK = ['black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow',
+  'orange', 'green', 'light-green', 'light-red', 'red', 'white']
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DIST = join(HERE, 'dist')
 
@@ -145,6 +149,11 @@ async function main() {
     const palettePath = flag('palette')
     if (palettePath) {
       const palette = JSON.parse(await readFile(palettePath, 'utf8'))
+      // a misspelt name was silently ignored and its flats kept tldraw's stock hue
+      const unknown = Object.keys(palette).filter((name) => name !== 'background' && !STOCK.includes(name))
+      if (unknown.length) {
+        throw new Error(`palette: ${unknown.join(', ')} not a stock name; the 13 are ${STOCK.join(', ')}, plus background`)
+      }
       await page.evaluate((colours) => window.canvas.repaint(colours), palette)
     }
 
