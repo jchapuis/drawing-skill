@@ -22,9 +22,11 @@ import math
 import sys
 import textwrap
 
+import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage
+from scipy.spatial import cKDTree
 
 # a 4x working panel is past PIL's decompression-bomb limit, and so is what
 # --masses would make of it; these are our own images
@@ -94,7 +96,45 @@ def corners(points, tolerance):
             + corners(points[worst:], tolerance) - 1)
 
 
-def faces(ops_path, regions_path, ratio):
+def _overlap(one, other, cells=160):
+    """Intersection over union of two polygons, rasterised on their joint box."""
+    both = np.asarray(list(one) + list(other), float)
+    low = both.min(axis=0)
+    step = max(float(np.ptp(both, axis=0).max()) / cells, 1e-6)
+    size = (int(np.ceil(np.ptp(both, axis=0)[1] / step)) + 2,
+            int(np.ceil(np.ptp(both, axis=0)[0] / step)) + 2)
+    masks = []
+    for shape in (one, other):
+        mask = np.zeros(size, np.uint8)
+        cv2.fillPoly(mask, [np.round((np.asarray(shape, float) - low) / step).astype(np.int32)], 1)
+        masks.append(mask.astype(bool))
+    union = (masks[0] | masks[1]).sum()
+    return float((masks[0] & masks[1]).sum()) / union if union else 0.0
+
+
+def _settled(outline, reach):
+    """A polygon with every bite and spike narrower than `reach` closed away,
+    as a closed point list. A traced region of a grainy or upscaled source
+    carries a serration of 5-15px along every edge at 4x, which no simplifying
+    tolerance that still keeps the real corners removes; opening and closing
+    the region's own mask does, and leaves its corners where they were."""
+    shape = np.asarray(outline, float)
+    low = shape.min(axis=0) - 3 * reach - 2
+    step = max(1.0, reach / 4.0)
+    size = np.ceil((shape.max(axis=0) - low + 3 * reach + 2) / step).astype(int)
+    mask = np.zeros((size[1] + 1, size[0] + 1), np.uint8)
+    cv2.fillPoly(mask, [np.round((shape - low) / step).astype(np.int32)], 1)
+    radius = max(1, int(round(reach / step)))
+    disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * radius + 1, 2 * radius + 1))
+    mask = cv2.morphologyEx(cv2.morphologyEx(mask, cv2.MORPH_OPEN, disc), cv2.MORPH_CLOSE, disc)
+    found, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    if not found:
+        return list(map(tuple, shape)) + [tuple(shape[0])]
+    ring = max(found, key=cv2.contourArea)[:, 0, :] * step + low
+    return [tuple(point) for point in ring] + [tuple(ring[0])]
+
+
+def faces(ops_path, regions_path, ratio, grain=0.0):
     """A flat simpler than the form it lies on.
 
     An interior flat — a shade, a highlight, a cast shadow lying on a form — is
@@ -112,9 +152,9 @@ def faces(ops_path, regions_path, ratio):
              if op.get("op") == "stroke" and op.get("stage") == "fill"]
     regions = json.load(open(regions_path))
     regions = regions if isinstance(regions, list) else regions.get("regions", [])
-    boxed = [(reg.get("box"), len(reg.get("blockin") or [])) for reg in regions
-             if reg.get("box")]
-    print(f"{'fill':>5s} {'faces':>6s} {'region':>7s}  verdict")
+    traced = [(reg["box"], [tuple(p[:2]) for p in (reg.get("contour") or reg.get("blockin") or [])])
+              for reg in regions if reg.get("box")]
+    print(f"{'fill':>5s} {'faces':>6s} {'region':>7s} {'overlap':>8s}  verdict")
     thin = 0
     for index, op in enumerate(drawn):
         points = [(p[0], p[1]) for p in (op.get("points") or [])]
@@ -125,19 +165,30 @@ def faces(ops_path, regions_path, ratio):
         width, height = max(xs) - min(xs), max(ys) - min(ys)
         if width * height < 2500:
             continue
-        centre = (sum(xs) / len(xs), sum(ys) / len(ys))
-        here = [count for box, count in boxed
-                if box[0] <= centre[0] <= box[0] + box[2]
-                and box[1] <= centre[1] <= box[1] + box[3]
-                and box[2] * box[3] >= width * height * 0.5]
-        if not here:
+        # The region is the one the flat OVERLAPS, not one whose box holds its
+        # centre: a thin tube's centre sits in the box of the whole wheel
+        # behind it, and a tube flat was compared against that region's 366
+        # corners. And the region is simplified at the flat's own tolerance,
+        # which scales with the shape: counted at the tracer's fixed one, a
+        # grainy source serrates every edge -- a straight tube came back with
+        # 70-230 points, and 31 tube flats on one panel read TOO FEW FACES.
+        match, best = None, 0.0
+        for box, outline in traced:
+            if len(outline) < 3 or box[0] > max(xs) or box[1] > max(ys) \
+                    or box[0] + box[2] < min(xs) or box[1] + box[3] < min(ys):
+                continue
+            share = _overlap(points, outline)
+            if share > best:
+                match, best = outline, share
+        if match is None or best < 0.5:
             continue
-        want = min(here)
-        # tolerance scales with the shape, so a big flat is not flattered by size
-        has = corners(points, max(width, height) * 0.02)
+        tolerance = max(width, height) * 0.02
+        reach = max(tolerance, grain)
+        want = corners(_settled(match, reach), tolerance) - 1
+        has = corners(_settled(points, reach), tolerance) - 1
         short = has < want * ratio
         thin += short
-        print(f"{index:5d} {has:6d} {want:7d}{'  TOO FEW FACES' if short else ''}")
+        print(f"{index:5d} {has:6d} {want:7d} {best:8.2f}{'  TOO FEW FACES' if short else ''}")
     print(f"\n{thin} flat(s) turn fewer corners than the region they sit in. A flat\n"
           f"cannot turn a corner the form under it does not turn: take the count\n"
           f"from the tracer, not from the four corners the shape suggests at a\n"
@@ -146,8 +197,32 @@ def faces(ops_path, regions_path, ratio):
     return thin
 
 
+def colour(text):
+    """A colour given as #rrggbb or as R,G,B -- both forms get typed."""
+    text = text.strip()
+    if "," in text:
+        parts = tuple(int(part) for part in text.split(","))
+    else:
+        digits = text.lstrip("#")
+        if len(digits) != 6:
+            sys.exit(f"not a colour: {text!r} (give #rrggbb or R,G,B)")
+        parts = tuple(int(digits[at:at + 2], 16) for at in (0, 2, 4))
+    if len(parts) != 3 or not all(0 <= part <= 255 for part in parts):
+        sys.exit(f"not a colour: {text!r} (give #rrggbb or R,G,B)")
+    return parts
+
+
+def ground_of(fallback, path="palette.json"):
+    """The subject's ground: palette.json's `background`, else the fallback."""
+    try:
+        with open(path) as handle:
+            return colour(json.load(handle)["background"])
+    except (OSError, ValueError, KeyError):
+        return fallback
+
+
 def marks(row, dark=None):
-    """Runs of mark in one row, widest last.
+    """Runs of mark in one row as (start, width), left to right.
 
     The threshold is the midpoint between the row's ground and its darkest
     value, not a fixed level: a ladder drawn at the `fill` stage sits well
@@ -160,16 +235,22 @@ def marks(row, dark=None):
         if ground - deepest < 12:
             return []
         dark = (ground + deepest) / 2
-    widths, run = [], 0
-    for value in row:
+    runs, run = [], 0
+    for at, value in enumerate(row):
         if value < dark:
             run += 1
         elif run:
-            widths.append(run)
+            runs.append((at - run, run))
             run = 0
     if run:
-        widths.append(run)
-    return sorted(width for width in widths if width > 1)
+        runs.append((len(row) - run, run))
+    return [(start, width) for start, width in runs if width > 1]
+
+
+def said(runs):
+    """Runs as `width@x`, in the order they sit, so a ladder's rungs keep their
+    names: sorted, a list of widths cannot say which rung is which."""
+    return "  ".join(f"{width}@{start}" for start, width in runs) or "-"
 
 
 def report(subject, drawing, rows):
@@ -183,10 +264,10 @@ def report(subject, drawing, rows):
     for y in rows:
         found = marks(list(subject.crop((0, y, subject.width, y + 1)).getdata()))
         made = marks(list(drawing.crop((0, y, drawing.width, y + 1)).getdata()))
-        print(f"y={y:4d}  subject {found}")
-        print(f"        drawing {made}")
-    print("\nmatch the span, not the individual runs: finest and heaviest, and "
-          "the ratio between them.")
+        print(f"y={y:4d}  subject {said(found)}")
+        print(f"        drawing {said(made)}")
+    print("\nwidth@x, left to right. match the span, not the individual runs: finest "
+          "and heaviest,\nand the ratio between them.")
 
 
 def zoom(drawing, subject, box, factor=4):
@@ -201,20 +282,129 @@ def zoom(drawing, subject, box, factor=4):
     """
     drawing = drawing.resize(subject.size, Image.LANCZOS)
     x, y, width, height = box
-    size = (width * factor, height * factor)
-    above = subject.crop((x, y, x + width, y + height)).resize(size, Image.LANCZOS)
-    below = drawing.crop((x, y, x + width, y + height)).resize(size, Image.LANCZOS)
-    sheet = Image.new("RGB", (size[0], size[1] * 2 + 40), (250, 250, 248))
+    size = (max(1, round(width * factor)), max(1, round(height * factor)))
+    above = ruled(subject.crop((x, y, x + width, y + height)).resize(size, Image.LANCZOS), box, factor)
+    below = ruled(drawing.crop((x, y, x + width, y + height)).resize(size, Image.LANCZOS), box, factor)
+    sheet = Image.new("RGB", (above.width, above.height * 2 + 40), (250, 250, 248))
     pen = ImageDraw.Draw(sheet)
     sheet.paste(above, (0, 16))
     pen.text((4, 2), "subject", fill=(25, 25, 25))
-    sheet.paste(below, (0, size[1] + 34))
-    pen.text((4, size[1] + 20), "drawing", fill=(25, 25, 25))
+    sheet.paste(below, (0, above.height + 34))
+    pen.text((4, above.height + 20), "drawing", fill=(25, 25, 25))
     return sheet
 
 
-def masses(drawing, subject, box=None, colours=5, blow=3):
-    """Both pictures reduced to flat masses, side by side, with no line at all.
+def _step(span, target=8):
+    """A round tick spacing giving about `target` ticks over `span`."""
+    for nice in (1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000):
+        if nice >= span / target:
+            return nice
+    return 10000
+
+
+def ruled(image, box, scale):
+    """A crop with its panel coordinates ticked along the top and left margin,
+    so what you see can be named. Ticks orient; they do not measure -- points
+    read off a ticked crop by eye came out 30-60px off at 4x, and `--scan` is
+    what gives a coordinate."""
+    left, top = 46, 16
+    out = Image.new("RGB", (image.width + left, image.height + top), (250, 250, 248))
+    out.paste(image, (left, top))
+    pen = ImageDraw.Draw(out)
+    x, y, width, height = box
+    step = _step(max(width, height))
+    for at in range(math.ceil(x / step) * step, x + width + 1, step):
+        across = left + (at - x) * scale
+        pen.line([(across, top - 5), (across, top - 1)], fill=(20, 20, 20))
+        pen.text((across + 2, 2), str(at), fill=(20, 20, 20))
+    for at in range(math.ceil(y / step) * step, y + height + 1, step):
+        down = top + (at - y) * scale
+        pen.line([(left - 5, down), (left - 1, down)], fill=(20, 20, 20))
+        pen.text((2, down - 5), str(at), fill=(20, 20, 20))
+    return out
+
+
+def inks(drawing, subject, box, dark=90, width=1500):
+    """The two LINES over one box, in one image: the subject's ink in blue, the
+    drawing's in red, black where they coincide, over the subject in pale grey.
+
+    An outline can match row for row while the likeness is wrong, because a
+    likeness is carried by interior lines too -- a nose's ridge, a brow, the
+    fold of a cheek. Measured: a face whose right edge sat within 10px of the
+    subject's on every row still read wrong, and the fault was the nose's ridge
+    line, which ran diagonally from the brow to the nostril in the subject and
+    near-vertically down the far edge in the drawing. No outline scan sees an
+    interior line. This does, and it gives no number: the question for every
+    blue line is which red line is meant to be it, which is a reading, and a
+    distance between the two inks would fall as more ink is added."""
+    drawing = drawing.resize(subject.size, Image.LANCZOS)
+    x, y, w, h = box
+    grey = [np.asarray(image.crop((x, y, x + w, y + h)).convert("L"), dtype=float)
+            for image in (subject, drawing)]
+    base = 255 - (255 - grey[0]) * 0.22
+    out = np.stack([base] * 3, axis=-1)
+    theirs, ours = grey[0] < dark, grey[1] < dark
+    out[theirs & ~ours] = (40, 90, 235)
+    out[ours & ~theirs] = (225, 40, 40)
+    out[theirs & ours] = (30, 10, 30)
+    scale = width / max(w, h)
+    image = Image.fromarray(out.astype(np.uint8)).resize(
+        (max(1, round(w * scale)), max(1, round(h * scale))), Image.NEAREST)
+    return ruled(image, box, scale)
+
+
+def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24):
+    """The form's outline and its interior lines, row by row (or column by
+    column), subject beside drawing -- the instrument that settles proportion.
+
+    Per row: `edge` is the first pixel, coming in from `side`, that is not the
+    ground; `ink` lists the dark runs from that side inward. Read the diff
+    column for the outline and the ink columns for the lines inside it: a
+    thick line drawn as two strokes shows as one run against two, and an
+    interior line drawn in the wrong place shows as runs that drift apart
+    while the edges agree."""
+    drawing = drawing.resize(subject.size, Image.LANCZOS)
+    x, y, w, h = box
+    crops = [np.asarray(image.crop((x, y, x + w, y + h)).convert("RGB"), dtype=float)
+             for image in (subject, drawing)]
+    if side in ("top", "bottom"):
+        crops = [np.transpose(crop, (1, 0, 2)) for crop in crops]
+        origin, along, lines = x, y, w
+    else:
+        origin, along, lines = y, x, h
+    backwards = side in ("right", "bottom")
+    step = step or max(1, round(lines / 40))
+    loose = max(4, round(0.02 * (h if side in ("left", "right") else w)))
+    axis = "y" if side in ("left", "right") else "x"
+    print(f"from the {side}, every {step}px; edge = first non-ground pixel, ink = runs "
+          f"darker than {dark}, from the {side} inward. panel coordinates.")
+    print(f"{axis:>6s}  {'subject':>7s} {'drawing':>7s} {'diff':>5s}   subject ink  |  drawing ink")
+    for at in range(0, lines, step):
+        edges, runs = [], []
+        for crop in crops:
+            row = crop[at][::-1] if backwards else crop[at]
+            off = np.abs(row - np.asarray(ground, float)).max(axis=1) > tolerance
+            first = int(np.argmax(off)) if off.any() else None
+            edges.append(None if first is None else
+                         (along + len(row) - 1 - first if backwards else along + first))
+            found = marks(list(row.mean(axis=1)), dark)
+            runs.append([(along + len(row) - start - width, along + len(row) - 1 - start)
+                         if backwards else (along + start, along + start + width - 1)
+                         for start, width in found][:4])
+        diff = "" if None in edges else f"{edges[1] - edges[0]:+5d}"
+        flag = ("  <<" if diff and abs(edges[1] - edges[0]) > loose else "") + \
+               (f"  runs {len(runs[0])}|{len(runs[1])}" if len(runs[0]) != len(runs[1]) else "")
+        cells = ["  ".join(f"{a}-{b}" for a, b in found) or "-" for found in runs]
+        print(f"{origin + at:6d}  {str(edges[0]):>7s} {str(edges[1]):>7s} {diff:>5s}   "
+              f"{cells[0]}  |  {cells[1]}{flag}")
+    print(f"\n<< marks an edge more than {loose}px off; `runs a|b` a row whose line count "
+          "differs.\nA number here moves a mark; a look at a side-by-side does not: "
+          "proportion judged by\neye from a pair was wrong in both directions on one "
+          "panel, and a scan settled\nevery case.")
+
+
+def masses(drawing, subject, box=None, colours=3, blow=3):
+    """Both pictures reduced to flat value masses, side by side, with no line.
 
     This is the check that sees *shape*, and it is the one the rest of the kit
     cannot do. Everything else here compares marks: where they landed, how wide
@@ -223,61 +413,117 @@ def masses(drawing, subject, box=None, colours=5, blow=3):
     the subject's -- and still not be a face, because a wedge and an oval share a
     bounding rectangle and differ in the only way that matters.
 
-    Reducing each picture to a few flat areas throws away the line, the detail
-    and the rendering, and leaves the masses the eye actually reads first. Do it
+    Reducing each picture to a few values throws away the line, the detail and
+    the rendering, and leaves the masses the eye actually reads first. Do it
     early, before any contour: if the masses do not say the same thing as the
     subject's, nothing drawn on top of them will fix it.
-
-    Each image is quantised to its own dominant colours rather than to a shared
-    palette, because the two need not share one -- what is being compared is the
-    shape of the areas, not their hues.
     """
     drawing = drawing.resize(subject.size, Image.LANCZOS)
     if box:
         x, y, width, height = box
         subject = subject.crop((x, y, x + width, y + height))
         drawing = drawing.crop((x, y, x + width, y + height))
-    # a design is read at thumbnail size: a working-resolution panel is brought
-    # down to it first, and only a small crop is blown up
+    # the line is closed away at a working size, then the design is read at
+    # thumbnail size: a panel is brought down to it, a small crop blown up
+    work = min(1.0, 1800 / max(subject.size))
+    size = (max(1, round(subject.width * work)), max(1, round(subject.height * work)))
+    subject, drawing = (image.resize(size, Image.BOX) for image in (subject, drawing))
+    # one line width for both, the SUBJECT's: measured on each picture, a
+    # drawing inked heavier than its subject had its tyres closed away as line
+    radius = _line_radius(subject)
+    subject, drawing = (_lineless(image, radius) for image in (subject, drawing))
     fit_to = 900
-    shrink = min(1.0, fit_to / max(subject.size))
-    size = (max(1, round(subject.width * shrink)), max(1, round(subject.height * shrink)))
+    shrink = min(1.0, fit_to / max(size))
+    size = (max(1, round(size[0] * shrink)), max(1, round(size[1] * shrink)))
     subject, drawing = subject.resize(size, Image.BOX), drawing.resize(size, Image.BOX)
     blow = max(1, min(blow, fit_to // max(size)))
-    flat = [_flatten(image, colours).resize((image.width * blow, image.height * blow),
-                                            Image.NEAREST)
+    centres, paint = _levels(subject, colours)
+    flat = [_flatten(image, centres, paint).resize((image.width * blow, image.height * blow),
+                                                   Image.NEAREST)
             for image in (subject, drawing)]
     gap, label = 20, 18
     sheet = Image.new("RGB", (flat[0].width + flat[1].width + gap * 3,
                               flat[0].height + label + gap * 2), (255, 255, 255))
     pen = ImageDraw.Draw(sheet)
-    pen.text((gap, gap), "subject — masses only", fill=(30, 30, 30))
-    pen.text((gap * 2 + flat[0].width, gap), "drawing — masses only", fill=(30, 30, 30))
+    pen.text((gap, gap), f"subject -- {colours} values, no line", fill=(30, 30, 30))
+    pen.text((gap * 2 + flat[0].width, gap), f"drawing -- {colours} values, no line",
+             fill=(30, 30, 30))
     sheet.paste(flat[0], (gap, gap + label))
     sheet.paste(flat[1], (gap * 2 + flat[0].width, gap + label))
     return sheet
 
 
-def _flatten(image, colours):
-    """Reduce to a few flat areas and close the line art away.
+def _line_radius(image, ink=90):
+    """Half the picture's line width: the p75 of per-pixel min(row, column) dark
+    runs, runs over 1.5% of the shorter side being dark masses, not line."""
+    from trace import line_width
+    dark = np.asarray(image.convert("L")) < ink
+    widths = line_width(dark, max(4, round(0.015 * min(dark.shape))))
+    return max(1, int(np.ceil(np.percentile(widths, 75) / 2))) if widths.size else 0
 
-    Quantising alone is not enough: the black line survives as one of the areas
-    and takes all the drawing's detail with it, which is the very thing being
-    thrown away. So the darkest area is removed and the areas around it grow
-    into the space it leaves, which is what "no line at all" has to mean.
+
+def _lineless(image, radius, ink=90):
+    """The picture with its LINE closed away and its dark masses kept.
+
+    Line is dark and thin: a dark pixel a disc of the image's own line width
+    cannot sit in. Those pixels, and a one-pixel skin of anti-aliasing round
+    them, take the colour of the nearest pixel that is not line. A dark MASS --
+    black shorts, a tyre -- is wider than the disc and stays.
+
+    This happens before any value is chosen, and it has to. Quantising first
+    and dropping the darkest cluster afterwards did two wrong things, both
+    measured: an inked subject's line dragged its skin into the light class
+    while the same skin on an ink-less stage-2 drawing fell dark, so the gate
+    reported a difference that was only the ink the stage forbids; and on a
+    drawing whose ground outnumbers everything else, a median cut spent every
+    cluster but one on shades of the ground, the whole figure landed in the
+    darkest cluster, and dropping it left the drawing as a blank field.
     """
-    banded = image.convert("P", palette=Image.Palette.ADAPTIVE, colors=colours)
-    table = np.asarray(banded.getpalette()[:colours * 3], dtype=float).reshape(-1, 3)
-    label = np.asarray(banded, dtype=int)
-    darkest = int(table.mean(axis=1).argmin())
-    keep = label != darkest
-    if keep.any():
-        _, source = ndimage.distance_transform_edt(~keep, return_indices=True)
-        label = label[source[0], source[1]]
-    return Image.fromarray(table[label].astype(np.uint8), "RGB")
+    pixels = np.asarray(image.convert("RGB"))
+    dark = np.asarray(image.convert("L")) < ink
+    if not radius:
+        return image
+    span = np.arange(-radius, radius + 1)
+    disc = (span[:, None] ** 2 + span[None, :] ** 2) <= radius ** 2
+    line = dark & ~ndimage.binary_opening(dark, structure=disc)
+    line = ndimage.binary_dilation(line) & ~ndimage.binary_opening(dark, structure=disc)
+    if not line.any() or line.all():
+        return image
+    _, (rows, cols) = ndimage.distance_transform_edt(line, return_indices=True)
+    return Image.fromarray(pixels[rows, cols])
 
 
-def unfilled(drawing, subject, paper, ink=90, thickness=3):
+def _levels(image, colours):
+    """`colours` value levels, by 1-D k-means on the SUBJECT's lightness, and the
+    mean colour of each. Lightness, because a design is read in value; k-means,
+    because a median cut splits the most POPULOUS colour and on a picture that
+    is mostly ground spends its levels on the ground. The subject's, because
+    each picture quantised to its own levels put one flat -- the same palette
+    colour on both -- in the mid class of one and the dark class of the other."""
+    pixels = np.asarray(image.convert("RGB"), dtype=float)
+    value = pixels.mean(axis=2)
+    centres = np.percentile(value, np.linspace(5, 95, colours))
+    for _ in range(30):
+        label = np.abs(value[..., None] - centres).argmin(axis=2)
+        moved = np.array([value[label == level].mean() if (label == level).any() else centres[level]
+                          for level in range(colours)])
+        if np.allclose(moved, centres):
+            break
+        centres = moved
+    label = np.abs(value[..., None] - centres).argmin(axis=2)
+    paint = np.array([pixels[label == level].mean(axis=0) if (label == level).any() else (0, 0, 0)
+                      for level in range(colours)])
+    return centres, paint
+
+
+def _flatten(image, centres, paint):
+    """Every pixel to the nearest of the subject's value levels."""
+    value = np.asarray(image.convert("RGB"), dtype=float).mean(axis=2)
+    label = np.abs(value[..., None] - centres).argmin(axis=2)
+    return Image.fromarray(paint[label].astype(np.uint8), "RGB")
+
+
+def unfilled(drawing, subject, paper, ground, ink=90, thickness=3):
     """Paper inside the subject's silhouette: a flat that stops short of its ink.
 
     `--registration` alone finds only paper the line art walls in completely. A
@@ -287,7 +533,13 @@ def unfilled(drawing, subject, paper, ink=90, thickness=3):
     object wherever the ink is thin or the contour bulges.
 
     The subject settles it: anywhere the subject carries the object, the drawing
-    must carry ink or colour and never bare paper. The rule this enforces is
+    must carry ink or colour and never bare paper. Two colours, then, and they
+    are not the same one: the subject's GROUND (palette.json's `background`)
+    says where the object is, and the render's PAPER says where the drawing is
+    bare. Read as one colour, a check copy rendered on a paper nothing paints
+    with made every pixel of the subject "object" -- the road between spokes,
+    a wheel's interior -- and on one panel every region holding spokes or
+    pebbles reported as unfilled. The rule this enforces is
     already in the ladder — a flat is drawn PAST where its ink will go, so the
     ink covers the flat's edge, never the other way round. Trap outward by at
     least half the heaviest nib.
@@ -307,9 +559,9 @@ def unfilled(drawing, subject, paper, ink=90, thickness=3):
     except (OSError, ValueError):
         pass
     shown = np.asarray(subject.convert("RGB"), dtype=np.int16)
+    object_here = np.abs(shown - np.asarray(ground, dtype=np.int16)).max(axis=2) > 24
     paper = np.asarray(paper, dtype=np.int16)
 
-    object_here = np.abs(shown - paper).max(axis=2) > 24
     bare = np.abs(drawn - paper).max(axis=2) <= 18
     bare &= drawn.mean(axis=2) >= ink
     holes = ndimage.binary_opening(object_here & bare, np.ones((thickness, thickness)))
@@ -319,7 +571,10 @@ def unfilled(drawing, subject, paper, ink=90, thickness=3):
         print("no bare paper inside the subject's silhouette: every flat reaches its ink.")
         return 0
     sizes = ndimage.sum(holes, labels, range(1, count + 1))
-    keep = [index for index in range(1, count + 1) if sizes[index - 1] >= 120]
+    # 120px at a delivered size of about a megapixel, and the same share of a
+    # 4x working space: a fixed floor lists every hairline of drift at 4x
+    floor = max(120, holes.size * 1.1e-4)
+    keep = [index for index in range(1, count + 1) if sizes[index - 1] >= floor]
     print(f"{len(keep)} unfilled patch(es) — bare paper where the subject has the object:")
     for index in sorted(keep, key=lambda i: -sizes[i - 1])[:12]:
         ys, xs = np.nonzero(labels == index)
@@ -383,8 +638,102 @@ def registration(drawing, paper, ink=90, floor=40):
     return sorted(found, reverse=True)
 
 
+# --- what the script puts on the page -----------------------------------------
+#
+# The script-reading gates below used to read the op list as if every stroke
+# were visible. It is not: the canvas paints in write order, `erase` removes a
+# stage, `back` sends one under everything, and a closed flat hides whatever
+# was written before it. A gate that ignores that lists every correct occlusion
+# as a fault -- one panel's --doubled worklist was 29 items, and on inspection
+# every one was a far edge that a nearer flat, written after it, already hid.
+
+STROKE_SIZES = {"s": 2.0, "m": 3.5, "l": 5.0, "xl": 10.0}
+STAGE_SIZE = {"gesture": "m", "ink": "m"}
+
+
+def nib(op):
+    """A stroke's rendered width in page units: (tldraw size + 1) x scale."""
+    size = op.get("size") or STAGE_SIZE.get(op.get("stage"), "s")
+    return (STROKE_SIZES.get(size, 3.5) + 1.0) * float(op.get("scale") or 1.0)
+
+
+def paint_order(ops):
+    """{op index: z} for every stroke still on the page after erase/back/clear,
+    and the set of those faded or translucent, replayed as the canvas does."""
+    live, faded = [], set()
+    for index, op in enumerate(ops):
+        kind, stage = op.get("op"), op.get("stage")
+        if kind == "stroke":
+            live.append(index)
+            if float(op.get("opacity", 1.0)) < 1.0:
+                faded.add(index)
+        elif kind == "erase":
+            live = [at for at in live if ops[at].get("stage") != stage]
+        elif kind == "back":
+            live = ([at for at in live if ops[at].get("stage") == stage]
+                    + [at for at in live if ops[at].get("stage") != stage])
+        elif kind == "fade":
+            faded |= {at for at in live if ops[at].get("stage") == stage}
+        elif kind == "clear":
+            live = []
+    return {at: z for z, at in enumerate(live)}, faded
+
+
+class Cover:
+    """Every opaque closed flat on the page, rasterised with its depth: how far
+    inside its own edge a point lies, counting the outline stroke a flat is
+    drawn with. `under(points, z)` says, per point, how deeply the flats
+    painted ABOVE z bury it."""
+
+    def __init__(self, ops):
+        self.z, faded = paint_order(ops)
+        spread = [p for at in self.z for p in ops[at].get("points", [])[:1]]
+        extent = max([abs(c) for p in spread for c in p[:2]] + [1.0])
+        self.cell = max(1.0, extent / 1500.0)
+        self.flats = []
+        for at, z in self.z.items():
+            op = ops[at]
+            if (not op.get("closed") or op.get("fill") in (None, "none") or at in faded
+                    or len(op.get("points", [])) < 3):
+                continue
+            points = np.asarray([p[:2] for p in op["points"]], float) / self.cell
+            low = np.floor(points.min(axis=0)).astype(int) - 2
+            high = np.ceil(points.max(axis=0)).astype(int) + 2
+            mask = np.zeros((high[1] - low[1] + 1, high[0] - low[0] + 1), np.uint8)
+            cv2.fillPoly(mask, [np.round(points - low).astype(np.int32)], 1)
+            inside = cv2.distanceTransform(mask, cv2.DIST_L2, 3) * self.cell
+            self.flats.append((at, z, low, inside, nib(op) / 2.0, op.get("tag", "")))
+
+    def depth(self, points, flat):
+        """How deep inside one flat each point lies; negative outside."""
+        _, _, low, inside, rim, _ = flat
+        cells = np.round(points / self.cell).astype(int) - low
+        rows, cols = inside.shape
+        ok = (cells[:, 0] >= 0) & (cells[:, 0] < cols) & (cells[:, 1] >= 0) & (cells[:, 1] < rows)
+        out = np.full(len(points), -1.0)
+        out[ok] = inside[cells[ok, 1], cells[ok, 0]]
+        out[ok & (out > 0)] += rim
+        return out
+
+    def buried(self, points, z, reach):
+        """Per point: is it covered by `reach` or more under a flat above z?"""
+        hidden = np.zeros(len(points), bool)
+        if not len(points):
+            return hidden
+        low, high = points.min(axis=0), points.max(axis=0)
+        for flat in self.flats:
+            if flat[1] <= z:
+                continue
+            corner = flat[2] * self.cell
+            far = corner + np.array(flat[3].shape[::-1]) * self.cell
+            if (far < low).any() or (corner > high).any():
+                continue
+            hidden |= self.depth(points, flat) >= reach
+        return hidden
+
+
 def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
-    """Is any edge stated twice? Reads the SCRIPT, not the picture.
+    """Is any edge stated twice ON THE PAGE? Reads the script, and replays it.
 
     The commonest mark-level fault in a scene is one boundary drawn once as one
     object's silhouette and again as its neighbour's, from two different
@@ -394,35 +743,44 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
     contours.
 
     So it is checked where the fault actually lives -- in the script, as two ink
-    strokes whose centrelines run together for a long way. It is cheap, it fails
-    loudly, and it is the gate on drawing an adjacency once.
-
-    Two things make a naive version of this report roughly double and flag
-    correct work, and both are worth stating because both look right:
+    strokes whose centrelines run together for a long way. Three things make a
+    naive version flag correct work, and all three look right:
 
     1. **A shared endpoint is not a doubled edge.** Two strokes that meet at one
        named point must pass through that point, so every correct junction looks
-       like an overlap. That punishes the very construction this exists to
-       reward. Runs anchored at a shared endpoint are excluded.
+       like an overlap. Runs anchored at a shared endpoint are excluded.
     2. **Length is arc length, not a sample count.** Densifying repeats each
        segment's endpoint as the next segment's start, so a 4px stretch counts
        as a dozen samples and every measured run comes back about twice its
        size.
-
-    A true doubling runs for a large fraction of its own length; a junction runs
-    for a few pixels and then the two strokes separate.
+    3. **A covered edge is not on the page.** The far form's outline runs on
+       under the nearer form's flat, written after it, and so does the near
+       form's ink over the same spot: two strokes in the script, one line on
+       the page. Read without the write order, every correct occlusion in one
+       panel came back as a doubling (29 items, none real). A run where the
+       earlier stroke is buried under a later flat by half its own width is
+       dropped; if that flat is ever moved, the doubling comes back here.
     """
-    lines = [(index, op.get("tag", "-"),
-              np.asarray([[point[0], point[1]] for point in op["points"]], dtype=float))
-             for index, op in enumerate(ops)
-             if op.get("op") == "stroke" and op.get("stage") == "ink"]
-    walked = [(index, tag, _walk(points), points) for index, tag, points in lines]
+    cover = Cover(ops)
+    lines = []
+    for index, op in enumerate(ops):
+        if op.get("op") != "stroke" or op.get("stage") != "ink" or index not in cover.z:
+            continue
+        points = np.asarray([[point[0], point[1]] for point in op["points"]], dtype=float)
+        walked = _walk(points)
+        lines.append((index, op.get("tag", "-"), walked, points, cover.z[index], nib(op) / 2.0,
+                      walked.min(axis=0) - touch, walked.max(axis=0) + touch))
+    trees = [cKDTree(line[2]) for line in lines]
     hits, worst = [], 0.0
-    for first in range(len(walked)):
-        for second in range(first + 1, len(walked)):
-            here, there = walked[first][2], walked[second][2]
-            ends = np.vstack([walked[first][3][[0, -1]], walked[second][3][[0, -1]]])
-            close = np.linalg.norm(here[:, None, :] - there[None, :, :], axis=2).min(axis=1) < touch
+    for first in range(len(lines)):
+        for second in range(first + 1, len(lines)):
+            one, other = lines[first], lines[second]
+            if (one[7] < other[6]).any() or (other[7] < one[6]).any():
+                continue
+            here = one[2]
+            ends = np.vstack([one[3][[0, -1]], other[3][[0, -1]]])
+            close = trees[second].query(here, distance_upper_bound=touch)[0] < touch
+            lower = one if one[4] < other[4] else other
             at = 0
             while at < len(close):
                 if not close[at]:
@@ -438,12 +796,13 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
                 # IS the sharing, not a second copy of the edge
                 if np.linalg.norm(run[:, None, :] - ends[None, :, :], axis=2).min(axis=1).max() <= near_ends:
                     continue
+                if cover.buried(run, lower[4], lower[5]).mean() >= 0.8:
+                    continue
                 length = float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
                 worst = max(worst, length)
                 if length > floor:
-                    hits.append((walked[first][0], walked[first][1],
-                                 walked[second][0], walked[second][1], round(length)))
-    return hits, worst, len(walked)
+                    hits.append((one[0], one[1], other[0], other[1], round(length)))
+    return hits, worst, len(lines)
 
 
 def depth(ops, inventory):
@@ -516,6 +875,69 @@ def depth(ops, inventory):
     return hits, unresolved, len(pairs)
 
 
+def crossings(ops, inventory, floor=None):
+    """Where one part's ink runs inside ANOTHER part's flat, for pairs that no
+    interface row decides. --depth checks only the rows it is given, so a pair
+    nobody listed passed it unchecked while its gate printed PASSES.
+
+    Parts are the inventory's own keys; a stroke belongs to the longest key its
+    tag starts with, and two parts related as parent and child, or named
+    together in one '+' tag, are one form here. For each unlisted pair it says
+    how far the ink runs inside the other's flat and whether the write order
+    shows it (drawn across that flat) or hides it (buried under it). Neither is
+    a verdict: an unlisted strap drawn over a jersey is right to show, and a
+    far outline buried under a near flat is how occlusion is drawn. It is the
+    list of occlusions nobody decided."""
+    keys = sorted((key for key in inventory if "/" not in key), key=len, reverse=True)
+    rows = [key.split("/") for key, entry in inventory.items()
+            if "/" in key and isinstance(entry, dict)]
+
+    def part(name):
+        return next((key for key in keys if name == key or name.startswith(key + ".")), name)
+
+    def kin(one, other):
+        return one == other or one.startswith(other + ".") or other.startswith(one + ".")
+
+    def listed(one, other):
+        return any((kin(one, a) and kin(other, b)) or (kin(one, b) and kin(other, a))
+                   for a, b in (row for row in rows if len(row) == 2))
+
+    cover = Cover(ops)
+    frame = [op for op in ops if op.get("stage") == "frame"]
+    span = np.ptp(np.asarray([p[:2] for p in frame[0]["points"]], float), axis=0) if frame else [1000, 1000]
+    floor = floor or max(15.0, 0.005 * float(np.hypot(*span)))
+    found = {}
+    for index, z in cover.z.items():
+        op = ops[index]
+        if op.get("stage") != "ink" or not op.get("tag"):
+            continue
+        owners = [part(name) for name in str(op["tag"]).split("+")]
+        samples = _walk(np.asarray([p[:2] for p in op["points"]], float), step=cover.cell)
+        reach = nib(op) / 2.0
+        mine = [flat for flat in cover.flats if any(kin(part(str(flat[5]).split("+")[0]), owner)
+                                                     for owner in owners)]
+        for flat in cover.flats:
+            other = part(str(flat[5]).split("+")[0]) if flat[5] else None
+            if other is None or any(kin(owner, other) for owner in owners) or \
+                    listed(owners[0], other):
+                continue
+            inside = cover.depth(samples, flat) >= reach
+            if not inside.any():
+                continue
+            above = flat[1] > z
+            if not above:
+                # the ink's own flat, painted over the other's, puts it in front
+                for own in mine:
+                    if own[1] > flat[1]:
+                        inside &= ~(cover.depth(samples, own) >= 0)
+            length = float(inside.sum()) * cover.cell
+            if length < floor:
+                continue
+            key = (owners[0], other, "hidden under" if above else "drawn across")
+            found[key] = found.get(key, 0.0) + length
+    return sorted(((round(length),) + key for key, length in found.items()), reverse=True)
+
+
 def _walk(points, step=1.0):
     """Even samples along a polyline, without repeating the shared endpoints."""
     out = [points[0]]
@@ -577,13 +999,14 @@ def read_inventory(path):
             if "box" not in entry:
                 sys.exit(f"parts.json: {name!r} has no box")
             inventory[name] = {"box": entry["box"],
+                               "tier": entry.get("tier"),
                                "shape": " ".join(str(entry.get("shape", "")).split()),
                                "rel": " ".join(part for part in (
                                    f"in front of {entry['front_of']}" if entry.get("front_of") else "",
                                    f"touches {entry['touches']}" if entry.get("touches") else "",
                                    f"gap {entry['gap']}" if entry.get("gap") else "") if part)}
         else:
-            inventory[name] = {"box": entry, "shape": "", "rel": ""}
+            inventory[name] = {"box": entry, "tier": None, "shape": "", "rel": ""}
     return inventory
 
 
@@ -787,8 +1210,9 @@ def ranking(drawing, subject, inventory):
         x, y = max(0, x), max(0, y)
         width, height = min(subject.width - x, width), min(subject.height - y, height)
         said = entry["shape"]
-        tier = next((digit for digit in "123" if f"TIER {digit}" in said),
-                    "J" if "JUNCTION" in said else "-")
+        tier = ("J" if "/" in name or "JUNCTION" in said else
+                str(entry["tier"]) if entry.get("tier") is not None else
+                next((digit for digit in "123" if f"TIER {digit}" in said), "-"))
         spread = [float(plane[y:y + height, x:x + width].std()) for plane in planes]
         rows.append([name, tier, spread[0], spread[1], 0, 0])
     for loud, seat in ((2, 4), (3, 5)):
@@ -819,13 +1243,23 @@ def main():
                        help="ops.json — flag fills simpler than their traced region")
     parse.add_argument("--regions", default="regions.json")
     parse.add_argument("--face-ratio", type=float, default=0.5)
+    parse.add_argument("--grain", type=float, default=0.0,
+                       help="--faces: serration narrower than this, in px, is the source's "
+                            "grain, not a corner. 3x the upscale factor on an upscaled subject")
     parse.add_argument("--weights", default="",
                        help="comma-separated rows: print the mark widths each one crosses")
     parse.add_argument("--masses", action="store_true",
                        help="both pictures as flat masses, no line — the check that "
                             "sees shape. Takes --box x,y,w,h and --colours N")
-    parse.add_argument("--box", default="", help="x,y,w,h to crop both to")
-    parse.add_argument("--colours", type=int, default=5)
+    parse.add_argument("--box", default="",
+                       help="x,y,w,h to crop both to; with --overlay, the two inks over that box")
+    parse.add_argument("--scan", default="",
+                       help="x,y,w,h (needs --ref): per row, the outline and the ink runs of "
+                            "subject and drawing, from --side")
+    parse.add_argument("--side", default="right", choices=("left", "right", "top", "bottom"))
+    parse.add_argument("--step", type=int, default=0, help="--scan: rows between readings")
+    parse.add_argument("--colours", type=int, default=3,
+                       help="--masses: value levels, line removed first (default 3)")
     parse.add_argument("--parts", default="",
                        help="a JSON file of {name: [x,y,w,h]} — every named part of "
                             "the picture, subject above and drawing below")
@@ -844,11 +1278,14 @@ def main():
                        help="--census: the smallest form counted, in render pixels")
     parse.add_argument("--ladder", default="",
                        help="an ops JSON: which stages exist, how many marks each, "
-                            "and whether ink was laid over a gesture, block-in and "
-                            "contour. Reads the script, not the render")
+                            "and whether a drawing with ink has a gesture, block-in and "
+                            "contour stage at all. Reads the script, not the render")
     parse.add_argument("--registration", action="store_true",
                        help="report every place the colour and the line disagree")
-    parse.add_argument("--paper", default="#FAF1D2", help="the ground colour")
+    parse.add_argument("--paper", default="#FAF1D2",
+                       help="the render's paper, #rrggbb or R,G,B")
+    parse.add_argument("--ground", default="",
+                       help="--unfilled: the SUBJECT's ground, if not palette.json's background")
     parse.add_argument("--space", default="",
                        help="x0,y0,x1,y1 the render covers, so faults are reported "
                             "in the drawing's own coordinates")
@@ -867,7 +1304,9 @@ def main():
         for failure in failures:
             print(f"  FAIL {failure}")
         if not failures:
-            print("  PASSES — every ink mark sits on a gesture, a block-in and a contour")
+            print("  PASSES — the gesture, block-in and contour stages exist, in order. Whether "
+                  "each ink mark\n  has a contour under it is NOT checked: on three finished "
+                  "drawings 26-81% had none")
         source = script_source(ops, os.path.dirname(os.path.abspath(args.ladder)))
         facts, generated = provenance(ops, source)
         literal = "not read" if facts["literal"] is None else f"{facts['literal']:.1%}"
@@ -890,9 +1329,11 @@ def main():
 
     if args.depth:
         with open(args.depth[0]) as handle:
-            marks = json.load(handle)
+            written = json.load(handle)
         with open(args.depth[1]) as handle:
-            hits, unresolved, count = depth(marks, json.load(handle))
+            hits, unresolved, count = depth(written, json.load(handle))
+        with open(args.depth[1]) as handle:
+            loose = crossings(written, json.load(handle))
         print(f"{count} interface rows carry an in_front decision")
         for key, far, ink_at, near, fill_at in hits:
             print(f"  FAIL {key}: ink of '{far}' at op{ink_at} is written AFTER "
@@ -900,9 +1341,22 @@ def main():
         for key, why in unresolved:
             print(f"  UNRESOLVED {key}: {why}")
         if not hits and not unresolved and count:
-            print("  PASSES — every recorded occlusion is delivered by the write order")
+            print(f"  PASSES — the {count} listed occlusions are delivered by the write order")
         if not count:
             print("  NOTHING TO CHECK — no inventory entry carries in_front")
+        shown = [row for row in loose if row[3] == "drawn across"]
+        if shown:
+            print(f"\n{len(shown)} unlisted overlaps SHOW on the page, longest first -- a "
+                  "worklist, not a verdict:")
+            for length, ink, flat, how in shown[:20]:
+                print(f"  UNLISTED {ink} ink {how} {flat}'s flat for {length}px")
+            print("each is either the ink's part in front of that flat, or a crease across a "
+                  "nearer\nform. Decide, and write the row into parts.json so the next run "
+                  "checks it.")
+        if len(loose) > len(shown):
+            print(f"\n{len(loose) - len(shown)} more unlisted overlaps are buried under a flat "
+                  "written after the\nink: occlusion the write order already delivers, "
+                  "unchecked against any decision.")
         print("\nthe far form's ink must precede the near form's fill: a flat cannot "
               "hide ink,\nso written the other way the far outline runs straight across "
               "the nearer object\nand reads as a crease that is not there. an UNRESOLVED "
@@ -924,17 +1378,19 @@ def main():
               "rounds as bad curve control.")
         sys.exit(1 if hits else 0)
 
+    if args.faces:
+        sys.exit(1 if faces(args.faces, args.regions, args.face_ratio, args.grain) else 0)
+
     drawing = Image.open(args.render).convert("RGB")
     plumbs = [float(value) for value in args.plumb.split(",") if value.strip()]
 
     if args.unfilled:
         if not args.ref:
             sys.exit("--unfilled needs --ref")
+        paper = colour(args.paper)
         sys.exit(1 if unfilled(Image.open(args.render), Image.open(args.ref).convert("RGB"),
-                               tuple(int(v) for v in args.paper.split(","))) else 0)
-
-    if args.faces:
-        sys.exit(1 if faces(args.faces, args.regions, args.face_ratio) else 0)
+                               paper, colour(args.ground) if args.ground else ground_of(paper))
+                 else 0)
 
     if args.weights:
         rows = [int(part) for part in args.weights.split(",")]
@@ -942,7 +1398,8 @@ def main():
             # a bare weight ladder: the drawing's own runs, nothing to match
             grey = drawing.convert("L")
             for y in rows:
-                print(f"y={y:4d}  drawing {marks(list(grey.crop((0, y, grey.width, y + 1)).getdata()))}")
+                print(f"y={y:4d}  drawing {said(marks(list(grey.crop((0, y, grey.width, y + 1)).getdata())))}")
+            print("\nwidth@x, left to right, in the render's own pixels")
             return
         subject = Image.open(args.ref).convert("L")
         report(subject, drawing.convert("L").resize(subject.size, Image.LANCZOS), rows)
@@ -999,18 +1456,34 @@ def main():
                       "palette.json", args.min_area)
         if not rows:
             sys.exit("--census: no entry carries a count -- write the census into parts.json")
-        wrong = 0
+        wrong = unchecked = 0
         print(f"  {'entry':34s} census subject drawing")
         for key, want, seen, made in rows:
-            verdict = "" if made == want else ("  FAIL culled" if made < want else "  FAIL extra")
             if seen != want:
-                verdict += "  (subject counts differently: look before trusting either)"
-            wrong += made != want
+                # the instrument does not reproduce the census on the subject
+                # itself, so its count of the drawing means nothing either way:
+                # spokes cut by spokes, slots joined by their own ink, grain
+                verdict = "  UNCHECKED: the subject does not count to the census here"
+                unchecked += 1
+            elif made != want:
+                verdict = "  FAIL culled" if made < want else "  FAIL extra"
+                wrong += 1
+            else:
+                verdict = ""
             print(f"  {key[:34]:34s} {want:6d} {seen:7d} {made:7d}{verdict}")
-        print("\na census is the only gate that fails on an absence. A form merged, cut or "
-              "touching\nits neighbour counts differently from the subject's: zoom the box, "
-              "then decide.")
-        sys.exit(1 if wrong else 0)
+        checked = len(rows) - unchecked
+        print(f"\n{checked} of {len(rows)} entries checked" + (", all agree" if checked and not wrong else ""))
+        if unchecked:
+            print(f"{unchecked} UNCHECKED: this counts connected forms of the entry's values in its "
+                  "box, and\nwhere that does not give the census on the SUBJECT -- forms crossing, "
+                  "touching,\nor bounded by ink of their own value -- it has no verdict on the "
+                  "drawing. Count\nthose on --zoom, subject and drawing, and write both numbers in "
+                  "notes.md.")
+        print("\na census is the only gate that fails on an absence, and only where it can "
+              "count\nthe subject: a tight box on separate forms of one value (droplets, "
+              "pebbles, teeth\nwith dark gaps) is what it reads. exit 1 is a FAIL, 2 is "
+              "UNCHECKED rows: neither is a pass.")
+        sys.exit(1 if wrong else 2 if unchecked else 0)
 
     if args.ranking:
         if not args.ref:
@@ -1018,14 +1491,28 @@ def main():
         subject = Image.open(args.ref).convert("RGB")
         rows = ranking(drawing, subject, read_inventory(args.ranking))
         print(f"what leads the eye, worst disagreement first. value spread inside each "
-              f"part's own\nbox, ranked 1..{len(rows)} in each picture. tier is read off "
-              "the shape sentence; J is a junction.\n")
+              f"part's own\nbox, ranked 1..{len(rows)} in each picture. tier is the entry's "
+              "`tier`; J is a junction.\n")
         print(f"  {'part':26s} tier {'subject':>15s} {'drawing':>15s}   moved")
         for name, tier, loud, now, seat, place in rows:
             move = seat - place
             print(f"  {name[:26]:26s} {tier:4s} {loud:8.1f} #{seat:<5d} {now:8.1f} #{place:<5d} "
                   f"{move:+4d}  " + ("LOUDER than the subject ranks it" if move > 0 else
                                      "quieter" if move < 0 else ""))
+        tiers = sorted({row[1] for row in rows if row[1].isdigit()})
+        if len(tiers) > 1:
+            lead = min(row[5] for row in rows if row[1] == tiers[0])
+            led = min(row[4] for row in rows if row[1] == tiers[0])
+            loud = [row for row in rows if row[1].isdigit() and row[1] != tiers[0]
+                    and row[5] < lead and row[4] > led]
+            print(f"\ntier {tiers[0]}'s loudest part is #{led} in the subject and #{lead} in the drawing.")
+            for row in sorted(loud, key=lambda one: one[5]):
+                print(f"  ABOVE ITS TIER: {row[0]} (tier {row[1]}) is #{row[5]} in the drawing, "
+                      f"ahead of every tier-{tiers[0]} part, and #{row[4]} in the subject")
+            if not loud:
+                print("  nothing ranks ahead of the focus tier that the subject does not put there")
+        elif not tiers:
+            print("\nno entry carries a `tier`: nothing here can say what shouts above its tier")
         print("\nmoved is the subject's rank minus the drawing's. + means the drawing "
               "pushes the part\nforward of where the subject has it, - means it has "
               "dropped back.\nA rank is zero-sum: this is the one number here that "
@@ -1035,8 +1522,7 @@ def main():
         return
 
     if args.registration:
-        paper = tuple(int(args.paper.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4))
-        faults = registration(drawing, paper)
+        faults = registration(drawing, colour(args.paper))
         span = [float(part) for part in args.space.split(",")] if args.space else \
             [0, 0, drawing.width, drawing.height]
         across = (span[2] - span[0]) / drawing.width
@@ -1045,9 +1531,9 @@ def main():
         pen = ImageDraw.Draw(marked)
         print(f"{len(faults)} faults, largest first — area, kind, box in drawing coords\n")
         for number, (area, kind, x, y, width, height) in enumerate(faults, 1):
-            colour = (215, 40, 40) if kind == "spill" else (30, 90, 220)
-            pen.rectangle([x - 3, y - 3, x + width + 2, y + height + 2], outline=colour, width=2)
-            pen.text((x - 2, y - 16), f"{number}", fill=colour)
+            hue = (215, 40, 40) if kind == "spill" else (30, 90, 220)
+            pen.rectangle([x - 3, y - 3, x + width + 2, y + height + 2], outline=hue, width=2)
+            pen.text((x - 2, y - 16), f"{number}", fill=hue)
             print(f"{number:2d}  {area:6d}px  {kind:5s}  "
                   f"{span[0] + x * across:6.0f},{span[1] + y * down:6.0f}  "
                   f"{width * across:4.0f}x{height * down:.0f}")
@@ -1065,6 +1551,25 @@ def main():
         zoom(drawing, Image.open(args.ref).convert("RGB"),
              [int(part) for part in args.zoom.split(",")]).save(args.out)
         print(f"wrote {args.out}")
+        return
+
+    if args.scan:
+        if not args.ref:
+            sys.exit("--scan needs --ref")
+        scan(drawing, Image.open(args.ref).convert("RGB"),
+             [int(part) for part in args.scan.split(",")], args.side, args.step,
+             ground_of(colour(args.paper)))
+        return
+
+    if args.overlay and args.box:
+        if not args.ref:
+            sys.exit("--overlay needs --ref")
+        inks(drawing, Image.open(args.ref).convert("RGB"),
+             [int(part) for part in args.box.split(",")]).save(args.out)
+        print(f"wrote {args.out}: blue is the subject's line the drawing lacks there, red "
+              "the drawing's\nline where the subject has none, black both. For every blue "
+              "line inside the form,\nsay which red line is meant to be it and how far and "
+              "which way it runs off.")
         return
 
     if args.overlay:

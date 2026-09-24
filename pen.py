@@ -573,9 +573,12 @@ LADDER = ("gesture", "blockin", "contour", "ink")
 
 def audit(ops):
     """The ladder, read off the script. Returns (counts, first index per stage,
-    list of failures). A failure is an ink stage with no gesture, block-in or
-    contour stage under it, or a stage whose first mark comes after the first
-    mark of the stage above it."""
+    list of failures). A failure is a drawing with ink and no gesture, block-in
+    or contour stage anywhere in it, or a stage whose first mark comes after the
+    first mark of the stage above it. It is a check that the stages EXIST, not
+    that each ink mark has a contour under it: on three finished drawings 26-81%
+    of ink strokes had no contour stroke within two line widths, so a per-mark
+    rule would refuse every drawing the skill has made."""
     counts, first = {}, {}
     for index, op in enumerate(ops):
         if op.get("op") != "stroke":
@@ -721,9 +724,10 @@ def script_source(ops, beside=None):
 def write(path, ops, swatch=False):
     """Flatten the ops, audit the ladder, and save them.
 
-    Refuses to write ink that has no gesture, block-in and contour stage under
-    it -- a drawing inked straight off its measurements passes every placement
-    check and reads as a diagram. Refuses, too, marks the script did not write:
+    Refuses to write ink into a drawing with no gesture, block-in and contour
+    stage -- a drawing inked straight off its measurements passes every
+    placement check and reads as a diagram. The stages must exist; no mark is
+    checked for a contour under it. Refuses, too, marks the script did not write:
     strokes generated in another file, stamped by a loop, or whose points were
     loaded or computed rather than written down (see `provenance`). `swatch=True`
     skips both, for a weight ladder or a calibration strip that is not a drawing.
