@@ -94,7 +94,7 @@ def _():
         image.save(f"{folder}/ladder.png")
         code, said = tool(f"{HERE}/check.py", "ladder.png", "--weights", "30", cwd=folder)
         assert code == 0, said
-        assert "3@20  9@80  5@150" in said, said
+        assert "3@21  9@84  5@152" in said, said
 
 
 @case("--paper takes #hex and R,G,B alike")
@@ -181,6 +181,16 @@ def _():
         code, said = tool(f"{HERE}/check.py", "drawing.png", "--ref", "subject.png",
                           "--census", "parts.json", cwd=folder)
         assert code == 0 and "all agree" in said, said
+
+
+@case("--ladder lists a fill whose outline doubles back, and not one that loops the same way")
+def _():
+    outer = [[0, 0], [200, 0], [200, 200], [0, 200]]
+    fill = lambda points: {"op": "stroke", "stage": "fill", "closed": True, "points": points}
+    same = fill(outer + [[0, 50], [150, 50], [150, 150], [50, 150], [50, 50], [0, 50]])
+    back = fill(outer + [[0, 50], [50, 50], [50, 150], [150, 150], [150, 50], [0, 50]])
+    found = [index for index, _, _ in check.self_crossing([same, back])]
+    assert found == [1], found
 
 
 @case("--faces compares a flat with the region it overlaps, not one whose box holds it")

@@ -271,6 +271,9 @@ def main():
                             "(a crop.py crop carries its own)")
     parse.add_argument("--local", action="store_true",
                        help="keep a crop.py crop in its own coordinates")
+    parse.add_argument("--exclude", default="",
+                       help="comma-separated palette names left out of the trace: a flat "
+                            "within a few levels of the ground, which would take bare ground")
     parse.add_argument("--measure-line", action="store_true",
                        help="print the --ink line's width percentiles and exit")
     parse.add_argument("--cap", type=int, default=0,
@@ -305,6 +308,8 @@ def main():
                              f"{args.subject} ({stored}). The crop's corner is the box's corner "
                              f"less its margin; drop --offset and the stored one is used")
         args.offset = stored
+    palette = {name: value for name, value in palette.items()
+               if name not in args.exclude.split(",")}
     regions, miss = trace(image, palette, args.ink.split(","), args.line, args.min_area, args.fringe)
     share, patches = misfit(miss)
     if args.png:

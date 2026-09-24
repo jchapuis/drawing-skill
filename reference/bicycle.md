@@ -18,7 +18,7 @@ bike differs and whether the difference is real or an error.
 | The frame reads as a **thicket** — every tube drawn as two heavy contours with the tube colour between them | Sight across a tube: if it holds **zero** of its own colour between two outlines, the tube is entirely its own outline. A subject's tube holds most of its width in colour |
 | The bike **does not read as an object at all** — blind describers of the subject name it by mass; no describer of the drawing mentions a bicycle | Tubes drawn as two open lines measure a few px of dark against a subject's 12–25px. Each tube must be one closed shape with a solid fill |
 | The bar top and the fist are **one dark mass** | Measure what the subject puts between them: a band of its own ground, or where the whole passage is dark, a second lighter value. Two objects that touch still need what says they are two |
-| A tube's ink runs **straight over the limb in front of it** | Sight down the tube in the subject: it stops at the limb and restarts beyond it. **A flat cannot hide ink** — the contour itself must stop and restart |
+| A tube's ink runs **straight over the limb in front of it** | Sight down the tube in the subject: it stops at the limb and restarts beyond it. The limb's flat hides the tube's ink only if it is written **after** it — write the far tube first |
 | A wheel is judged "much too large" by eye when it is within a few percent | Wheels are the easiest part to measure and the easiest to misjudge. **Measure them** rather than judging them |
 
 The pattern across all five: a bicycle is made of **thin dark solids**, and every
@@ -64,7 +64,8 @@ a bike read as wire.
   in front of you and not about wheels — a deep-section rim is far wider than
   its tread, a balloon tyre the reverse — so **measure both along a radius**
   rather than assuming either. Cut from the hub outward and record the run of
-  each value: that one scan settles the radii, both widths and the ink between
+  each value — `check.py --scan` on a one-row box through the hub, with
+  `--value` naming the tyre's and the rim's palette names: that one scan settles the radii, both widths and the ink between
   them at once, and it is the only reliable way to read a band that curves.
 - **The ratio between those two bands is what makes a wheel read as a wheel.**
   One band clearly dominant plus a narrow one reads as a surface with an edge.
@@ -107,14 +108,15 @@ Three contacts, and all three were faults:
 - **Seat under the rider.** The saddle is a long narrow wedge seen nearly
   edge-on, and its nose is the landmark that fixes the rider's fore-aft position.
 
-## Occlusion is drawn, not filled
+## Occlusion is write order
 
 A bicycle is a lattice, so the rider's legs, the far side of the frame and the
-spokes all pass behind and in front of each other constantly. **The contour
-itself must stop where something crosses in front of it and restart on the far
-side.** Running the line through and painting over it does not work: a flat
-cannot hide ink, because the ink is above the fill. This is one of the few
-places in a drawing where the *order of marks* is load-bearing.
+spokes all pass behind and in front of each other constantly. The canvas paints
+in the order marks are written, so a nearer form's flat hides the far form's
+ink only when the far form — fill and ink — is written first. Written the
+other way, the far contour runs straight across the nearer form. A lattice has
+more crossings than anything else in a scene, so write it tube by tube in depth
+order and record each crossing as its own interface row.
 
 ## Build order
 

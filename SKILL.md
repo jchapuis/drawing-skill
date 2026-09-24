@@ -60,8 +60,9 @@ cd harness && npm install && npm run build && npx playwright install chromium   
 
 Python needs `numpy`, `scipy`, `pillow`, `opencv-python`. `describe.sh` needs
 the `claude` CLI. One directory per drawing holds `subject.png` and everything
-below; nothing goes in `/tmp`. Copy `build.sh` in beside it and set `SKILL=` to
-this directory. Your script is `draw.py`; it writes `ops.json`.
+below; nothing goes in `/tmp`. Copy `build.sh` in beside it and point it at
+this directory: `export SKILL=…`, or write the path into its `SKILL=` line (a
+copy cannot find the skill on its own, and says so). Your script is `draw.py`; it writes `ops.json`.
 
 **A scene's working space is the delivered size times four**, and every mark,
 measurement and render lives in it. Make it once: `subject.png` is the
@@ -241,7 +242,7 @@ measuring and for looking.
 
 | # | Stage | You produce | Gate |
 |---|---|---|---|
-| S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its box (the `--zoom` and measuring crop), its smallest feature at working resolution, its nested parts (a face inside a figure), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing; the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
+| S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its box (the `--zoom` and measuring crop), its smallest feature at working resolution, its nested parts (a face inside a figure), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing, welded shapes included (a road cut into a hillside is in front of it, and S2 needs that order to run each far mass under the near one; rows naming a welded shape stay UNRESOLVED until its one line is written, so check them at S4); the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
 | S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops. **The object ladder's "3–10 strokes" is a single object's budget and does not apply here** — a scene needs one per mass plus the ground and eye lines, which runs to fifteen or twenty. Too few and the describer reads one object's parts as another's: a bicycle's bar becomes the figure's outstretched arms | `describe.sh gesture.png`: the event and the big shape read. **Some events cannot be stated here**: a pose carried by value rather than by silhouette — a seated figure with fully foreshortened thighs has a standing figure's outline — or one the describer's category prior outvotes, as a figure above a bicycle reads as riding whatever the lines say. Then the honest move is to record that the event is gated at S2 instead, with the describer runs that show it, rather than to keep redrawing an armature that cannot carry it |
 | S2 | **Masses** | `stage="blockin"` straights for the welded shapes, then their flats `stage="fill"` — the middle tone over the whole, then lights, then darks, honouring sharp/lost. **Every object's mass goes in here, part or welded**: the part/welded split decides whether an object gets *marks*, never whether its *value* exists. A part left out is a hole in the tone plan, and when a whole value family lives inside parts — the darks usually do — the gate cannot pass at all until they are in. A flat is not ink, so this costs nothing at the gate. No object's *marks* yet | `--masses` against the subject at thumbnail size; **no object has an ink contour** (`--ladder` shows ink 0) |
 | S3 | **Every object, in place** | run stages 2 to 9 of the object ladder on each object — its block-in straights first, in the one `draw.py`, in panel coordinates, writing from the furthest object forward — write order, not work order: work the focus first if the budget says so, and insert it at its depth. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same line of `draw.py`: edit its points in place from the object's own trace, never stack a second fill over it, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — not optional. Then its own ladder gates, `--faces` and `--unfilled` |
@@ -268,7 +269,8 @@ checkpoint after S2, after the first part and after the last.
    back as a clumped patch of pixels far from every entry. A flat within
    about ten levels of the ground (an eye's white, teeth) cannot be separated
    from it by colour: the tracer hands it bare ground. Draw it from measured
-   extents inside its ink, and keep its name out of the trace. A dark flat a
+   extents inside its ink, and trace with `--exclude NAME`, or the ground
+   itself comes back as that flat. A dark flat a
    few levels off the ink steals the ink's ramp in the same way, so leave it out
    of `--ink`. Ramp classified as a real name comes back as long thin regions
    hugging the ink with a `median` far from their entry; that is not a missing
@@ -277,8 +279,10 @@ checkpoint after S2, after the first part and after the last.
    mid-run. **A nested part may still discover a flat the panel could not
    resolve** — a tooth, a tongue, anything smaller than the panel's own
    sampling. That is not a stage 0 failure and it cannot be prevented there;
-   repoint a stock name whose own flat is expendable, and record the swap in
-   `reading.md` beside the palette.
+   repoint a stock name whose own flat is expendable — the one covering least
+   of the picture, furthest from the focus — or, when every name is a real
+   flat, draw the misfit from measured extents in the nearest name's colour.
+   Record either in `reading.md` beside the palette.
 2. **Trace.** `python3 trace.py subject.png palette.json --png regions.png`,
    and look at `regions.png` — on a scene, `subject_1x.png` for the reading and
    the welded masses, each part's own crop when you reach it. A region is a
@@ -301,7 +305,12 @@ checkpoint after S2, after the first part and after the last.
    glove is its fingers, its thumb and its cuff. One sentence for a whole
    object buys one silhouette, and a silhouette is what a viewer calls a
    different object — the census counts these sub-forms already, and this is
-   where they become marks. Stop descending where the next level down would
+   where they become marks. **Where a reference covers the object** —
+   `bicycle.md`, `hands-and-feet.md`, `head.md` — its list of sub-forms is the
+   checklist: an entry for each one the subject shows, or a line saying why
+   not. A bicycle reference that named the derailleur, cassette and chain was
+   read, and the inventory still stopped at the crank; the drawing had none of
+   them. Stop descending where the next level down would
    not survive at the scale you will draw it.
    **Two instances of one object class get the same sub-form list**: the
    second of two wheels, hands or shoes is read with less attention and comes
@@ -309,9 +318,15 @@ checkpoint after S2, after the first part and after the last.
    Reconcile the twins before leaving stage 0, or write down what the second
    genuinely lacks. Name the junctions as entries of
    their own — hand/bar, foot/pedal, hip/saddle, tyre/ground, and every joint —
-   because that is where every scene fails. Then cut a plain image crop of
+   because that is where every scene fails. **Write interface rows at the
+   grain of the forms that cross** — `bike.frame.downtube/rider.leg.near`, not
+   `bike.frame/rider.leg.near`: `--depth` matches by prefix, so one tube of a
+   frame written in another depth group fails a whole object-level row that
+   the drawing honours. Then cut a plain image crop of
    the subject at each tier-1/2 box plus a fifth (not a part; a PIL crop is
-   enough), `describe.sh` the crop, and where it does not
+   enough — on a scene, from `subject_1x.png` at the box over four, since a 4x
+   crop of a large part runs to thousands of pixels), `describe.sh` the crop
+   (the calls are independent and may run in parallel), and where it does not
    answer with the part you named, fix the sentence or delete the entry. An
    answer naming a neighbour means the box is on the neighbour — and if a
    tightened box still names it, the part has no silhouette of its own; so
@@ -336,7 +351,7 @@ checkpoint after S2, after the first part and after the last.
 ```json
 {
   "nose": {"shape": "ON the silhouette: the profile leaves the brow, runs down and OUT to the tip, then turns back under it", "box": [540, 336, 45, 50]},
-  "bike.bar/rider.hand": {"shape": "the glove closes over the bar; the bar disappears behind the fingers and reappears 30px to the left. No gap", "box": [318, 470, 96, 70], "in_front": "rider.hand"},
+  "bike.bar.top/rider.hand.near": {"shape": "the glove closes over the bar; the bar disappears behind the fingers and reappears 30px to the left. No gap", "box": [318, 470, 96, 70], "in_front": "rider.hand.near"},
   "helmet.vents": {"shape": "seven slots radiating from the brow, each tapering to both ends", "box": [380, 100, 330, 200], "count": 7, "value": "black"}
 }
 ```
@@ -347,7 +362,7 @@ checkpoint after S2, after the first part and after the last.
 from pen import stroke, frame, fade, erase, back, write
 V = {"hip": (462, 590), "knee": (445, 715), "ankle": (452, 880)}   # measured once, named once
 P = lambda *names: [V[n] for n in names]
-ops = [frame(0, 0, 928, 1152)]
+ops = [frame(0, 0, 3712, 4608)]   # the working space: 4x the delivered 928x1152
 ops.append(stroke(P("hip", "knee", "ankle"), stage="gesture", nib="fine"))
 ops.append(stroke(P("hip", "knee", "ankle"), stage="blockin", smooth=False))
 ops.append(stroke(P("hip", "knee"), stage="ink", nib="medium", tag="rider.leg.near.thigh"))
@@ -381,7 +396,10 @@ write("ops.json", ops)
 - **The tracer's points are measurements, not marks.** You read positions off
   a contour and type the ones that carry the shape into `draw.py`; the region
   list is never iterated into strokes. Keep perimeter order — resequencing
-  folds the walk into arrowheads. For an organic form that means the few points
+  folds the walk into arrowheads, and a point added to a traced outline (a
+  run-on under a nearer form) goes in at its place round it: typed at the head
+  of the list it made the outline double back, and the face rendered with the
+  ground showing across it. `--ladder` lists every such HOLE. For an organic form that means the few points
   that carry it; for a simple manufactured form — a bulb, a frame, a strip of
   tape, a tube — most of the contour, and the drawing is then in its weight and
   its junctions. **Neither works on a re-entrant region** — a band with shapes
@@ -397,7 +415,7 @@ write("ops.json", ops)
   small form, skipping it is a failed stage — it has been skipped on exactly
   those classes run after run, and a viewer then names the object something
   else: a helmet becomes a beetle, a glove a shoe. Scan each row for runs of the
-  target value *inside the eroded silhouette*, chain the runs across rows, and
+  target value *inside the eroded silhouette* (`check.py --scan BOX --value NAMES`), chain the runs across rows, and
   print per form its end rows and its two edges every few rows. That counts the
   forms (a morphological opening merges two narrow ones and silently corrects
   your census downward), says where each tapers — because the chain ends, not
@@ -449,7 +467,11 @@ write("ops.json", ops)
 - **A region outline is not a silhouette, and a scan run is not a contour.**
   A flat is split by ink into several objects — a shoe and the straps on it,
   an ear and the spiral inside it — and the tracer and a row scan return the
-  flat, not the object. Before inking any contour taken from either, `--zoom`
+  flat, not the object. The ink class welds the same way: a nostril hook
+  touching a moustache came back as a hump on the moustache's outline. And
+  where `--line` sits below the heaviest ink, those lines come back as rings
+  named after the nearest dark flat — a garment's name round every silhouette;
+  read them as ink. Before inking any contour taken from either, `--zoom`
   that object against the subject and say which lines are its edge and which
   are inside it. No numeric check sees this; one look does. And the two put
   an edge in different places: a traced boundary is the ink's CENTRE line, a
@@ -476,7 +498,9 @@ write("ops.json", ops)
   apart, with the tool you will use, written with `write(..., swatch=True)`,
   and read it back with `--weights` on a row that crosses them. Each tool has
   its own ladder: `pen` is the hairline instrument and `brush` bottoms out near
-  2px at 1:1. The named nibs are pitched for a ~430px subject: on a single
+  2px at 1:1; at the same `size` and `scale` a brush runs about twice a pen's
+  width. A long straight — a pole, a tube, a frame edge — wanders several px
+  off its points under the default hand; pass `hand=0` there. The named nibs are pitched for a ~430px subject: on a single
   object of another size call `gauge(subject_height)`; on a 4x scene they are
   unusable, so pin `size`/`scale` from the ladder by hand, once for the whole
   document. `weight=` is pressure, not width. A band wider than the heaviest
@@ -501,8 +525,10 @@ the CLI's own error) is refused, exit 1, nothing written. Blind,
 factual, and it excuses: ask it *what*, never *whether*. Where its answer to 3
 or 4 differs from the subject's, the picture's event is wrong, and that is the
 first fault, whatever the numbers say. It is noisy run to run, so at a gate run
-it twice and keep only what both runs say; a clause one run states and the
-other drops is not a verdict either way. **Run it twice on the subject too**:
+it twice and keep only what both runs say — by meaning, not wording; a clause
+one run states and the other drops is not a verdict either way. Describe the
+drawing at the subject's size: downsample `drawing.png` to `subject_1x.png`'s
+dimensions first, so both are read at one scale. **Run it twice on the subject too**:
 a clause the subject's own two runs do not share is not an acceptance clause
 and must not be gated on — otherwise a stage is held against a target that
 does not survive its own noise. Run it on part crops as well: a face can
@@ -561,12 +587,12 @@ reproduce on the form it names is often real on the form next to it.
 | flag | sees |
 |---|---|
 | `--masses` | the wrong shape: line closed away (dark runs thinner than the subject's line), both cut on the subject's value levels, `--colours` 3 by default. **A design gate, not a proportion gate** — a head half again too wide is still a pale blob above a dark torso at thumbnail size, and passes |
-| `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing: the first non-ground pixel from that side, and the dark runs inward from it. **The instrument for a coordinate and for a proportion**; `<<` marks an edge off by over 2% of the box, `runs a|b` a row whose line count differs — a thick line drawn as two, an interior line drawn somewhere else |
+| `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing (`--value NAMES` scans runs of those palette names instead of dark ones): the first non-ground pixel from that side, and the dark runs inward from it. **The instrument for a coordinate and for a proportion**; `<<` marks an edge off by over 2% of the box, `runs a|b` a row whose line count differs — a thick line drawn as two, an interior line drawn somewhere else |
 | `--overlay` | the drawing blended over the subject; with `--box x,y,w,h`, the two inks over that box: the subject's blue, the drawing's red, black where they coincide. The only view of **interior lines** (see below). No number, on purpose |
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable* — only a describer on the assembled panel answers that |
 | `--census parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts to the census; exit 1 FAIL, exit 2 UNCHECKED rows |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` — named when it outranks the whole focus tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
-| `--doubled ops.json` | one edge stated twice **on the page**: write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two bands meant to run together are listed too, so look before you merge |
+| `--doubled ops.json` | one edge stated twice **on the page**: write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two bands meant to run together are listed too, and so is a contact between two objects' edges, so look before you merge |
 | `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver — the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass: tags and inventory are not one vocabulary. **UNLISTED** is a worklist: one part's ink shown across another's flat where no row decides which is in front |
 | `--ladder ops.json` | a stage that does not exist, and a mark the script did not write: called from another file, stamped by a loop or an import, points loaded or computed. It does not check that each ink has a contour under it. Pasted generated literals pass it |
 | `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`, and on an upscaled or generated subject `--grain` of three times the upscale factor, or its serration reads as corners (150 false rows on one panel, 4 with it). A deliberately straight form cut by intruding objects still fails it |
@@ -574,7 +600,7 @@ reproduce on the form it names is often real on the form next to it.
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x, ticked in panel coordinates. **The primary gate on any object**: three versions of one object passed every numeric gate and ranged from a beetle to a thing a blind viewer named at once; only the magnified pair told them apart. Ticks orient; they are not a coordinate |
 | a blind viewer on a part's crop | what the part **is**. The only gate that fails a blob — a detector, not a meter |
-| `--weights rows` | the line hierarchy against the subject's, each run as `width@x` |
+| `--weights rows` | the line hierarchy against the subject's, each run as `width@centre` |
 
 Every number is a worklist, never a score. The cheap way to move a
 mark-counting number is more marks, and a whole-picture pixel difference goes

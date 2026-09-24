@@ -248,9 +248,11 @@ def marks(row, dark=None):
 
 
 def said(runs):
-    """Runs as `width@x`, in the order they sit, so a ladder's rungs keep their
-    names: sorted, a list of widths cannot say which rung is which."""
-    return "  ".join(f"{width}@{start}" for start, width in runs) or "-"
+    """Runs as `width@x`, x the run's CENTRE, in the order they sit, so a
+    ladder's rungs keep their names: sorted, a list of widths cannot say which
+    rung is which. Printed at the run's start, a pole's two lines placed on the
+    printed x came back half a line off, 8px, on both sides."""
+    return "  ".join(f"{width}@{start + (width - 1) // 2}" for start, width in runs) or "-"
 
 
 def report(subject, drawing, rows):
@@ -285,6 +287,16 @@ def zoom(drawing, subject, box, factor=4):
     size = (max(1, round(width * factor)), max(1, round(height * factor)))
     above = ruled(subject.crop((x, y, x + width, y + height)).resize(size, Image.LANCZOS), box, factor)
     below = ruled(drawing.crop((x, y, x + width, y + height)).resize(size, Image.LANCZOS), box, factor)
+    # a tall box stacked twice came back 8646x16472 and was shown at an eighth
+    # of its size: side by side unless the box is wide
+    if height > width:
+        sheet = Image.new("RGB", (above.width * 2 + 18, above.height + 16), (250, 250, 248))
+        pen = ImageDraw.Draw(sheet)
+        sheet.paste(above, (0, 16))
+        pen.text((4, 2), "subject", fill=(25, 25, 25))
+        sheet.paste(below, (above.width + 18, 16))
+        pen.text((above.width + 22, 2), "drawing", fill=(25, 25, 25))
+        return sheet
     sheet = Image.new("RGB", (above.width, above.height * 2 + 40), (250, 250, 248))
     pen = ImageDraw.Draw(sheet)
     sheet.paste(above, (0, 16))
@@ -353,7 +365,7 @@ def inks(drawing, subject, box, dark=90, width=1500):
     return ruled(image, box, scale)
 
 
-def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24):
+def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24, value=None):
     """The form's outline and its interior lines, row by row (or column by
     column), subject beside drawing -- the instrument that settles proportion.
 
@@ -362,7 +374,10 @@ def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24):
     column for the outline and the ink columns for the lines inside it: a
     thick line drawn as two strokes shows as one run against two, and an
     interior line drawn in the wrong place shows as runs that drift apart
-    while the edges agree."""
+    while the edges agree. With `value` -- (palette colours, indices wanted) --
+    the runs are of those palette names instead of dark: the scan a group of
+    vents, an orange insert in a grey shell or a wheel's bands needs, which a
+    darkness threshold cannot tell apart."""
     drawing = drawing.resize(subject.size, Image.LANCZOS)
     x, y, w, h = box
     crops = [np.asarray(image.crop((x, y, x + w, y + h)).convert("RGB"), dtype=float)
@@ -376,8 +391,9 @@ def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24):
     step = step or max(1, round(lines / 40))
     loose = max(4, round(0.02 * (h if side in ("left", "right") else w)))
     axis = "y" if side in ("left", "right") else "x"
+    runs_of = "of the --value names" if value else f"darker than {dark}"
     print(f"from the {side}, every {step}px; edge = first non-ground pixel, ink = runs "
-          f"darker than {dark}, from the {side} inward. panel coordinates.")
+          f"{runs_of}, from the {side} inward. panel coordinates.")
     print(f"{axis:>6s}  {'subject':>7s} {'drawing':>7s} {'diff':>5s}   subject ink  |  drawing ink")
     for at in range(0, lines, step):
         edges, runs = [], []
@@ -387,7 +403,12 @@ def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24):
             first = int(np.argmax(off)) if off.any() else None
             edges.append(None if first is None else
                          (along + len(row) - 1 - first if backwards else along + first))
-            found = marks(list(row.mean(axis=1)), dark)
+            if value:
+                colours, wanted = value
+                named = np.argmin((colours ** 2).sum(-1) - 2 * row @ colours.T, axis=1)
+                found = marks(list(np.where(np.isin(named, wanted), 0, 255)), dark)
+            else:
+                found = marks(list(row.mean(axis=1)), dark)
             runs.append([(along + len(row) - start - width, along + len(row) - 1 - start)
                          if backwards else (along + start, along + start + width - 1)
                          for start, width in found][:4])
@@ -636,6 +657,34 @@ def registration(drawing, paper, ink=90, floor=40):
             found.append((len(ys), name, int(xs.min()), int(ys.min()),
                           int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)))
     return sorted(found, reverse=True)
+
+
+def self_crossing(ops, step=2, floor=400):
+    """Closed fills whose outline doubles back on itself and leaves a hole.
+
+    The renderer fills by winding number, so an outline that crosses itself is
+    solid until part of it runs back the other way; that part winds to zero and
+    shows the ground. A face's run-on points typed at the head of its traced
+    list instead of at their place round it left ground across the forehead,
+    and every other gate passed. Yields (op index, hole area, a point in it)."""
+    for index, op in enumerate(ops):
+        points = np.asarray([p[:2] for p in op.get("points") or []], dtype=float)
+        if op.get("op") != "stroke" or op.get("stage") != "fill" or not op.get("closed") \
+                or len(points) < 4:
+            continue
+        low, high = points.min(axis=0), points.max(axis=0)
+        xs, ys = np.meshgrid(np.arange(low[0], high[0], step), np.arange(low[1], high[1], step))
+        winding = np.zeros(xs.shape, dtype=int)
+        for (x0, y0), (x1, y1) in zip(points, np.roll(points, -1, axis=0)):
+            side = (x1 - x0) * (ys - y0) - (xs - x0) * (y1 - y0)
+            winding += ((y0 <= ys) & (y1 > ys) & (side > 0)).astype(int)
+            winding -= ((y1 <= ys) & (y0 > ys) & (side < 0)).astype(int)
+        filled = winding != 0
+        hole = ndimage.binary_fill_holes(filled) & ~filled
+        area = int(hole.sum()) * step * step
+        if area >= floor:
+            row, column = np.argwhere(hole)[0]
+            yield index, area, (int(xs[row, column]), int(ys[row, column]))
 
 
 # --- what the script puts on the page -----------------------------------------
@@ -1256,7 +1305,8 @@ def main():
                        help="--faces: serration narrower than this, in px, is the source's "
                             "grain, not a corner. 3x the upscale factor on an upscaled subject")
     parse.add_argument("--weights", default="",
-                       help="comma-separated rows: print the mark widths each one crosses")
+                       help="comma-separated rows: print the mark widths each one crosses, "
+                            "as width@centre")
     parse.add_argument("--masses", action="store_true",
                        help="both pictures as flat masses, no line — the check that "
                             "sees shape. Takes --box x,y,w,h and --colours N")
@@ -1266,6 +1316,9 @@ def main():
                        help="x,y,w,h (needs --ref): per row, the outline and the ink runs of "
                             "subject and drawing, from --side")
     parse.add_argument("--side", default="right", choices=("left", "right", "top", "bottom"))
+    parse.add_argument("--value", default="",
+                       help="--scan: comma-separated palette.json names; runs of those instead "
+                            "of dark runs")
     parse.add_argument("--step", type=int, default=0, help="--scan: rows between readings")
     parse.add_argument("--colours", type=int, default=3,
                        help="--masses: value levels, line removed first (default 3)")
@@ -1312,7 +1365,14 @@ def main():
                   + (f"   first at op {first[stage]}" if stage in first else "   ABSENT"))
         for failure in failures:
             print(f"  FAIL {failure}")
-        if not failures:
+        for index, area, at in self_crossing(ops):
+            print(f"  HOLE fill at op {index}{' ' + ops[index]['tag'] if ops[index].get('tag') else ''}: "
+                  f"{area}px near {at} winds to zero and shows the ground. A ring drawn as one "
+                  "polygon has one on purpose; anywhere else the outline doubles back -- keep "
+                  "perimeter order, run-on points included")
+        if not failures and not counts.get("ink"):
+            print("  no ink yet: the stages are gated from the first ink mark")
+        elif not failures:
             print("  PASSES — the gesture, block-in and contour stages exist, in order. Whether "
                   "each ink mark\n  has a contour under it is NOT checked: on three finished "
                   "drawings 26-81% had none")
@@ -1565,9 +1625,20 @@ def main():
     if args.scan:
         if not args.ref:
             sys.exit("--scan needs --ref")
+        value = None
+        if args.value:
+            with open("palette.json") as handle:
+                palette = json.load(handle)
+            names = list(palette)
+            unknown = [name for name in args.value.split(",") if name not in names]
+            if unknown:
+                sys.exit(f"--value: {', '.join(unknown)} is not in palette.json")
+            value = (np.array([[int(palette[name][at:at + 2], 16) for at in (1, 3, 5)]
+                               for name in names], dtype=float),
+                     [names.index(name) for name in args.value.split(",")])
         scan(drawing, Image.open(args.ref).convert("RGB"),
              [int(part) for part in args.scan.split(",")], args.side, args.step,
-             ground_of(colour(args.paper)))
+             ground_of(colour(args.paper)), value=value)
         return
 
     if args.overlay and args.box:
