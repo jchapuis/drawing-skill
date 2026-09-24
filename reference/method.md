@@ -204,7 +204,7 @@ unasked.
 | 4 | **Construction** | 3D volume under the shape | Every form's turn stated in writing first, its centre line placed where that turn puts it — not down the middle of its box |
 | 5 | **Masses** | The picture as filled areas, no line at all | `check.py --masses` beside the subject's: the two read as the same shape, said in words. Nothing drawn on top will fix them if they do not |
 | 6 | **Contour** | The real edge — *break the straights into curve* | Curves depart from the primitives where the subject does |
-| 7 | **Cleanup** | Which line is *the* line | Every line intended for ink exists and is right; construction faded or erased |
+| 7 | **Cleanup** | Which line is *the* line | Every line intended for ink exists and is right; construction out of the final render (`build.sh` hides it) |
 | 8 | **Ink** | Weight, permanence, hierarchy | — terminal line stage |
 | 9 | **Fill** | The masses refined — shadow, blacks, flats | Structure already fixed; value cannot rescue wrong proportion |
 | 10 | **Correct** | Where colour and line disagree | Ink and flats both final; every correction survives being switched off |
@@ -551,9 +551,10 @@ write("ops.json", [
 ```
 
 Marks carry a `stage` (`gesture`, `blockin`, `construction`, `contour`, `ink`,
-`fill`, `mend`, `correct`, `frame`), which lets a later stage `fade` or `erase`
-the pencil under the ink, and lets `--hide` switch a stage off to see what it is
-really doing. `tool=` picks how the mark is made — `pen` (dead uniform), `brush`
+`fill`, `mend`, `correct`, `frame`), which lets `--hide` switch a stage off to
+see what it is really doing; `build.sh` renders `drawing.png` with gesture,
+construction, block-in and contour hidden, so the pencil never reaches the
+final render and nothing needs erasing. `tool=` picks how the mark is made — `pen` (dead uniform), `brush`
 (swings thin to thick), `marker` (translucent, overlaps darken), `crayon` (broken
 grainy passes), `flat` (opaque regions), `gouache` (opaque body colour, the only
 instrument that goes on top of dry ink). `nib=` picks the weight: `hairline fine

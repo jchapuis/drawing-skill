@@ -150,7 +150,19 @@ specific techniques, not "draw the important bit more":
   more interesting and more artistic results… than does tiresomely complete
   outline."*
 - **Texture fields** — foliage, crowds, brick are a *pattern* studied once and
-  applied as a field, never enumerated as objects.
+  applied as a field, never enumerated as objects. A field the describer names
+  (a rock field, a crowd) is still a part — the acceptance list will ask for
+  it — and it is drawn with this device: its sub-form list is the unit types
+  and the units at the boundary nearest the focus, which get full treatment;
+  the rest are flats with a silhouette and no interior line. On a flat-cel
+  source that inks every boundary, the far units' missing interior ink is a
+  departure to write down, not a rule broken. A **faceted** field — rocks,
+  crystals, folded paper — is straights throughout (`smooth=False` on every
+  stroke: rendered smooth, one field became river stones and every gate
+  passed), and inking every face's closed outline states each shared edge
+  twice (`--doubled` went from 20 to 29 on one field). Ink a unit's silhouette
+  once and its interior face edges as open strokes, each shared edge written
+  once from the point dict.
 - **Distance to poster** — fewer planes, less halftone, flatter light the further
   back; line weight thinning with depth.
 - **Vignette** — the drawing fades into the paper, and the silhouette the whole
@@ -245,11 +257,11 @@ panel's instance is drawn **in the panel's document, in place, in panel
 coordinates**, from the understanding the study built; nothing is transferred,
 and there is one coordinate space for marks. Measuring may still be per object:
 `crop.py` cuts an object's crop out of the working-resolution subject at 1:1 and
-prints the offset that brings its `trace.py` regions back into panel
-coordinates. `--zoom` is the magnified look a crop used to force.
+stores its panel corner in the PNG, so its `trace.py` regions come back in panel
+coordinates with no flag. `--zoom` is the magnified look a crop used to force.
 
 ```bash
-python3 crop.py subject.png 200,560,460,540 meas/bike.png                # prints the trace.py call with its --offset
+python3 crop.py subject.png 200,560,460,540 meas/bike.png                # corner stored; trace.py reads it
 node harness/cli.mjs DOC.json --only bike,frame --png bike.png          # the object alone, in the panel
 ```
 

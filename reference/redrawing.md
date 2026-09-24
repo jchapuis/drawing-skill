@@ -28,7 +28,10 @@ the reading stage should exploit that rather than squint at it.
   every object's extent become readable in one look. Do it **before** the
   inventory, not after — it is the cheapest reading instrument available on this
   class of subject, and the only one that shows the design and the coordinates at
-  the same time.
+  the same time. The same classification finds the palette's gaps: pixels far
+  from every entry clump where a flat is missing and scatter where it is grain
+  (`trace.py` prints the share and the largest clumps). Two missing flats on
+  one panel — a shade on a fork, a brown horizon line — were found this way.
 - **Boundaries you can measure instead of judge.** A row or column scan returns
   exact runs — `field:465-486`, not "about here". Every landmark can be a
   boundary between two named colours at a stated coordinate. A block map is for

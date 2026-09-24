@@ -117,6 +117,59 @@ scan returned.
 Overlay checking cannot catch any of this: at 1:1 a lumpy shape and a clean one
 occupy the same box. Only the detail check at 4x shows it.
 
+## Which instrument gives a coordinate, and which settles a proportion [bought: drawing]
+
+**A look places nothing.** On one 4x panel three instruments were used to read
+positions, and they ranked cleanly:
+
+- **Points read by eye off a gridded or ticked crop came out 30-60px off** — a
+  helmet's right edge, a thigh, a forearm's upper edge. A grid is fine for
+  saying which structure is where; it is not a coordinate.
+- **A scan across the subject** — `check.py --scan x,y,w,h --side S`, or a
+  column or row of its dark runs — fixed every one of those, and is the only
+  source for a point typed into `draw.py`.
+- **Judging proportion from a side-by-side misled in both directions.** A drawn
+  head *looked* 10% large with its chin 70px low; measured on the same image,
+  the chin was 6px off and the helmet 3% wide. The jersey band looked broken
+  where the subject's was continuous, and the subject's was broken too. A
+  person reading the same thumbnails made the same kind of error, half right
+  and half wrong on each item. Every case was settled by a scan or by
+  `--overlay --box`, never by looking harder. So an item raised by eye —
+  your own, a critic's, a person's — is a hypothesis until a number on subject
+  and drawing reproduces it, and no mark moves before that.
+
+**A thick line can read as two.** A 40px rim line in a magnified crop looked
+like a rim and a separate brim, and was drawn as two strokes 30px apart —
+which `--doubled` cannot see, because they do not overlap. A scan across it
+shows one dark run per column in the subject and two in the drawing (`runs
+1|2`).
+
+### The outline is not the likeness; interior lines carry it too
+
+A form whose likeness lives in its outline — a face in profile or three
+quarters, a nose, a chin — gets an edge scan on the side the silhouette faces:
+per row, the outermost non-ground pixel on subject and drawing. It is the only
+thing that catches a wrong turn **between** two measured landmarks (a nose
+bulb that tucked in 20px early passed a chin check, a width check and
+`--masses`).
+
+It is necessary and it is not sufficient. A face passed its outline scan row
+by row and still read wrong, because the fault was **inside** the outline: the
+nose's ridge line ran diagonally from the brow to the nostril in the subject,
+making the nose a wide wedge, and near-vertically down the far edge in the
+drawing. No outline instrument can see an interior line. `--overlay --box`
+over the focus shows both inks at once — the subject's blue, the drawing's
+red, coincident black — and the question for every blue line inside the form
+is **which red line is meant to be it, and how far and which way it runs
+off**. Answer it for the lines that carry the likeness (ridge, brow, the
+mouth's corners, the fold of the cheek) and measure any disagreement with
+`--scan`, whose ink columns list the interior runs row by row.
+
+This is a look with a question attached, not a gate with a threshold, on
+purpose. Which drawn line corresponds to which subject line is a reading, and
+any number built on the two inks — a distance, an overlap share — falls as
+more ink is added, which is the wrong direction for a gate to move.
+
 ## Landmarks are the block-in's vertices
 
 The landmark method and the straight-line block-in are one operation seen two
