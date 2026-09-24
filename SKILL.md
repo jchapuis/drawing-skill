@@ -84,7 +84,9 @@ coordinates is worse still — it quantises every region boundary to the
 projection factor, so a 4x working space gets boundaries on a 4px lattice.
 
 **Crop each object out of the working-resolution subject, trace that, and
-offset the coordinates into panel space.** It is not a compromise with the
+offset the coordinates into panel space** — `crop.py subject.png x,y,w,h
+meas/NAME.png` cuts it at 1:1 and prints the `trace.py ... --offset X,Y` call
+that does the offset. It is not a compromise with the
 one-document rule: you still draw every mark in panel coordinates, in one
 `draw.py`, with no second coordinate space for marks and no placement step.
 Only the *measuring* is per object. Measured on one object: a panel-wide 1:1
@@ -123,39 +125,33 @@ If you cannot write those three for an object, you are not ready to draw it,
 and taking the largest region is what will happen instead. **A lit strip and
 its shade band are one form with two values**, never two flats laid side by
 side. And check the part list against what is actually on the canvas before
-calling a panel assembled: the objects that go missing are the ones no region
+calling a panel done: the objects that go missing are the ones no region
 was ever dominant for.
 
 ## One object or a scene
 
 **A single object is drawn on one ladder, at one scale.** A scene is designed
 first, as masses, and then every object in it that must be recognisable is
-drawn as a single object in its own magnified crop and placed back. Two things
-force that:
+drawn on that ladder too — in the same document, in panel coordinates, at a
+working resolution high enough for its smallest feature. Two things force that:
 
 - **You can only see what is large on the page.** A render is looked at at
-  roughly 1,500px whatever its size. On a single object every feature is
-  judgeable; in a scene a 12px eye or a 20px hand is below what you can judge
-  as a shape, and a part you could not see while drawing it is a part drawn
-  badly. **Nothing drawn at panel scale by eye comes out well — a light bulb
-  and a strip of tape no more than a face.** So every object that must be
-  recognisable is a part, cropped small enough to see and drawn large enough
-  to work on; the only other thing an object can be is welded into a mass
-  with no marks of its own. There is no middle tier.
-  **The box and the scale buy different things and are chosen separately: the
-  box buys seeing, the scale buys drawing resolution.** A render is read at
-  ~1,500px whatever it contains, so magnification is `1500 / max(box_w,
-  box_h)` and no `scale` changes it — an object whose box is as wide as the
-  panel cannot be magnified at all, and has to be split into boxes that can,
-  cut at a seam some other form already hides. `scale` is then chosen so the
-  smallest feature you must draw lands near 40px of canvas, which is a
-  statement about nib headroom and not about seeing.
+  roughly 1,500px whatever its size, so in a scene a 12px eye or a 20px hand is
+  below what you can judge as a shape, and a part you could not see while
+  drawing it is a part drawn badly. **Nothing drawn at panel scale by eye comes
+  out well — a light bulb and a strip of tape no more than a face.** So every
+  object that must be recognisable is a part, looked at magnified with `--zoom`
+  (magnification is `1500 / max(box_w, box_h)`; a box as wide as the panel
+  cannot be magnified and is split at a seam some other form already hides),
+  and drawn at a working resolution that puts its smallest feature near 40px.
+  The only other thing an object can be is welded into a mass with no marks of
+  its own. There is no middle tier.
 - **A scene is not a sum of parts.** What organises it lives above the object:
   one centre of interest, a tone plan of two to four masses, most edges lost
   into the mass behind them, and the junctions where things touch. An object
-  drawn well and dropped into a panel with a closed contour of its own is what
-  breaks the picture. The scene level decides these before any object exists
-  and checks them after every object is placed.
+  drawn well with a closed contour of its own is what breaks the picture. The
+  scene level decides these before any object exists and checks them after
+  every object is drawn.
 
 Which you have is decided at stage 0, by the reading, and the answer can be
 "a single object" for a picture with furniture in it.
@@ -224,25 +220,24 @@ cropped out, nothing is placed back, and there is no second coordinate space
 anywhere.
 
 **Objects drawn in their own crop and composited back came out as blobs; the
-same objects drawn whole came out well.** What a crop really buys is that it
-forces you to look at the object magnified, and that service is worth having —
-so take it as a gate instead of as an architecture: **`--zoom` every object
+same objects drawn whole came out well.** What a crop bought was a forced look
+at the object magnified, so that survives as a gate: **`--zoom` every object
 before you call it done, always.** An object built from numbers and never
 zoomed comes back as fat lozenges and scratches and looks passable at panel
-size. Everything else a crop costs — a second coordinate space, nibs divided by
-a crop scale, scaffolding masses to remove, interfaces deferred to an assembly
-stage, a palette and a weight ladder per part — goes away, and the junctions
-become write-order rather than a plan.
+size. Everything else a crop cost — a second coordinate space, nibs divided by
+a crop scale, scaffolding masses, interfaces deferred to an assembly stage — is
+gone, and the junctions are write order. Crops survive only for measuring and
+for looking.
 
 | # | Stage | You produce | Gate |
 |---|---|---|---|
-| S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its crop box (small enough that the part fills a render) and its scale (large enough to draw its smallest feature), its nested parts (a face inside a figure at a higher scale again), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing; the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
+| S0 | **Read as a tone field** | everything stage 0 produces, plus in `reading.md`: **one** centre of interest; the tone plan (a dominant value, two to four masses); the **welded shapes** — five to twelve, each edge marked sharp or lost, no object with a closed contour; every object as either a **part** or **welded** — a part is an *object* (the rider, the bicycle, the lamp), never a feature of one; **an object the describer names in answers 3–4 is a part**, because the acceptance list will ask for it, unless it has no silhouette of its own against its surround, in which case write it down now as a clause the drawing will not earn; for each part its box (the `--zoom` and measuring crop), its smallest feature at working resolution, its nested parts (a face inside a figure), and its weight pitch relative to the centre of interest; the **interfaces table** with an `in front` column per crossing; the census with its zeroes | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the focus; every interface has a depth decision; the part list and the acceptance list agree |
 | S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops. **The object ladder's "3–10 strokes" is a single object's budget and does not apply here** — a scene needs one per mass plus the ground and eye lines, which runs to fifteen or twenty. Too few and the describer reads one object's parts as another's: a bicycle's bar becomes the figure's outstretched arms | `describe.sh gesture.png`: the event and the big shape read. **A pose carried by value rather than by silhouette may not be statable here** — a seated figure with fully foreshortened thighs has a standing figure's outline — and then the honest move is to record that the event is gated at S2 instead, with the describer runs that show it, rather than to keep redrawing an armature that cannot carry it |
 | S2 | **Masses** | `stage="blockin"` straights for the welded shapes, then their flats `stage="fill"` — the middle tone over the whole, then lights, then darks, honouring sharp/lost. **Every object's mass goes in here, part or welded**: the part/welded split decides whether an object gets *marks*, never whether its *value* exists. A part left out is a hole in the tone plan, and when a whole value family lives inside parts — the darks usually do — the gate cannot pass at all until they are in. A flat is not ink, so this costs nothing at the gate. No object's *marks* yet | `--masses` against the subject at thumbnail size; **no object has an ink contour** (`--ladder` shows ink 0) |
-| S3 | **Every object, in place** | run stages 4 to 9 of the object ladder on each object, in the one `draw.py`, in panel coordinates, working from the furthest object forward. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same flat, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — this is the gate the crop used to enforce and it is not optional. Then its own ladder gates, `--faces` and `--unfilled` |
+| S3 | **Every object, in place** | run stages 4 to 9 of the object ladder on each object, in the one `draw.py`, in panel coordinates, working from the furthest object forward. Its brief from S0: which of its edges are lost, what is in front of it, its weight pitch. **Refine the object's S2 mass into its stage-5 fill** — they are the same flat, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap; a figure is built on the figure ladder with its three masses and every joint, and is not | **`--zoom` on the object, beside the subject, before you leave it** — not optional. Then its own ladder gates, `--faces` and `--unfilled` |
 | S4 | **Junctions** | nothing to assemble: every object was drawn where it belongs, with its neighbours already on the page, so the interfaces table was satisfied as you went rather than afterwards. Walk it once and confirm each row — the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; `--depth ops.json parts.json` clean, with no UNRESOLVED row; every row of the interfaces table has a recorded decision and a look |
-| S5 | **Emphasis** | nothing is drawn at panel scale here. Emphasis was decided at S0 as each part's weight pitch and edge count, and the far parts were drawn lighter and with fewer edges *in their own crops*. Walk the placed panel and confirm the gradient: weight and detail decay from the centre of interest and with depth; welded objects have no marks | no part beyond the focus carries the focus's weight; a describer names every part |
-| S6 | **Interfaces** | the enumerated pass over the interfaces table, in the assembled panel and nowhere else: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
+| S5 | **Emphasis** | nothing is drawn at panel scale here. Emphasis was decided at S0 as each part's weight pitch and edge count, and the far parts were drawn lighter and with fewer edges as they were drawn. Walk the panel and confirm the gradient: weight and detail decay from the centre of interest and with depth; welded objects have no marks | no part beyond the focus carries the focus's weight; a describer names every part |
+| S6 | **Interfaces** | the enumerated pass over the interfaces table, on the whole panel: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
 | S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern; the whole drawing's silhouette against the paper | `--ranking parts.json`: the focus leads, nothing shouts above its tier |
 | S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice. A blind viewer on each part's crop ranks the round: the **misnamed** parts get the budget first, then the parts whose shape sentences are untrue | the acceptance list; `--ranking` still shows one focus; no part misnamed. An item that returns after a round that addressed it is the stopping rule |
 
@@ -251,7 +246,7 @@ are the rest: a figure or a vehicle costs about as much as a whole flat panel
 once did, a lamp a tenth of that, and there is no cheaper tier that produces
 anything usable. A self-reported budget comes back low by a factor of two; fix
 the part list and the correction rounds at S0 and hold to them, and work in
-checkpoints — after S2, after the first part, after the assembled panel — so a
+checkpoints — after S2, after the first part, after the last — so a
 run that is going wrong is stopped before it has spent the rest.
 
 ## Stage 0
@@ -324,16 +319,13 @@ run that is going wrong is stopped before it has spent the rest.
 ## Marks
 
 ```python
-from pen import stroke, frame, fade, erase, back, write, load, place
+from pen import stroke, frame, fade, erase, back, write
 V = {"hip": (462, 590), "knee": (445, 715), "ankle": (452, 880)}   # measured once, named once
 P = lambda *names: [V[n] for n in names]
 ops = [frame(0, 0, 928, 1152)]
 ops.append(stroke(P("hip", "knee", "ankle"), stage="gesture", nib="fine"))
 ops.append(stroke(P("hip", "knee", "ankle"), stage="blockin", smooth=False))
 ops.append(stroke(P("hip", "knee", "ankle"), stage="ink", nib="medium", tag="leg.near+rider"))
-ops += place(load("parts/bike/ops.json"), origin=(180, 560), scale=2, only=["rear"])
-ops += place(load("parts/rider/ops.json"), origin=(300, 60), scale=2.5, drop=["jaw.left"])
-ops += place(load("parts/bike/ops.json"), origin=(180, 560), scale=2, only=["front"])
 write("ops.json", ops)
 ```
 
@@ -341,11 +333,10 @@ write("ops.json", ops)
   a shape, no loop that stamps one, no `ellipse()`: a tool may not supply a
   form you did not choose after looking. A dict of measured points supplies no
   form and is the fix for an edge drawn twice — two objects that share an edge
-  share the entry. `place` supplies no form either: it moves marks chosen in
-  the crop.
+  share the entry.
 - **Tag every ink stroke by the edge it states** (`tag="jaw.left+cowB"`,
-  `+` joins several), so the scene can place a part by depth group and drop
-  the edges it has decided are lost.
+  `+` joins several), so `--depth` can read the write order against the
+  inventory and `--only`/`--hide` can show one object.
 - **One stroke per member; a joint is a stroke boundary.** A smoothed stroke
   fits one curve through all its points, so a bent form written as a single
   `hip → knee → ankle` stroke comes back as an unbroken bow with no angle at
@@ -353,10 +344,6 @@ write("ops.json", ops)
   measured. The points hold the bend and the render throws it away, silently,
   and no numeric gate reports it. Give each member its own stroke, or pass
   `smooth=False`.
-- **`place` moves strokes and nothing else** — a part's own `erase`/`fade`/
-  `back` decisions stay in the part's document, and its `frame` is dropped,
-  since a frame is a stroke too and transferring it prints the part's crop
-  rectangle across the panel.
 - **The tracer's points are measurements, not marks.** You read positions off
   a contour and type the ones that carry the shape into `draw.py`; the region
   list is never iterated into strokes. Keep perimeter order — resequencing
@@ -441,16 +428,10 @@ write("ops.json", ops)
   apart, with the tool you will use, written with `write(..., swatch=True)`,
   and read it back with `--weights` on a row that crosses them. Each tool has
   its own ladder: `pen` is the hairline instrument and `brush` bottoms out
-  near 2px at 1:1. The nibs are pitched for a ~430px subject: in a magnified
-  crop call `gauge(crop_height)` before the first stroke, or the heaviest nib
-  lands below the crop's median line. `weight=` is pressure, not width; width
-  is `nib=` or an explicit `size=`/`scale=`. A part's ladder is drawn in the
-  part's crop, at the part's scale, and `place` brings the widths back — but a
-  nib is an absolute width in canvas pixels, so **divide every nib by the
-  crop scale before comparing it to the subject.** At 4x the heaviest named
-  nib arrives on the panel a quarter of its width, under the subject's own
-  line mode: the named nibs are simply out of reach at high magnification and
-  `size=`/`scale=` must be pinned by hand. A
+  near 2px at 1:1. The nibs are pitched for a ~430px subject: on a single
+  object of another size call `gauge(subject_height)` before the first stroke.
+  `weight=` is pressure, not width; width is `nib=` or an explicit
+  `size=`/`scale=`. A
   band wider than the heaviest nib — a strap, a tyre — is a flat: give it
   both sides as points, closed. Then measure the width of each mark on the
   subject before asking for it. Try the next rung before recording a limit.

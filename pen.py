@@ -589,8 +589,7 @@ def audit(ops):
             if not counts.get(stage):
                 failures.append(f"ink with no {stage} stage: the ladder was skipped")
         # gesture, then block-in, then ink. The contour is required to exist,
-        # not to come first: an assembled scene holds its parts' contours where
-        # the parts were placed, and forms drawn in depth order interleave
+        # not to come first: forms drawn in depth order interleave their stages
         ordered = ("gesture", "blockin", "ink")
         order = [first[stage] for stage in ordered if stage in first]
         if order != sorted(order):
@@ -717,52 +716,6 @@ def script_source(ops, beside=None):
         return None
     with open(path) as handle:
         return handle.read()
-
-
-def load(path):
-    """A part's ops, as written by its own script."""
-    with open(path) as handle:
-        return json.load(handle)
-
-
-def place(ops, origin, scale, only=None, drop=None, stage=None):
-    """Transfer a part drawn in its own crop into the panel: the pounce.
-
-    A part is drawn at `scale` times panel size in a crop whose top-left
-    corner sits at `origin` in the panel. Every stroke's points are divided by
-    `scale` and moved by `origin`, and its width with them, so a line measured
-    in the crop lands at the width the panel needs. Only strokes transfer --
-    the part's own erase/fade/back decisions belong to the part's document.
-
-    A part's own `frame` is dropped: it is a stroke like any other, and
-    transferring it prints the part's crop rectangle across the panel.
-
-    `only` keeps the strokes carrying any of these tags; `drop` removes
-    strokes carrying any of these -- an edge the scene has decided is lost.
-    `stage` relabels every transferred stroke, so the scene can hold a part's
-    ink as its own ink. This supplies no form: it moves marks that were
-    chosen in the crop, and nothing else.
-    """
-    only = set(only or [])
-    drop = set(drop or [])
-    ox, oy = origin
-    out = []
-    for op in ops:
-        if op.get("op") != "stroke" or op.get("stage") == "frame":
-            continue
-        tags = set(str(op.get("tag", "")).split("+")) - {""}
-        if only and not (tags & only):
-            continue
-        if tags & drop:
-            continue
-        moved = dict(op)
-        moved["points"] = [[round(ox + x / scale, 2), round(oy + y / scale, 2), z]
-                           for x, y, z in op["points"]]
-        moved["scale"] = round(float(op.get("scale", 1.0)) / scale, 3)
-        if stage:
-            moved["stage"] = stage
-        out.append(moved)
-    return out
 
 
 def write(path, ops, swatch=False):

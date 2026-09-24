@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
-"""Cut one object out of the subject at a magnification it can be drawn at.
+"""Cut one object's measuring crop out of the working-resolution subject.
 
-    python3 crop.py subject.png x,y,w,h SCALE parts/NAME/subject.png
+    python3 crop.py subject.png x,y,w,h meas/NAME.png
 
-The crop is the object's box plus a margin, scaled up by SCALE, so that the
-smallest feature you will draw is at least ~40px on the page. The command
-prints the origin and scale the scene script needs to put the part back:
+The crop is the object's box plus a margin, at 1:1. It is never rescaled: the
+subject is already at working resolution, and a rescaled crop puts a second
+coordinate space between the measurement and `draw.py`. It prints the offset
+to hand to `trace.py`, so the object's regions come back in panel coordinates:
 
-    place(load("parts/NAME/ops.json"), origin=(x, y), scale=SCALE)
+    python3 trace.py meas/NAME.png palette.json --offset X,Y --out meas/NAME.json
 
-Pick SCALE from the feature, not the box: an eye 12px tall in the panel wants
-SCALE 4; a wheel 370px tall wants 1. A part drawn at the wrong scale is a part
-you could not see while you drew it.
+The crop is for measuring and for looking. Nothing is drawn in it.
 """
 import os
 import sys
 
 from PIL import Image
 
-subject, box, scale, out = sys.argv[1], sys.argv[2], float(sys.argv[3]), sys.argv[4]
+Image.MAX_IMAGE_PIXELS = None
+
+subject, box, out = sys.argv[1], sys.argv[2], sys.argv[3]
 x, y, w, h = (int(part) for part in box.split(","))
 margin = max(8, round(0.15 * max(w, h)))
 image = Image.open(subject).convert("RGB")
 x0, y0 = max(0, x - margin), max(0, y - margin)
 x1, y1 = min(image.width, x + w + margin), min(image.height, y + h + margin)
-crop = image.crop((x0, y0, x1, y1))
-crop = crop.resize((round(crop.width * scale), round(crop.height * scale)), Image.LANCZOS)
 os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-crop.save(out)
-print(f"{out}: {crop.width}x{crop.height}  origin=({x0}, {y0})  scale={scale:g}")
-print(f'place(load("{os.path.dirname(out)}/ops.json"), origin=({x0}, {y0}), scale={scale:g})')
+image.crop((x0, y0, x1, y1)).save(out)
+print(f"{out}: {x1 - x0}x{y1 - y0}  offset={x0},{y0}")
+print(f"python3 trace.py {out} palette.json --offset {x0},{y0} "
+      f"--out {os.path.splitext(out)[0]}.json")

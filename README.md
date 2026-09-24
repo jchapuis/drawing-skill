@@ -11,12 +11,12 @@ black. No image model is involved at any point.
 |---|---|
 | `SKILL.md` | The procedure: the object ladder and, wrapped round it, the scene ladder — what each stage produces and the command that gates it |
 | `reference/` | `method.md` is the full method with the measured failure behind each rule. The rest is depth loaded per task — `head`, `figure`, `scene`, `bicycle`, `quadruped`, `hands-and-feet` for subjects; `measuring`, `line`, `colour`, `tone`, `light`, `correcting` for craft; `redrawing` for a generated image as subject |
-| `pen.py` | The instrument. One verb, `stroke`: you choose the control points, it supplies the hand — speed follows curvature, pressure follows speed, nothing repeats. `write` audits the ladder and refuses ink with no gesture, block-in and contour under it; `place` transfers a part drawn in its own crop into the panel, by depth group |
-| `trace.py` | The measuring instrument for a flat-cel subject: every region's outline, as straights and as a curve, in the subject's own coordinates |
+| `pen.py` | The instrument. One verb, `stroke`: you choose the control points, it supplies the hand — speed follows curvature, pressure follows speed, nothing repeats. `write` audits the ladder and refuses ink with no gesture, block-in and contour under it, and refuses marks the script did not write: strokes generated in another file, stamped by a loop, or whose points were loaded or computed |
+| `trace.py` | The measuring instrument for a flat-cel subject: every region's outline, as straights and as a curve, in the subject's own coordinates or offset into the panel's. It measures; it never writes a mark |
 | `describe.sh` | The blind describer: a fresh process that has seen no script, five fixed questions, the answer saved beside the image. The gate on the picture's event |
-| `check.py` | The instruments that look back at what you drew: masses, parts, ranking, zoom, weights, overlay, registration, `doubled` (one edge stated twice) and `ladder` (a stage that does not exist) |
-| `crop.py` | Cuts one focus object out of a scene at a magnification it can be drawn at, and prints the `place(...)` call that puts it back |
-| `build.sh` | Builds every part under `parts/`, then the scene, and renders every stage's look beside the final one |
+| `check.py` | The instruments that look back at what you drew: masses, parts, ranking, zoom, weights, overlay, registration, `doubled` (one edge stated twice), `depth` (write order against the inventory) and `ladder` (a stage that does not exist, or a mark the script did not write) |
+| `crop.py` | Cuts one object's measuring crop out of the working-resolution subject, at 1:1, and prints the offset that brings its trace back into panel coordinates |
+| `build.sh` | Runs `draw.py`, audits it, and renders every stage's look beside the final one |
 | `harness/` | A tldraw canvas driven from the command line. The document on disk *is* the drawing, and it opens in tldraw afterwards for a human to edit |
 
 ## Installing
@@ -34,13 +34,14 @@ per-repo.
 
 The drawing is a flat script — one mark per line, with its own literal numbers,
 because a shape a function generates is identical to its siblings and reads as
-plotted rather than drawn.
+plotted rather than drawn. Tools measure; only the script draws, and a scene is
+one script in one coordinate space.
 
 ```bash
 python3 trace.py subject.png palette.json --png regions.png   # measure the subject once
 ./describe.sh subject.png                                     # the event the drawing must earn
-python3 crop.py subject.png 200,560,460,540 2 parts/bike/subject.png   # a focus object at its own scale
-./build.sh                                                    # parts/*, then draw.py -> ops.json -> gesture/blockin/contour/drawing.png
+python3 crop.py subject.png 200,560,460,540 meas/bike.png      # an object's measuring crop; prints its offset
+./build.sh                                                    # draw.py -> ops.json -> gesture/blockin/contour/drawing.png
 ./describe.sh drawing.png                                     # the same question of the render
 python3 check.py drawing.png --ref subject.png --zoom 78,150,166,95 --out eyes.png
 ```

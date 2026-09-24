@@ -2,7 +2,7 @@
 """Measure a flat-cel subject's regions once, mechanically, in its own space.
 
     python3 trace.py subject.png palette.json [--out regions.json] [--png regions.png]
-                     [--ink black] [--line 8] [--min-area 150] [--space W,H]
+                     [--ink black] [--line 8] [--min-area 150] [--offset X,Y] [--space W,H]
 
 Every pixel is classified to its nearest palette entry. Pixels of the ink colour
 that lie in a run no wider than --line are handed to whichever region is
@@ -33,8 +33,12 @@ which are lost, what is left out, and what weight a line takes are still the
 drawing. Regions come out largest first; a region under --min-area is
 anti-aliasing and is dropped.
 
---space W,H rescales the output into a stated coordinate space when the subject
-file is a larger render of the panel than the one the script draws in.
+--offset X,Y shifts every coordinate by a crop's corner, so an object measured in
+its own crop (crop.py prints the offset) comes back in panel coordinates.
+
+--space W,H rescales the output into another coordinate space. Scaling a small
+trace UP puts every boundary on a lattice the size of the factor: measure at the
+resolution you draw at instead, and use this only to scale down.
 """
 import argparse
 import json
@@ -117,16 +121,18 @@ def trace(image, palette, ink, line, min_area):
     return regions
 
 
-def rescale(regions, sx, sy):
+def move(regions, sx=1.0, sy=1.0, dx=0.0, dy=0.0):
+    """Every coordinate scaled by (sx, sy), then shifted by (dx, dy)."""
     def point(p):
-        return [round(p[0] * sx, 1), round(p[1] * sy, 1)]
+        return [round(p[0] * sx + dx, 1), round(p[1] * sy + dy, 1)]
     for region in regions:
         x, y, w, h = region["box"]
-        region["box"] = [round(x * sx, 1), round(y * sy, 1), round(w * sx, 1), round(h * sy, 1)]
-        region["centre"] = point(region["centre"])
-        region["inside"] = point(region["inside"])
-        region["blockin"] = [point(p) for p in region["blockin"]]
-        region["contour"] = [point(p) for p in region["contour"]]
+        region["box"] = point((x, y)) + [round(w * sx, 1), round(h * sy, 1)]
+        for key in ("centre", "inside"):
+            region[key] = point(region[key])
+        for key in ("blockin", "contour"):
+            region[key] = [point(p) for p in region[key]]
+        region["holes"] = [[point(p) for p in hole] for hole in region.get("holes", [])]
     return regions
 
 
@@ -156,6 +162,9 @@ def main():
                             "measure it (p90 of true line runs). Thicker ink is a flat")
     parse.add_argument("--min-area", type=int, default=150)
     parse.add_argument("--space", default="", help="W,H to report coordinates in")
+    parse.add_argument("--offset", default="",
+                       help="X,Y added to every coordinate: a crop's corner in the panel, "
+                            "as crop.py prints it")
     args = parse.parse_args()
 
     image = Image.open(args.subject).convert("RGB")
@@ -166,7 +175,10 @@ def main():
         sheet(image, regions).save(args.png)
     if args.space:
         width, height = (float(part) for part in args.space.split(","))
-        regions = rescale(regions, width / image.width, height / image.height)
+        regions = move(regions, sx=width / image.width, sy=height / image.height)
+    if args.offset:
+        dx, dy = (float(part) for part in args.offset.split(","))
+        regions = move(regions, dx=dx, dy=dy)
     with open(args.out, "w") as handle:
         json.dump(regions, handle)
 
