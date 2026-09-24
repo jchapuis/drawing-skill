@@ -75,13 +75,31 @@ a bike read as wire.
   Anything that grows both bands by the same absolute amount converges that
   ratio; `colour.md` has the trapping case.
 
+## The sub-forms an inventory descends to
+
+"Bar" and "drivetrain" are not parts; each is a cluster of small dark forms in
+contact, and an entry that stops at the cluster gives the census, `--depth` and
+the part-crop describer nothing below it to check. Look for these on the
+subject, and write an entry for each that is there:
+
+- **Bar:** the taped top, each drop's curl, and on each side a **lever body**
+  (the hood) sitting on the bend, taller than the bar, with the **blade**
+  hanging from its front. Without the body the blade has nothing to hang from
+  and floats.
+- **Drivetrain:** chainring and its cut-outs, crank, pedal, the **chain** (both
+  runs, and its wrap round the cogs), the **cassette** as a disc with a toothed
+  edge, and the **rear derailleur** below it: body, knuckle, and a cage whose
+  two small wheels the chain threads. It reads by the light gaps between those
+  members; filled solid it is a block with holes.
+
 ## Where the machine and the rider meet
 
 Three contacts, and all three were faults:
 
 - **Hands on the bar.** The hand wraps the bar and the bar continues past it.
   If hand and bar share one silhouette you have drawn a mitten. Leave the band
-  of ground the subject leaves.
+  of ground the subject leaves. On the hoods the hand holds the lever body, not
+  the bar: `hands-and-feet.md` has that grip.
 - **Foot on the pedal.** The shoe is a wedge with a sole; the pedal is a small
   dark block under it. Both arrive as discs until the sole and the strap slot go
   in, and a disc is what you draw when you have not decided which way the foot

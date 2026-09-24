@@ -105,7 +105,7 @@ from a symbol:
 
 ### The hand in contact, which is the only one you will draw [bought]
 
-A hand on a bar is not a hand plus a bar. It is a **grip**, and three things
+A hand on a bar is not a hand plus a bar. It is a **grip**, and five things
 decide whether it reads:
 
 1. **The bar continues past the hand on both sides.** If hand and bar share one
@@ -123,7 +123,14 @@ decide whether it reads:
    showing at the tips. That is the shape to draw: a back, four fingers hanging
    below it curling forward under the tube. Three long concentric arcs across a
    solid egg is what a beetle looks like.
-4. **The forearm's contours end inside the hand**, not eighteen pixels above it.
+4. **A hand on a lever body holds the body, not a tube.** The glove's back
+   covers the body's top, the fingers pass in front of the lever blade and wrap
+   it, and the blade hangs from the body. Glove, body and blade are one
+   connected dark shape told apart by ink and a lighter value, never by
+   ground: ground between the fingers and the blade says the lever floats. A
+   hand drawn beside the body instead of over it came out a quarter too small,
+   with the fingers above the blade, and read as tangled.
+5. **The forearm's contours end inside the hand**, not eighteen pixels above it.
    A limb that stops short of what it holds is the absence failure, and only the
    parts gate against a written inventory catches it.
 

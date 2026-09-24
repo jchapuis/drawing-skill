@@ -122,7 +122,16 @@ So before any mark, for each object, write down three things:
 
 If you cannot write those three, you are not ready to draw it. **A lit strip
 and its shade band are one form with two values**, never two flats side by
-side. Check the part list against the canvas before calling a panel done.
+side. **A form cut in two by a nearer one is still one form, and each cut end
+is the nearer form's edge**: it ends on that form's ink, never in mid-surface.
+The tracer returns the pieces as unrelated regions, and a scan confirming the
+gap is real closes the item without asking what made it. A flat that stops
+inside another flat with nothing drawn across its end reads as a patch stuck
+on: a band broken by a sleeve became two dark patches on a torso, placed within
+10px of the subject, because the sleeve's own edge was never drawn. Name the
+occluder of every cut end and `--overlay --box` it; a blue line across the end
+with no red beside it is that occluder's contour, missing. Check the part list
+against the canvas before calling a panel done.
 
 ## One object or a scene
 
@@ -399,6 +408,14 @@ write("ops.json", ops)
   because a rich measurement of the wrong thing is still the wrong thing. For
   any dark opening, chain the dark inside the eroded silhouette, read where each
   rib between two openings runs off the same scan, and write both yourself.
+- **A dark mechanism reads by its light gaps.** The inverse of the slot: a
+  derailleur, a lever on its body, a hinge, a buckle is one connected dark
+  shape, and what says it is an assembly is the light openings between its
+  members and the ink joins where they meet. Fill a gap solid and it becomes a
+  block with holes; leave a join open and one assembly becomes islands on the
+  ground, a lever floating beside the hand that holds it. On `--zoom`, count
+  both images' dark pieces and enclosed light gaps inside the part's box, and
+  write each gap and each join as a mark of its own.
 - **A region outline is not a silhouette, and a scan run is not a contour.**
   A flat is split by ink into several objects — a shoe and the straps on it,
   an ear and the spiral inside it — and the tracer and a row scan return the
