@@ -93,6 +93,14 @@ subject, and write an entry for each that is there:
   two small wheels the chain threads. It reads by the light gaps between those
   members; filled solid it is a block with holes.
 
+`check.py --checklist parts.json` reads this block and fails on any of these
+the inventory neither names nor excuses in `_absent`:
+
+```checklist
+object: bike|bicycle
+sub-forms: tyre|tire rim spoke hub frame|tube fork bar|handlebar hood lever saddle chainring crank pedal chain cassette derailleur
+```
+
 ## Where the machine and the rider meet
 
 Three contacts, and all three were faults:

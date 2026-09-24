@@ -12,6 +12,9 @@ SKILL="${SKILL:-$(dirname "$(readlink -f "$0")")}"
 export PYTHONPATH="$SKILL${PYTHONPATH:+:$PYTHONPATH}"   # so draw.py can `from pen import ...`
 DOC=doc.json
 
+# the inventory must name every sub-form its references checklist, or say why
+# not: a list that was only read was skipped. Blocks the build until it does
+[ ! -f parts.json ] || python3 "$SKILL/check.py" drawing.png --checklist parts.json
 python3 draw.py                                    # your script; writes ops.json
 python3 "$SKILL/check.py" drawing.png --ladder ops.json 2>/dev/null || true
 render() { rm -f "$DOC"; node "$SKILL/harness/cli.mjs" "$DOC" --ops "$1" --png "$2" --padding 0 "${@:3}"; }

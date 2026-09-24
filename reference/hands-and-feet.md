@@ -105,6 +105,14 @@ from a symbol:
 
 ### The hand in contact, which is the only one you will draw [bought]
 
+A hand in the inventory is its fingers and its thumb, each an entry, or
+`_absent` says why not; `check.py --checklist parts.json` holds it to that:
+
+```checklist
+object: hand|glove
+sub-forms: finger thumb
+```
+
 A hand on a bar is not a hand plus a bar. It is a **grip**, and five things
 decide whether it reads:
 

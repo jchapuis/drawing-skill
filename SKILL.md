@@ -305,12 +305,12 @@ checkpoint after S2, after the first part and after the last.
    glove is its fingers, its thumb and its cuff. One sentence for a whole
    object buys one silhouette, and a silhouette is what a viewer calls a
    different object — the census counts these sub-forms already, and this is
-   where they become marks. **Where a reference covers the object** —
-   `bicycle.md`, `hands-and-feet.md`, `head.md` — its list of sub-forms is the
-   checklist: an entry for each one the subject shows, or a line saying why
-   not. A bicycle reference that named the derailleur, cassette and chain was
-   read, and the inventory still stopped at the crank; the drawing had none of
-   them. Stop descending where the next level down would
+   where they become marks. **A reference's ```checklist block is enforced**:
+   `build.sh` runs `check.py --checklist parts.json` and will not build until
+   each sub-form it lists for an object in the inventory has an entry, or a
+   reason in `"_absent": "name: reason; ..."`. A bicycle reference whose
+   sub-forms were only listed in prose was read, and the inventory still
+   stopped at the crank. Stop descending where the next level down would
    not survive at the scale you will draw it.
    **Two instances of one object class get the same sub-form list**: the
    second of two wheels, hands or shoes is read with less attention and comes
@@ -590,6 +590,7 @@ reproduce on the form it names is often real on the form next to it.
 | `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing (`--value NAMES` scans runs of those palette names instead of dark ones): the first non-ground pixel from that side, and the dark runs inward from it. **The instrument for a coordinate and for a proportion**; `<<` marks an edge off by over 2% of the box, `runs a|b` a row whose line count differs — a thick line drawn as two, an interior line drawn somewhere else |
 | `--overlay` | the drawing blended over the subject; with `--box x,y,w,h`, the two inks over that box: the subject's blue, the drawing's red, black where they coincide. The only view of **interior lines** (see below). No number, on purpose |
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable* — only a describer on the assembled panel answers that |
+| `--checklist parts.json` | a sub-form a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it |
 | `--census parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts to the census; exit 1 FAIL, exit 2 UNCHECKED rows |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` — named when it outranks the whole focus tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice **on the page**: write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two bands meant to run together are listed too, and so is a contact between two objects' edges, so look before you merge |

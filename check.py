@@ -19,6 +19,7 @@ line art and reports every place the colour and the line disagree.
 import argparse
 import json
 import math
+import os
 import sys
 import textwrap
 
@@ -27,6 +28,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage
 from scipy.spatial import cKDTree
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 # a 4x working panel is past PIL's decompression-bomb limit, and so is what
 # --masses would make of it; these are our own images
@@ -937,7 +940,8 @@ def crossings(ops, inventory, floor=None):
     a verdict: an unlisted strap drawn over a jersey is right to show, and a
     far outline buried under a near flat is how occlusion is drawn. It is the
     list of occlusions nobody decided."""
-    keys = sorted((key for key in inventory if "/" not in key), key=len, reverse=True)
+    keys = sorted((key for key in inventory if "/" not in key and not key.startswith("_")),
+                  key=len, reverse=True)
     rows = [key.split("/") for key, entry in inventory.items()
             if "/" in key and isinstance(entry, dict)]
 
@@ -1044,6 +1048,8 @@ def read_inventory(path):
         raw = json.load(handle)
     inventory = {}
     for name, entry in raw.items():
+        if name.startswith("_"):
+            continue
         if isinstance(entry, dict):
             if "box" not in entry:
                 sys.exit(f"parts.json: {name!r} has no box")
@@ -1057,6 +1063,44 @@ def read_inventory(path):
         else:
             inventory[name] = {"box": entry, "tier": None, "shape": "", "rel": ""}
     return inventory
+
+
+def checklist(inventory_path, references=None):
+    """Sub-forms a reference names for an object the inventory holds, with no
+    entry of their own and no written reason in `_absent`.
+
+    A reference's list of sub-forms was read and not acted on: the inventory of
+    a bicycle stopped at the crank, and the drawing had no derailleur, chain or
+    cassette. Prose that is read and skipped is a gate that does not exist, so
+    each reference carries a ```checklist block --
+
+        object: bike|bicycle
+        sub-forms: tyre|tire rim spoke ...
+
+    -- and an object is present when any dotted segment of any key names it. A
+    sub-form is present when a segment is the word or its plural; alternatives
+    are joined by |. `_absent` in parts.json is one string, "name: reason; ..."."""
+    import glob
+    import re
+    with open(inventory_path) as handle:
+        raw = json.load(handle)
+    segments = {part for key in raw if not key.startswith("_")
+                for side in key.split("/") for part in side.split(".")}
+    excused = {item.split(":")[0].strip() for item in str(raw.get("_absent", "")).split(";")
+               if ":" in item}
+    named = lambda words: any(word in segments or word + "s" in segments for word in words.split("|"))
+    missing = []
+    for path in sorted(references or glob.glob(os.path.join(HERE, "reference", "*.md"))):
+        text = open(path).read()
+        for block in re.findall(r"```checklist\n(.*?)```", text, re.S):
+            fields = dict(line.split(":", 1) for line in block.strip().splitlines() if ":" in line)
+            if not named(fields["object"].strip()):
+                continue
+            gone = [words for words in fields["sub-forms"].split()
+                    if not named(words) and not set(words.split("|")) & excused]
+            if gone:
+                missing.append((fields["object"].strip(), os.path.basename(path), gone))
+    return missing
 
 
 def census(drawing, subject, inventory_path, palette_path, min_area):
@@ -1333,6 +1377,9 @@ def main():
                             "script, not the render")
     parse.add_argument("--depth", nargs=2, metavar=("OPS", "PARTS"), default=None,
                        help="write order against the inventory's in_front column")
+    parse.add_argument("--checklist", default="",
+                       help="parts.json: every sub-form a reference's checklist names for an "
+                            "object in the inventory has an entry, or a reason in _absent")
     parse.add_argument("--census", default="",
                        help="parts.json (needs --ref): every entry with a count, counted "
                             "on the subject and on the drawing")
@@ -1354,6 +1401,17 @@ def main():
     args = parse.parse_args()
 
     # the script-only checks need no render, so a first build can run them
+    if args.checklist:
+        missing = checklist(args.checklist)
+        for thing, source, gone in missing:
+            print(f"  FAIL {thing} ({source}): no entry for {', '.join(gone)}")
+        if missing:
+            print("\nadd an entry for each, or write it into parts.json's \"_absent\" as "
+                  "\"name: reason; ...\".\nA sub-form left out without a reason was never "
+                  "looked for, and every gate below\nchecks only what the inventory names.")
+            sys.exit(1)
+        print("  PASSES — every checklisted sub-form has an entry or a reason")
+        return
     if args.ladder:
         import os
         from pen import audit, LADDER, provenance, script_source

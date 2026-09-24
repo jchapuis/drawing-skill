@@ -193,6 +193,21 @@ def _():
     assert found == [1], found
 
 
+@case("--checklist fails a sub-form neither named nor excused, and passes once one is")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/ref.md", "w") as handle:
+            handle.write("```checklist\nobject: bike|bicycle\nsub-forms: chain chainring hood\n```\n")
+        parts = {"bike.drivetrain.chainring": {"box": [0, 0, 1, 1]},
+                 "bike.bar.hoods.near": {"box": [0, 0, 1, 1]}}
+        json.dump(parts, open(f"{folder}/parts.json", "w"))
+        missing = check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"])
+        assert [gone for _, _, gone in missing] == [["chain"]], missing
+        parts["_absent"] = "chain: behind the near leg"
+        json.dump(parts, open(f"{folder}/parts.json", "w"))
+        assert check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"]) == []
+
+
 @case("--faces compares a flat with the region it overlaps, not one whose box holds it")
 def _():
     with tempfile.TemporaryDirectory() as folder:
