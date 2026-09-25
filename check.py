@@ -339,7 +339,30 @@ def ruled(image, box, scale):
     return out
 
 
-def inks(drawing, subject, box, dark=90, width=1500):
+def palette_value(names_csv):
+    """(palette colours, indices wanted) for --value, or None when not given."""
+    if not names_csv:
+        return None
+    with open("palette.json") as handle:
+        palette = json.load(handle)
+    names = list(palette)
+    unknown = [name for name in names_csv.split(",") if name not in names]
+    if unknown:
+        sys.exit(f"--value: {', '.join(unknown)} is not in palette.json")
+    return (np.array([[int(palette[name][at:at + 2], 16) for at in (1, 3, 5)]
+                      for name in names], dtype=float),
+            [names.index(name) for name in names_csv.split(",")])
+
+
+def _named(pixels, value):
+    """Where an RGB array classifies to one of `value`'s wanted palette names."""
+    colours, wanted = value
+    flat = pixels.reshape(-1, 3)
+    named = np.argmin((colours ** 2).sum(-1) - 2 * flat @ colours.T, axis=1)
+    return np.isin(named, wanted).reshape(pixels.shape[:2])
+
+
+def inks(drawing, subject, box, dark=90, width=1500, value=None):
     """The two LINES over one box, in one image: the subject's ink in blue, the
     drawing's in red, black where they coincide, over the subject in pale grey.
 
@@ -358,7 +381,13 @@ def inks(drawing, subject, box, dark=90, width=1500):
             for image in (subject, drawing)]
     base = 255 - (255 - grey[0]) * 0.22
     out = np.stack([base] * 3, axis=-1)
-    theirs, ours = grey[0] < dark, grey[1] < dark
+    if value:
+        # a dark flat (a glove, bar tape) is under the darkness threshold and
+        # came back as one blue mass: classify to the palette's line names
+        theirs, ours = (_named(np.asarray(image.crop((x, y, x + w, y + h)).convert("RGB"),
+                                          dtype=float), value) for image in (subject, drawing))
+    else:
+        theirs, ours = grey[0] < dark, grey[1] < dark
     out[theirs & ~ours] = (40, 90, 235)
     out[ours & ~theirs] = (225, 40, 40)
     out[theirs & ours] = (30, 10, 30)
@@ -407,9 +436,7 @@ def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24, value
             edges.append(None if first is None else
                          (along + len(row) - 1 - first if backwards else along + first))
             if value:
-                colours, wanted = value
-                named = np.argmin((colours ** 2).sum(-1) - 2 * row @ colours.T, axis=1)
-                found = marks(list(np.where(np.isin(named, wanted), 0, 255)), dark)
+                found = marks(list(np.where(_named(row[None], value)[0], 0, 255)), dark)
             else:
                 found = marks(list(row.mean(axis=1)), dark)
             runs.append([(along + len(row) - start - width, along + len(row) - 1 - start)
@@ -1361,8 +1388,8 @@ def main():
                             "subject and drawing, from --side")
     parse.add_argument("--side", default="right", choices=("left", "right", "top", "bottom"))
     parse.add_argument("--value", default="",
-                       help="--scan: comma-separated palette.json names; runs of those instead "
-                            "of dark runs")
+                       help="--scan, --overlay --box: comma-separated palette.json names read as "
+                            "line instead of everything dark")
     parse.add_argument("--step", type=int, default=0, help="--scan: rows between readings")
     parse.add_argument("--colours", type=int, default=3,
                        help="--masses: value levels, line removed first (default 3)")
@@ -1683,17 +1710,7 @@ def main():
     if args.scan:
         if not args.ref:
             sys.exit("--scan needs --ref")
-        value = None
-        if args.value:
-            with open("palette.json") as handle:
-                palette = json.load(handle)
-            names = list(palette)
-            unknown = [name for name in args.value.split(",") if name not in names]
-            if unknown:
-                sys.exit(f"--value: {', '.join(unknown)} is not in palette.json")
-            value = (np.array([[int(palette[name][at:at + 2], 16) for at in (1, 3, 5)]
-                               for name in names], dtype=float),
-                     [names.index(name) for name in args.value.split(",")])
+        value = palette_value(args.value)
         scan(drawing, Image.open(args.ref).convert("RGB"),
              [int(part) for part in args.scan.split(",")], args.side, args.step,
              ground_of(colour(args.paper)), value=value)
@@ -1703,7 +1720,8 @@ def main():
         if not args.ref:
             sys.exit("--overlay needs --ref")
         inks(drawing, Image.open(args.ref).convert("RGB"),
-             [int(part) for part in args.box.split(",")]).save(args.out)
+             [int(part) for part in args.box.split(",")],
+             value=palette_value(args.value)).save(args.out)
         print(f"wrote {args.out}: blue is the subject's line the drawing lacks there, red "
               "the drawing's\nline where the subject has none, black both. For every blue "
               "line inside the form,\nsay which red line is meant to be it and how far and "

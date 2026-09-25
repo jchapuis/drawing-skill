@@ -71,15 +71,18 @@ kept beside it as `subject_1x.png` for the describer and the panel-level
 reading. Not LANCZOS or BICUBIC: both overshoot into a pale halo beside every
 dark line that classifies as the ground (LANCZOS on 0.12% of a panel's pixels,
 BILINEAR on none). The ramp beside each line still traces as a ring region
-round every outlined form, so trace an upscaled subject with `--fringe 60`. The harness exports at device pixel ratio 2, so render with
+round every outlined form, so trace an upscaled subject with `--fringe 60` —
+which hands that ramp to the line, so a pale form bounded by ink traces 3–5px
+inside its visible edge on every side, and small pale forms drawn from the
+trace come back small: take their edges from a scan or `--zoom`. The harness exports at device pixel ratio 2, so render with
 `./build.sh --scale 0.5` to get renders 1:1 with `subject.png`. **macOS has no
 `timeout`** — it is `gtimeout`, or `perl -e 'alarm N; exec @ARGV' --`.
 
 **Measure `--line` in the space you trace in**: `trace.py subject.png
 palette.json --ink NAMES --measure-line` prints the per-pixel min(row, column)
-run width of the line; pass its p90. Runs wider than 1.5% of the shorter side
-are left out as flats — a mouth or a moustache counted as line at 4% and moved
-one panel's p90 from 35 to 51. Never multiply the delivered figure: one
+run width of the line; pass its p90. Runs wider than twice the median run are
+left out as flats — a fixed fraction of the image let a mouth count as line on
+a panel and cut under a small object's own lines. Never multiply the delivered figure: one
 panel's line was 6 at 1x and 20, not 24, at 4x, because the upscale's ramp thins
 the core that classifies as ink. `--ink` takes every palette name that is line:
 not only the darkest near-black, but a line that reads brown over one flat and
@@ -193,10 +196,10 @@ that the stages exist, not that each ink mark has a contour under it.
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | 0 | **Read** | `palette.json`, `regions.json`, `subject.describe.md`, `reading.md`, `parts.json` | every tier-1/2 part has a shape sentence; the acceptance list exists and quotes the describer's answers 3–5 |
-| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the event does not read here, no later stage puts it in |
+| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the event does not read here, no later stage puts it in — unless it is carried by value, not silhouette (a hand read only as pale fingers against a dark glove): then record the describer runs that show it and gate the event at stage 5 |
 | 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1/2 region as its `blockin` straights from `regions.json`, junctions as points shared by name | `check.py blockin.png --ref subject.png --overlay`: the straights sit on the subject's edges |
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
-| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, **drawn past where the ink will go** — `trap=<px>` on a BODY flat grows it outward by that much, so the contour covers its edge. **Trap an edge that is a silhouette; never trap an edge that is a measurement.** A flat that is a mark in its own right — a vent, an eye, a cast shadow, a shade — is ruined by it, and trapping every closed flat swells the interior shapes until they eat the form. A **band** is the silent case: a strip, a rim inside a tyre, a hem, a strap — its two long edges face opposite ways, so trapping moves both and **the band gains twice the trap in width**, on every band at once, with every gate still passing. Where two bands run concentric or parallel it is their *ratio* that makes the pair read, and trapping converges it. Trap a band's ends, never its length. A fill outline taken from the tracer sits at the colour transition, which is INSIDE the ink, so used verbatim it falls short by half a line width and the ground shows through wherever the contour bulges. Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line and the object can then not occlude itself | `check.py drawing.png --ref subject.png --masses` — the two read as the same shape, said in words |
+| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, **drawn past where the ink will go** — `trap=<px>` on a BODY flat grows it outward by that much, so the contour covers its edge. **Trap an edge that is a silhouette; never trap an edge that is a measurement.** A flat that is a mark in its own right — a vent, an eye, a cast shadow, a shade — is ruined by it, and trapping every closed flat swells the interior shapes until they eat the form. A **band** is the silent case: a strip, a rim inside a tyre, a hem, a strap — its two long edges face opposite ways, so trapping moves both and **the band gains twice the trap in width**, on every band at once, with every gate still passing. Where two bands run concentric or parallel it is their *ratio* that makes the pair read, and trapping converges it. Trap a band's ends, never its length. A fill outline taken from the tracer sits at the colour transition, which is INSIDE the ink, so used verbatim it falls short by half a line width and the ground shows through wherever the contour bulges. Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line and the object can then not occlude itself | `check.py drawing.png --ref subject.png --masses` — the two read as the same shape, said in words. Stages 5–8 interleave per form, so on a subject with heavy line judge it once each form's ink is in: its flats alone never match a subject whose line carries mass |
 | 6 | **Contour** | `stage="contour"`: the real edge, curved where the subject curves, from `contour` in `regions.json` | `--overlay` again |
 | 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states | `check.py drawing.png --doubled ops.json` and `--ladder ops.json` pass |
 | 9 | **Fill** | flats refined; blacks massed as one value before anything is graded | `--hide ink` still separates figure from ground |
@@ -252,10 +255,18 @@ measuring and for looking.
 | S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern; the whole drawing's silhouette against the paper | `--ranking parts.json`: the focus leads, nothing shouts above its tier |
 | S8 | **Correct from a distance** | stage 10, on the panel, with the describer run twice. A blind viewer on each part's crop ranks the round: the **misnamed** parts get the budget first, then the parts whose shape sentences are untrue | the acceptance list; `--ranking` still shows one focus; no part misnamed. An item that returns after a round that addressed it is the stopping rule |
 
-**Budget by stage.** S0 is a large share of a scene; a figure or a vehicle
-costs a whole flat panel, a lamp a tenth of that. A self-reported budget comes
-back low by a factor of two: fix the part list and correction rounds at S0, and
-checkpoint after S2, after the first part and after the last.
+**Every part gets its whole ladder; budget never shortens one.** S0 is a
+large share of a scene, and a figure or a vehicle costs as much as a whole flat
+panel. A drawer that rationed a scene by percentages took its focus through the
+object ladder and left every other part at its S2 mass with an outline: the
+hands became slabs and the derailleur two blocks, though the inventory named
+their fingers, hood and cage. The same hand, drawn alone with no budget, came
+back matching the subject piece for piece. So a part that must be recognisable
+is either drawn through stages 2–10 with its own correction rounds, or it is
+welded — never half-drawn. When one drawer cannot carry every part, the scene
+is split: one drawer per part, each writing its own section of the one
+`draw.py` in its depth position, with the S0 reading shared. Checkpoint after
+S2, after the first part and after the last.
 
 ## Stage 0
 
@@ -576,6 +587,12 @@ it returns N and about a quarter is invention, so ask for few and verify each
 against the render. It finds junction faults nobody listed; it is weak on why.
 Before any mark, turn each item into a measurement on subject and drawing;
 an item the measurement does not reproduce gets no mark, whoever said it.
+**Measure a claim with an instrument that can see it**: a claim about shape
+("the pad is a rounded oval") is measured on `--zoom` or `--overlay --box`,
+never refuted by row widths — a pad with the right width on every row and
+the wrong shape was cleared by a width scan and came back real a round later.
+Give each round's critic `refuted.md` with the images, so it does not re-raise
+what was measured and refused.
 **Write the refusal down** — `refuted.md`, one line per item: the claim, the
 measurement on each image, the verdict. An unrecorded refusal is re-raised
 next round, and the second time it is likelier to be obeyed than measured.
@@ -588,7 +605,7 @@ reproduce on the form it names is often real on the form next to it.
 |---|---|
 | `--masses` | the wrong shape: line closed away (dark runs thinner than the subject's line), both cut on the subject's value levels, `--colours` 3 by default. **A design gate, not a proportion gate** — a head half again too wide is still a pale blob above a dark torso at thumbnail size, and passes |
 | `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing (`--value NAMES` scans runs of those palette names instead of dark ones): the first non-ground pixel from that side, and the dark runs inward from it. **The instrument for a coordinate and for a proportion**; `<<` marks an edge off by over 2% of the box, `runs a|b` a row whose line count differs — a thick line drawn as two, an interior line drawn somewhere else |
-| `--overlay` | the drawing blended over the subject; with `--box x,y,w,h`, the two inks over that box: the subject's blue, the drawing's red, black where they coincide. The only view of **interior lines** (see below). No number, on purpose |
+| `--overlay` | the drawing blended over the subject; with `--box x,y,w,h`, the two inks over that box (`--value black` reads only the line; without it every dark flat — a glove, bar tape — shows as ink): the subject's blue, the drawing's red, black where they coincide. The only view of **interior lines** (see below). No number, on purpose |
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable* — only a describer on the assembled panel answers that |
 | `--checklist parts.json` | a sub-form a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it |
 | `--census parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts to the census; exit 1 FAIL, exit 2 UNCHECKED rows |
@@ -631,8 +648,14 @@ per part: --zoom beside the subject, and a blind viewer on its crop
                               -> name the stage it belongs to, fix it there
   named, every sentence true  -> pass; take the next part
   the same item returns after
-  a round that addressed it   -> plateau: stop, and report what it plateaued on
-  budget spent                -> stop
+  a round that addressed it,
+  and still measures true     -> plateau: stop, and report what it plateaued on
+  it returns, and is already
+  in refuted.md               -> not a plateau: the critic never saw the refusal.
+                                 Re-measure once with a different instrument;
+                                 still refuted, note it and go on
+  budget spent                -> hand the remaining parts to another drawer;
+                                 never leave one half-drawn
 ```
 
 **WRONG before MISSING**: a contradiction is a fault, an omission is often a

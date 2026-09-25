@@ -57,9 +57,11 @@ panel 8px off, silently. --local keeps a crop's own coordinates.
 the run through it along its row and along its column, the SMALLER of the two
 (an axis scan across a diagonal reads it too wide), as percentiles over pixels.
 Runs wider than --cap are flats -- a tyre, a pair of shorts -- and are left out;
-the default cap is 1.5% of the shorter side, the fraction check.py reads a line
-by. At 4% a panel's filled blacks (a mouth, a moustache) counted as line and
-moved its p90 from 35 to 51, where a panel with no such blacks read 20 at either.
+the default cap is twice the median run. A fraction of the image does not
+work at every size: at 4% a panel's filled blacks (a mouth, a moustache) counted
+as line and moved its p90 to 51, and a 12px floor sat under a 680px object's
+15-22px lines and came back as the p90. Twice the median read 33, 19, 18 and 24
+on four subjects whose lines were measured by hand at about 30, 20, 20 and 22.
 Pass the p90 as --line. Measured on one panel: 6 at delivered size and 20, not
 24, on its 4x bilinear upscale, because the ramp thins the core that classifies
 as ink. Measure in the space you trace in; never multiply.
@@ -158,9 +160,15 @@ def run_lengths(mask):
 
 def line_width(mask, cap=None):
     """Per-pixel min(row run, column run) over `mask`, runs wider than `cap`
-    (default 1.5% of the shorter side) dropped as flats. Returns the widths."""
-    cap = cap or max(12, round(0.015 * min(mask.shape)))
+    (default twice the median run) dropped as flats. Returns the widths."""
     across = np.minimum(run_lengths(mask), run_lengths(mask.T).T)
+    if not cap:
+        # twice the median run, the median read under a loose cap: a fixed
+        # fraction of the image either let a panel's filled blacks count as
+        # line (4%: p90 51 against 33) or sat under a small object's own line
+        # (12px on 680px, where the lines run 15-22) and reported itself
+        loose = across[mask & (across <= max(4, round(0.04 * min(mask.shape))))]
+        cap = max(4, round(2 * np.median(loose))) if loose.size else 4
     return across[mask & (across <= cap)]
 
 
@@ -278,7 +286,7 @@ def main():
                        help="print the --ink line's width percentiles and exit")
     parse.add_argument("--cap", type=int, default=0,
                        help="--measure-line: runs wider than this are flats "
-                            "(default 1.5%% of the shorter side)")
+                            "(default twice the median run)")
     args = parse.parse_args()
 
     opened = Image.open(args.subject)

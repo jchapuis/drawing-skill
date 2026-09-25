@@ -75,9 +75,18 @@ function redraw(blob, options) {
         ? options.crop.map((value) => Math.round(value * factor))
         : [0, 0, image.width, image.height]
       const surface = document.createElement('canvas')
-      surface.width = crop[2]
-      surface.height = crop[3]
+      // an export at the frame's bounds can come back a pixel short of the
+      // frame: size the canvas from the frame, and copy the last row and
+      // column into what is missing rather than resample the whole picture
+      surface.width = options.size ? options.size[0] : crop[2]
+      surface.height = options.size ? options.size[1] : crop[3]
       const pen = surface.getContext('2d')
+      if (options.size) {
+        pen.drawImage(image, image.width - 1, 0, 1, image.height,
+          image.width - 1, 0, surface.width - image.width + 1, image.height)
+        pen.drawImage(image, 0, image.height - 1, image.width, 1,
+          0, image.height - 1, surface.width, surface.height - image.height + 1)
+      }
       if (options.squint) pen.filter = `blur(${options.squint}px)`
       if (options.flip) {
         pen.translate(surface.width, 0)
@@ -228,6 +237,28 @@ function App() {
             if (shapes.length === 0) return null
             const scale = options.scale ?? 1
             const padding = options.padding ?? 32
+            // With the frame as the picture's edge, export exactly its bounds
+            // and leave the frame itself out: drawn, its stroke took the colour
+            // its stock name was repointed to, and a palette that spent that
+            // name on a dark flat framed every render in a 3px line
+            const frame = all.find((shape) => shape.meta?.stage === 'frame')
+            const held = frame && editor.getShapePageBounds(frame)
+            if (held && padding === 0 && !options.crop) {
+              const drawn = shapes.filter((id) => id !== frame.id)
+              if (drawn.length === 0) return null
+              const { blob } = await editor.toImage(drawn, {
+                format: 'png',
+                background: true,
+                scale,
+                padding: 0,
+                darkMode: false,
+                bounds: held,
+                pixelRatio: 2,
+              })
+              const ratio = 2 * scale
+              const size = [Math.round(held.w * ratio), Math.round(held.h * ratio)]
+              return encode(await redraw(blob, { ...options, size }))
+            }
             const { blob } = await editor.toImage(shapes, {
               format: 'png',
               background: true,
