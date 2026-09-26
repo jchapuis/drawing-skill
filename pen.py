@@ -449,6 +449,11 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     - **Flats need `tool="flat"`.** At any translucency every overlap shows as
       a seam.
     """
+    if tool == "pen" and (lead, tail) != (0.18, 0.22):
+        # the technical pen draws at constant pressure: a lead or tail was
+        # silently ignored, and a spoke meant to end in a point ended square
+        raise ValueError("stroke: the pen has no taper -- lead/tail do nothing on tool='pen'; "
+                         "use tool='brush' for a line that ends in a point")
 
     # `trap=<px>` grows a closed flat outward so the ink laid over it covers its
     # edge. OPT-IN, and deliberately not a default: trapping is directional. It

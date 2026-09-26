@@ -112,6 +112,17 @@ def _():
     assert found == 1, found   # the one real bay, not the whole ground
 
 
+@case("--unfilled also lists a flat painted where the subject is bare, and --box scopes both")
+def _():
+    subject = Image.new("RGB", (200, 200), PALETTE["background"])
+    ImageDraw.Draw(subject).rectangle([50, 50, 150, 150], fill=PALETTE["orange"])
+    drawing = Image.new("RGB", (200, 200), (0, 255, 102))
+    ImageDraw.Draw(drawing).rectangle([50, 10, 150, 150], fill=PALETTE["orange"])  # 40px over the top
+    paper, ground = (0, 255, 102), check.colour(PALETTE["background"])
+    assert check.unfilled(drawing, subject, paper, ground) == 1
+    assert check.unfilled(drawing, subject, paper, ground, box=[0, 100, 200, 100]) == 0
+
+
 @case("--masses keeps the figure on a drawing that is mostly ground, at every level count")
 def _():
     subject = Image.new("RGB", (600, 600), PALETTE["background"])

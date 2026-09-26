@@ -98,7 +98,7 @@ the inventory neither names nor excuses in `_absent`:
 
 ```checklist
 object: bike|bicycle
-sub-forms: tyre|tire rim spoke hub frame|tube fork bar|handlebar hood lever saddle chainring crank pedal chain cassette derailleur
+sub-forms: tyre|tire rim spoke hub frame|tube fork bar|handlebar hood lever brake saddle chainring crank pedal chain cassette derailleur frontmech|frontderailleur
 ```
 
 ## Where the machine and the rider meet

@@ -441,7 +441,7 @@ def scan(drawing, subject, box, side, step, ground, dark=90, tolerance=24, value
                 found = marks(list(row.mean(axis=1)), dark)
             runs.append([(along + len(row) - start - width, along + len(row) - 1 - start)
                          if backwards else (along + start, along + start + width - 1)
-                         for start, width in found][:4])
+                         for start, width in found][:12])
         diff = "" if None in edges else f"{edges[1] - edges[0]:+5d}"
         flag = ("  <<" if diff and abs(edges[1] - edges[0]) > loose else "") + \
                (f"  runs {len(runs[0])}|{len(runs[1])}" if len(runs[0]) != len(runs[1]) else "")
@@ -574,7 +574,7 @@ def _flatten(image, centres, paint):
     return Image.fromarray(paint[label].astype(np.uint8), "RGB")
 
 
-def unfilled(drawing, subject, paper, ground, ink=90, thickness=3):
+def unfilled(drawing, subject, paper, ground, ink=90, thickness=3, box=None):
     """Paper inside the subject's silhouette: a flat that stops short of its ink.
 
     `--registration` alone finds only paper the line art walls in completely. A
@@ -615,16 +615,39 @@ def unfilled(drawing, subject, paper, ground, ink=90, thickness=3):
 
     bare = np.abs(drawn - paper).max(axis=2) <= 18
     bare &= drawn.mean(axis=2) >= ink
-    holes = ndimage.binary_opening(object_here & bare, np.ones((thickness, thickness)))
+    inside = np.zeros(bare.shape, bool)
+    if box:
+        # one part's own patches: in a split scene the panel-wide list is other
+        # drawers' stand-ins, and a part drawer could not read its own result
+        x, y, w, h = box
+        inside[y:y + h, x:x + w] = True
+    else:
+        inside[:] = True
+    holes = ndimage.binary_opening(object_here & bare & inside, np.ones((thickness, thickness)))
+    # the inverse: a flat painted where the subject is bare ground. A welded
+    # mass whose crest overshot a rock pile showed 40k px of tan on bare ground
+    # in six places and no gate listed it. Opened wide, so the ink's own ramp
+    # beside every line does not count
+    painted = ~bare & (drawn.mean(axis=2) >= ink) & ~object_here & inside
+    painted = ndimage.binary_opening(painted, np.ones((thickness * 3, thickness * 3)))
+    floor = max(120, bare.size * 1.1e-4)
+    over, over_count = ndimage.label(painted)
+    over_sizes = ndimage.sum(painted, over, range(1, over_count + 1)) if over_count else []
+    over_keep = [index for index in range(1, over_count + 1) if over_sizes[index - 1] >= floor]
+    if over_keep:
+        print(f"{len(over_keep)} painted patch(es) — a flat where the subject shows bare ground:")
+        for index in sorted(over_keep, key=lambda i: -over_sizes[i - 1]):
+            ys, xs = np.nonzero(over == index)
+            print(f"  {int(over_sizes[index - 1]):6d}px at x {xs.min()}-{xs.max()}, y {ys.min()}-{ys.max()}")
+        print()
 
     labels, count = ndimage.label(holes)
     if not count:
         print("no bare paper inside the subject's silhouette: every flat reaches its ink.")
-        return 0
+        return len(over_keep)
     sizes = ndimage.sum(holes, labels, range(1, count + 1))
     # 120px at a delivered size of about a megapixel, and the same share of a
     # 4x working space: a fixed floor lists every hairline of drift at 4x
-    floor = max(120, holes.size * 1.1e-4)
     keep = [index for index in range(1, count + 1) if sizes[index - 1] >= floor]
     print(f"{len(keep)} unfilled patch(es) — bare paper where the subject has the object:")
     # every patch, not the largest dozen: a bare triangle of jersey at a seam
@@ -636,7 +659,7 @@ def unfilled(drawing, subject, paper, ground, ink=90, thickness=3):
           "edge. Taking a fill's outline from the tracer puts it at the colour\n"
           "transition, which is INSIDE the ink: the flat then falls short by half a\n"
           "line width and the ground shows through wherever the contour bulges out.")
-    return len(keep)
+    return len(keep) + len(over_keep)
 
 
 def registration(drawing, paper, ink=90, floor=40):
@@ -929,30 +952,50 @@ def depth(ops, inventory):
         far = [side for side in sides if side != near]
         pairs.append((key, near, far[0] if len(sides) == 2 and len(far) == 1 else None))
 
-    names = {name for _, near, far in pairs for name in (near, far) if name}
-    first_fill, last_ink = {}, {}
-    for index, op in enumerate(ops):
-        tag = op.get("tag")
-        if not tag:
-            continue
-        for name in names:
-            if not owns(tag, name):
-                continue
-            if op.get("stage") == "fill":
-                first_fill.setdefault(name, index)
-            elif op.get("stage") == "ink":
-                last_ink[name] = index
+    rows = [(near, far) for _, near, far in pairs if far]
+
+    def counts(tag, name, other):
+        """A mark counts for `name` unless a row names its sub-form more
+        precisely: a sub-form with a row of its own is decided there and opts
+        out of its parent's rows. A hub nut written in front of the fork, tagged
+        `wheel.front.hub.axle`, failed three `wheel.front/bike.*` rows by prefix
+        though its own row `bike.fork.near/wheel.front.hub.axle` was honoured."""
+        if not owns(tag, name):
+            return False
+        top = other.split(".")[0]
+        return not any(owns(tag, longer) and longer.startswith(name + ".")
+                       and mate.split(".")[0] == top
+                       for a, b in rows for longer, mate in ((a, b), (b, a)))
 
     hits, unresolved = [], []
     for key, near, far in pairs:
         if far is None:
             unresolved.append((key, f"the key does not name exactly two objects either side of '{near}'"))
-        elif near not in first_fill:
-            unresolved.append((key, f"no fill is tagged '{near}'"))
-        elif far not in last_ink:
-            unresolved.append((key, f"no ink is tagged '{far}'"))
-        elif last_ink[far] > first_fill[near]:
-            hits.append((key, far, last_ink[far], near, first_fill[near]))
+            continue
+        near_fill = [i for i, op in enumerate(ops)
+                     if op.get("stage") == "fill" and counts(op.get("tag"), near, far)]
+        near_ink = [i for i, op in enumerate(ops)
+                    if op.get("stage") == "ink" and counts(op.get("tag"), near, far)]
+        far_ink = [i for i, op in enumerate(ops)
+                   if op.get("stage") == "ink" and counts(op.get("tag"), far, near)]
+        far_fill = [i for i, op in enumerate(ops)
+                    if op.get("stage") == "fill" and counts(op.get("tag"), far, near)]
+        # the near form's cover is its first flat; a form with no flat (a
+        # cable, a spoke) covers with its first ink, and its row resolved
+        # never while only fills counted
+        cover = near_fill[0] if near_fill else (near_ink[0] if near_ink else None)
+        # before any ink (S2), the order still exists between the flats
+        behind = far_ink[-1] if far_ink else (far_fill[-1] if far_fill else None)
+        tagged = lambda name: any(owns(op.get("tag"), name) for op in ops
+                                  if op.get("stage") in ("fill", "ink"))
+        if (cover is None and tagged(near)) or (behind is None and tagged(far)):
+            continue  # every mark of one side is decided by its sub-forms' own rows
+        if cover is None:
+            unresolved.append((key, f"nothing is tagged '{near}'"))
+        elif behind is None:
+            unresolved.append((key, f"nothing is tagged '{far}'"))
+        elif behind > cover:
+            hits.append((key, far, behind, near, cover))
     return hits, unresolved, len(pairs)
 
 
@@ -1492,8 +1535,8 @@ def main():
             loose = crossings(written, json.load(handle))
         print(f"{count} interface rows carry an in_front decision")
         for key, far, ink_at, near, fill_at in hits:
-            print(f"  FAIL {key}: ink of '{far}' at op{ink_at} is written AFTER "
-                  f"the fill of '{near}' at op{fill_at} — that edge draws across it")
+            print(f"  FAIL {key}: '{far}' at op{ink_at} is written AFTER "
+                  f"'{near}''s cover at op{fill_at} — that edge draws across it")
         for key, why in unresolved:
             print(f"  UNRESOLVED {key}: {why}")
         if not hits and not unresolved and count:
@@ -1545,7 +1588,8 @@ def main():
             sys.exit("--unfilled needs --ref")
         paper = colour(args.paper)
         sys.exit(1 if unfilled(Image.open(args.render), Image.open(args.ref).convert("RGB"),
-                               paper, colour(args.ground) if args.ground else ground_of(paper))
+                               paper, colour(args.ground) if args.ground else ground_of(paper),
+                               box=[int(part) for part in args.box.split(",")] if args.box else None)
                  else 0)
 
     if args.weights:

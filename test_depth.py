@@ -45,8 +45,30 @@ def main():
     hits, unresolved, _ = depth(shared, INVENTORY)
     assert not hits and not unresolved, (hits, unresolved)
 
+    # an ink-only near form (a cable) covers with its first ink
+    cable = {"frame/cable": {"in_front": "cable"}}
+    hits, unresolved, _ = depth([mark("fill", "frame"), mark("ink", "frame"), mark("ink", "cable")], cable)
+    assert not hits and not unresolved, (hits, unresolved)
+    hits, _, _ = depth([mark("ink", "cable"), mark("fill", "frame"), mark("ink", "frame")], cable)
+    assert [hit[0] for hit in hits] == ["frame/cable"], hits
+
+    # before any ink (S2) the flats are ordered: the far flat after the near one fails
+    hits, unresolved, _ = depth([mark("fill", "b"), mark("fill", "a")], {"a/b": {"in_front": "b"}})
+    assert [hit[0] for hit in hits] == ["a/b"] and not unresolved, (hits, unresolved)
+
+    # a sub-form with a row of its own opts out of its parent's rows: a hub nut
+    # written after the bike's fork is decided by its own row, not the wheel's
+    nut = {"wheel/bike.fork": {"in_front": "bike.fork"},
+           "wheel/bike.tube": {"in_front": "bike.tube"},
+           "bike.fork/wheel.nut": {"in_front": "wheel.nut"}}
+    ops = [mark("fill", "wheel"), mark("ink", "wheel"), mark("fill", "bike.fork"), mark("ink", "bike.fork"),
+           mark("fill", "bike.tube"), mark("ink", "bike.tube"), mark("fill", "wheel.nut"), mark("ink", "wheel.nut")]
+    hits, unresolved, _ = depth(ops, nut)
+    assert not hits and not unresolved, (hits, unresolved)
+
     print("depth: right order passes, stage-major order fails, "
-          "an unnamed pair is UNRESOLVED, tags resolve through '+' and '.'")
+          "an unnamed pair is UNRESOLVED, tags resolve through '+' and '.', "
+          "ink-only near forms and S2 flats are ordered, a sub-form's own row wins")
 
 
 if __name__ == "__main__":

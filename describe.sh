@@ -50,11 +50,14 @@ answered() { [ "$(grep -cE '^[[:space:]*#]*(\*\*)?[1-5][.)]' "$1")" -ge 5 ]; }
 
 TMP="$OUT.tmp"
 for attempt in 1 2; do
-  if ask > "$TMP" 2>&1 && answered "$TMP"; then
+  # the CLI's warnings go to stderr and stay out of the answer file
+  if ask > "$TMP" 2>"$TMP.stderr" && answered "$TMP"; then
+    rm -f "$TMP.stderr"
     mv "$TMP" "$OUT"
     cat "$OUT"
     exit 0
   fi
+  cat "$TMP.stderr" >> "$TMP" 2>/dev/null; rm -f "$TMP.stderr"
   mv "$TMP" "$OUT.err"
   echo "describe.sh: attempt $attempt gave no five answers (kept in $OUT.err):" >&2
   head -3 "$OUT.err" >&2
