@@ -1,0 +1,20 @@
+{
+  "name": "drawing",
+  "version": "1.0.0",
+  "description": "Draw something yourself, mark by mark, on a real canvas \u2014 see the subject, block it in with straights, gate each stage on a check, and only then commit to curve, ink and black. Use when asked to draw, sketch, illustrate, redraw or restyle an image by hand rather than generate it with an image model.",
+  "author": {
+    "name": "Jonas Chapuis",
+    "url": "https://github.com/jchapuis"
+  },
+  "homepage": "https://github.com/jchapuis/drawing-skill",
+  "repository": "https://github.com/jchapuis/drawing-skill",
+  "license": "MIT",
+  "keywords": [
+    "drawing",
+    "illustration",
+    "sketch",
+    "vector",
+    "tldraw",
+    "skill"
+  ]
+}
