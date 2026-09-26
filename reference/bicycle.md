@@ -55,7 +55,10 @@ a bike read as wire.
   vanishing point**, not down the page, and the **hub does not sit at the centre
   of that ellipse** — a circle in perspective projects with its centre pushed
   toward the near side. Placing the hub at the ellipse's centre is what makes a
-  three-quarter bicycle look bent.
+  three-quarter bicycle look bent. That is the geometry of a true projection;
+  a drawn or generated subject does not always obey it — one panel's front hub
+  sat at its ellipse's centre within 12px and the rear 130px off — so measure
+  each hub rather than impose the offset.
 - **Spokes are a tone, not thirty-two lines.** Draw enough to establish the
   radial direction and let the rest be the value they average to. Every spoke
   drawn is a wheel that reads as a dinner plate.

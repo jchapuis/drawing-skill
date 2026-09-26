@@ -265,8 +265,9 @@ back matching the subject piece for piece. So a part that must be recognisable
 is either drawn through stages 2–10 with its own correction rounds, or it is
 welded — never half-drawn. When one drawer cannot carry every part, the scene
 is split: one drawer per part, each writing its own section of the one
-`draw.py` in its depth position, with the S0 reading shared. Checkpoint after
-S2, after the first part and after the last.
+`draw.py` in its depth position, with the S0 reading shared — sections,
+copies, the merge and the final pass are in `reference/scene.md` § The
+mechanics. Checkpoint after S2, after the first part and after the last.
 
 ## Stage 0
 
@@ -283,7 +284,9 @@ S2, after the first part and after the last.
    extents inside its ink, and trace with `--exclude NAME`, or the ground
    itself comes back as that flat. A dark flat a
    few levels off the ink steals the ink's ramp in the same way, so leave it out
-   of `--ink`. Ramp classified as a real name comes back as long thin regions
+   of `--ink` — and fill it with a near-black name of its own, never the ink's
+   black: vents, brows and a strap drawn in the line's black read as holes
+   punched through the helmet and pulled the eye off the face. Ramp classified as a real name comes back as long thin regions
    hugging the ink with a `median` far from their entry; that is not a missing
    flat. A subject
    with more than 13 flats merges the two closest now, in writing, not
@@ -336,7 +339,9 @@ S2, after the first part and after the last.
    the drawing honours. Then cut a plain image crop of
    the subject at each tier-1/2 box plus a fifth (not a part; a PIL crop is
    enough — on a scene, from `subject_1x.png` at the box over four, since a 4x
-   crop of a large part runs to thousands of pixels), `describe.sh` the crop
+   crop of a large part runs to thousands of pixels; a box under about 150px at
+   1x is cut from `subject.png` instead, since a 14px sweat drop comes back
+   "a low-resolution crop"), `describe.sh` the crop
    (the calls are independent and may run in parallel), and where it does not
    answer with the part you named, fix the sentence or delete the entry. An
    answer naming a neighbour means the box is on the neighbour — and if a
@@ -345,7 +350,12 @@ S2, after the first part and after the last.
    and judge it in context later. An entry for a thing the subject does not have propagates
    into every stage below it, and this is the only check that can remove one.
    **The census of a group of repeated small forms** — vents, fingers, teeth,
-   spokes, droplets — is counted on the object's own working-resolution crop,
+   spokes, droplets — is counted on the object's own working-resolution crop
+   (its pixels, by a component scan — a count read off a magnified look took a
+   parallel edge for a third motion arc), with a box that stops short of every
+   neighbour: a box reaching into a pile or cutting a forearm counts their
+   fragments as forms, and a group running parallel to a heavier line is counted
+   with it and the census says so,
    never by a describer on a panel-scale crop, which counts blobs and
    under-counts; cross-check it against the **closed** regions the object's
    trace returns (a mismatch is usually forms left open by a surface curving
@@ -389,8 +399,10 @@ write("ops.json", ops)
   ink, one edge of two faces: the rule is about where numbers come from, not
   how often they are used. Reference them from one named list, never paste a
   copy: two copies drift apart on the next edit and become one edge from two
-  guesses. What stays forbidden is a program computing points, whatever
-  carries them into the file.
+  guesses. A slice of a named list (`GLOVE[3:] + GLOVE[:2]`, to ink one edge
+  of a closed form open) is a reference, not a computation. What stays
+  forbidden is a program computing points, whatever carries them into the
+  file.
 - **Tag every ink stroke by the edge it states** (`tag="jaw.left+cowB"`,
   `+` joins several), so `--depth` can read the write order against the
   inventory and `--only`/`--hide` can show one object. Ink is per edge: a
@@ -410,16 +422,23 @@ write("ops.json", ops)
   folds the walk into arrowheads, and a point added to a traced outline (a
   run-on under a nearer form) goes in at its place round it: typed at the head
   of the list it made the outline double back, and the face rendered with the
-  ground showing across it. `--ladder` lists every such HOLE. For an organic form that means the few points
-  that carry it; for a simple manufactured form — a bulb, a frame, a strip of
-  tape, a tube — most of the contour, and the drawing is then in its weight and
-  its junctions. **Neither works on a re-entrant region** — a band with shapes
+  ground showing across it. `--ladder` lists every such HOLE. The points you
+  type are, for an organic form, the few that carry it; for a simple
+  manufactured form — a bulb, a frame, a strip of tape — most of the contour,
+  and the drawing is then in its weight and its junctions. **A straight is the
+  exception**: a tube's edge read every 75px wanders ±5px, and typed through
+  every reading it inks wavy; measure many, type its ends and any real bend,
+  `smooth=False`. **Neither works on a re-entrant region** — a band with shapes
   punched through it, a boundary threading into its own interior: draw a plain
   polygon from measured extents. **A ring is not a disc**: a region with
   `holes` is a band, drawn as a stroke along its centre line or as a flat with
   what shows through the hole written after it. Where what shows through is a
   scene, one closed polygon (outer edge, seam, inner edge) renders a hairline
-  of ground along its seam: put the seam where a nearer form covers it.
+  of ground along its seam: put the seam where a nearer form covers it, and
+  write it `smooth=False` — smoothed, the path through the seam's doubled-back
+  points bulges past the ink. A flat pierced by several openings (a chainring's
+  cut-outs) is the same polygon with a slit from a covered point out to each
+  opening and round it the other way.
 - **Chain rows to measure a group of repeated small forms, then write each
   form yourself. The measuring is a GATE, not advice.** Vents, fingers, teeth,
   slots, louvres, treads, droplets: wherever one object carries several of one
@@ -498,7 +517,9 @@ write("ops.json", ops)
   strokes placed on the second came out half a line inboard, and tubes read
   thin.
 - **Straights are `smooth=False`**, and so is any closed quad (smoothed, four
-  corners render as a lens) and every stroke of a faceted form — rock, crystal,
+  corners render as a lens), **any organic form's one named corner** (a glove's
+  cuff, a heel: smoothed through the right points, a glove lost its cuff and was
+  named "the hood"), and every stroke of a faceted form — rock, crystal,
   folded paper: rendered smooth, a rock field became river stones and every
   gate passed. `closed=True` must not repeat its first
   point. Smoothing is per call, not per point list: a quad's list reused from
@@ -507,7 +528,10 @@ write("ops.json", ops)
   with `size`/`scale` pinned, or its outline renders 5px wider than you asked.
 - **Draw a weight ladder first**, one *vertical* stroke per width, spaced
   apart, with the tool you will use, written with `write(..., swatch=True)`,
-  and read it back with `--weights` on a row that crosses them. Each tool has
+  and read it back with `--weights` on a row that crosses them — then again on
+  the drawing after its first ink, where the same rung ran 1–3px heavier on
+  curves; a hard-edged pen matched to `--measure-line`'s p90 reads heavier than
+  the subject's soft line, so match it to the dark core `--weights` reads. Each tool has
   its own ladder: `pen` is the hairline instrument and `brush` bottoms out near
   2px at 1:1; at the same `size` and `scale` a brush runs about twice a pen's
   width. A long straight — a pole, a tube, a frame edge — wanders several px
@@ -606,14 +630,14 @@ reproduce on the form it names is often real on the form next to it.
 | `--masses` | the wrong shape: line closed away (dark runs thinner than the subject's line), both cut on the subject's value levels, `--colours` 3 by default. **A design gate, not a proportion gate** — a head half again too wide is still a pale blob above a dark torso at thumbnail size, and passes |
 | `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing (`--value NAMES` scans runs of those palette names instead of dark ones): the first non-ground pixel from that side, and the dark runs inward from it. **The instrument for a coordinate and for a proportion**; `<<` marks an edge off by over 2% of the box, `runs a|b` a row whose line count differs — a thick line drawn as two, an interior line drawn somewhere else |
 | `--overlay` | the drawing blended over the subject; with `--box x,y,w,h`, the two inks over that box (`--value black` reads only the line; without it every dark flat — a glove, bar tape — shows as ink): the subject's blue, the drawing's red, black where they coincide. The only view of **interior lines** (see below). No number, on purpose |
-| `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable* — only a describer on the assembled panel answers that |
+| `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each sentence printed over its crop. It answers *is it there*, never *is it recognisable* — only a describer on the assembled panel answers that. At S2 every feature whose marks wait for S3 reads MISSING?; that is the ladder, not a fault |
 | `--checklist parts.json` | a sub-form a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it |
 | `--census parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts to the census; exit 1 FAIL, exit 2 UNCHECKED rows |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` — named when it outranks the whole focus tier; two forms welded into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice **on the page**: write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two bands meant to run together are listed too, and so is a contact between two objects' edges, so look before you merge |
 | `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver — the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass: tags and inventory are not one vocabulary. **UNLISTED** is a worklist: one part's ink shown across another's flat where no row decides which is in front |
 | `--ladder ops.json` | a stage that does not exist, and a mark the script did not write: called from another file, stamped by a loop or an import, points loaded or computed. It does not check that each ink has a contour under it. Pasted generated literals pass it |
-| `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`, and on an upscaled or generated subject `--grain` of three times the upscale factor, or its serration reads as corners (150 false rows on one panel, 4 with it). A deliberately straight form cut by intruding objects still fails it |
+| `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`, and on an upscaled or generated subject `--grain` of three times the upscale factor, or its serration reads as corners (150 false rows on one panel, 4 with it). A deliberately straight form cut by intruding objects still fails it, and so does a silhouette flat whose region is punched by holes (vents written over a shell): more corners would be the wrong fix |
 | `--unfilled --paper C` (needs `--ref`) | bare paper where the subject carries the object — a flat short of its own ink, most often along an open edge `--registration` cannot see. The object is read off the subject's ground (`palette.json`), bareness off `--paper`: render a check copy with `background` repointed to a colour nothing uses, and pass that |
 | `--registration` | colour and line disagreeing. Not on a full-bleed panel: every band that runs off the frame reports as a spill |
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x, ticked in panel coordinates. **The primary gate on any object**: three versions of one object passed every numeric gate and ranged from a beetle to a thing a blind viewer named at once; only the magnified pair told them apart. Ticks orient; they are not a coordinate |
@@ -650,6 +674,10 @@ per part: --zoom beside the subject, and a blind viewer on its crop
   the same item returns after
   a round that addressed it,
   and still measures true     -> plateau: stop, and report what it plateaued on
+  a clause flips run to run
+  with no mark changed        -> describe the subject's own pair again: a clause
+                                 the subject's runs do not share is noise, not a
+                                 plateau of the drawing
   it returns, and is already
   in refuted.md               -> not a plateau: the critic never saw the refusal.
                                  Re-measure once with a different instrument;
@@ -679,9 +707,15 @@ not a look. And **a look finds, a number moves a mark**: proportion judged by
 eye from a side-by-side was wrong in both directions on one panel (a head that
 looked 10% large was 3% wide; a chin that looked 70px low was 6px off), a
 person reading the same thumbnails was half right on every item, and a scan or
-an overlay settled each case. So an item raised by eye — yours, a critic's or
-a person's — is measured on subject and drawing before any mark, exactly like
-a critic's.
+an overlay settled each case; a downsampled side-by-side makes every small
+drawn form look bigger and blockier beside the subject's soft edges. So an item
+raised by eye — yours, a critic's or a person's — is measured on subject and
+drawing before any mark, exactly like a critic's. **Never read a coordinate
+off a zoom's tick labels or a resized grid crop**: both invented faults (a
+vent 50px high, two spokes 20–40px off) that a probe of the render refuted.
+Probe or scan the pixels. And a number has a converse: a row run through a
+dark form misreads wherever a nearer pale form sits inside it, so check on a
+look what the run crossed.
 
 ## Rules
 

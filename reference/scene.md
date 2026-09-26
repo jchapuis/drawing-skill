@@ -315,6 +315,65 @@ which inverts a likeness while every box stays correct.
 - **A weight ladder as numbers.** Each instrument has its own ladder and nothing in
   the numbers says so. The painting drawer draws and measures its own.
 
+### The mechanics: sections, copies, merge [bought: one panel drawn this way]
+
+A panel drawn by one drawer rationed its effort and left every part but the focus
+at its S2 mass; the same panel drawn one drawer per part came back matching the
+subject's dark area at 0.80 against 0.63, every part named by a blind viewer. The
+procedure that did it:
+
+1. **One drawer takes S0–S2 and the split.** Everything S0 and S2 produce, plus:
+   - `draw.py` in depth order as **sections**, each opened by
+     `# === part: NAME ===` or `# === welded: NAME ===` and closed by
+     `# === end: NAME ===`, each holding that part's S2 mass lines.
+   - **A section is a depth group, not an object.** An object that straddles
+     another in depth — a far leg behind the frame, a near leg in front of it;
+     rocks behind a wheel's spokes and rocks over its tyre — goes to the
+     drawer of the thing it is interleaved with, or gets a second section
+     (`part: rocks.back`). Three of six objects straddled on one panel.
+   - `split.md`, per part: its keys and tag prefix, its box, its smallest
+     feature, the sections before and after it, every interface row it is on
+     and who is in front, its lost edges, its weight pitch, **the acceptance
+     clauses it must make true, and which other drawers share each one** — a
+     saddle whose only visible edge is the shorts' outline cannot be earned by
+     the bicycle's drawer alone.
+   - Each S2 mass is **tagged with every sub-form it stands in for**
+     (`leg.near.thigh+leg.near.knee+leg.near.shin`), or the rows written at the
+     crossing forms' grain have nothing to resolve against.
+   - **Welded shapes are finished here, line and texture included**, because no
+     later drawer owns them. A welded crest runs *under* the nearest part's crest
+     ink, never above it: a part drawer can cover its own marks but not paint
+     bare ground back, and a rock bed that overshot its pile in six places
+     stayed wrong until the final pass. A welded shape may be several polygons —
+     a far rock seen through spokes can be an island. A texture that stands on a
+     welded shape's silhouette (grass tufts above a band's edge) is part of its
+     outline, whatever the describer names.
+2. **Each part drawer works in its own copy of the directory** and edits only
+   between its own markers; a drawer that must fix a neighbour's section writes
+   it in its gap log for the final pass instead. The part runs stages 2–10 with
+   its own rounds. What it measures on its own zoom overrides S0's numbers — a
+   census, a count of spokes — and it writes the correction into its entry. It
+   may add rows to `parts.json` for its own sub-forms. It sets no round cap of
+   its own and inherits none: a cap written into `reading.md` at S0 stopped a
+   part drawer mid-campaign.
+3. **Merge.** Replace each section of the master `draw.py` with the part's own;
+   check first that every copy changed only its section. Merge `parts.json` **by
+   entry**, not as text (a drawer may rewrite the whole file's whitespace), and
+   flag a key two drawers changed differently. A palette name one drawer
+   repointed is merged only when no other section draws with it. A mark that a
+   part drawer found must sit in front of a later section (a hub nut in front of
+   the fork) moves to a small section of its own after that one.
+4. **Judge each part again on the merged panel.** Every part's crop held
+   neighbours at S2 while it was drawn, so every plateau called in a copy is
+   provisional: a critic shown those crops raised the stand-ins as the part's
+   faults (5 of 6 items refuted), and `--ranking`, `--census` and `--parts` read
+   mid-split are not verdicts. Show a part's critic `--only`/`--hide` renders of
+   the part alone.
+5. **One final drawer takes S4–S8 on the merged panel**, starting from the part
+   drawers' notes about their neighbours. Then walk `--unfilled` in full: a bare
+   triangle of jersey at the seam between two sections was the 18th of 30
+   patches and nobody else saw it.
+
 ### The census — the check that catches an extra part
 
 Every other instrument asks whether what was drawn is right. The census asks how
