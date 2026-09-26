@@ -627,7 +627,9 @@ def unfilled(drawing, subject, paper, ground, ink=90, thickness=3):
     floor = max(120, holes.size * 1.1e-4)
     keep = [index for index in range(1, count + 1) if sizes[index - 1] >= floor]
     print(f"{len(keep)} unfilled patch(es) — bare paper where the subject has the object:")
-    for index in sorted(keep, key=lambda i: -sizes[i - 1])[:12]:
+    # every patch, not the largest dozen: a bare triangle of jersey at a seam
+    # between two drawers' sections was the 18th of 30 and no drawer saw it
+    for index in sorted(keep, key=lambda i: -sizes[i - 1]):
         ys, xs = np.nonzero(labels == index)
         print(f"  {int(sizes[index - 1]):6d}px at x {xs.min()}-{xs.max()}, y {ys.min()}-{ys.max()}")
     print("\na flat is drawn PAST where its ink will go, so the ink covers the flat's\n"
