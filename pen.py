@@ -1,33 +1,27 @@
 #!/usr/bin/env python3
 """A pen. You say where the line goes; it decides how the line is made.
 
-That split is the whole point. Control points are a drawing decision and stay
-yours -- placing them is the part that requires looking at the subject. What
-happens between them is hand mechanics, and hand mechanics are not decoration:
-they follow measured laws, and reproducing those laws is what separates a line
-that reads as drawn from a line that reads as plotted.
+The control points are your decisions, and placing them requires looking at the
+subject. What happens between them is hand mechanics, which follow measured
+laws. Reproducing those laws is what makes a line read as drawn rather than
+plotted. Three are implemented here.
 
-Three of them are implemented here.
+**Speed follows curvature.** Under the two-thirds power law, velocity is
+proportional to curvature to the power minus one third. A hand slows into a
+tight turn and runs through a gentle one without being told to. Everything else
+below is driven off that speed rather than off position, so the variation lands
+where a person's would.
 
-**Speed follows curvature.** The two-thirds power law -- velocity proportional to
-curvature to the power minus one third -- is one of the most established
-invariants in human movement. A hand slows into a tight turn and runs through a
-gentle one, always, without being told to. Everything else below is driven off
-that speed rather than off position, which is why the variation lands where a
-person's would.
+**Variation is between marks, not along them.** A trained hand draws a smooth
+line. What differs from one mark to the next is where it landed, how hard it
+leaned, and a slight bow across the whole arc. Physiological tremor is measured
+in tens of microns, which is invisible at the scale a drawing is viewed, and
+drawing it in makes a line look like a beginner's. So the variation here is an
+offset, a lean and one gentle bend, with nothing of higher frequency.
 
-**Variation lives between marks, not along them.** A trained hand draws a
-*smooth* line; what differs from one mark to the next is where it landed, how
-hard it leaned, and a slight bow across the whole arc. It does not shake en
-route. Physiological tremor is real and is measured in tens of microns -- at the
-scale a drawing is looked at it is invisible, and drawing it in is the loudest
-way to make a line look like a beginner's. So the deviation here is offset, lean
-and one lazy bend, and nothing of higher frequency than that.
-
-**Nothing repeats.** In forensic document examination, two signatures that match
-too closely are evidence of forgery -- authenticity is measurable variation
-between instances, not fidelity to a template. The same instruction issued twice
-here produces two different strokes.
+**Nothing repeats.** Two signatures that match too closely are evidence of
+forgery, because authentic handwriting varies between instances. The same
+instruction issued twice here produces two different strokes.
 
     from pen import stroke, write
     write("ops.json", [stroke([(340, 280), (360, 275), (385, 284)], stage="ink")])
@@ -50,17 +44,17 @@ _SEED = 11
 
 
 def seed(value):
-    """Re-seed the hand: same seed, same drawing; different seed, the same
-    drawing made again by the same person on a different day."""
+    """Re-seed the hand. The same seed gives the same drawing; a different seed
+    gives the same drawing with different small variations."""
     global _SEED
     _SEED = value
 
 
 def _hand_for(points, stage, tag):
-    """A hand seeded by the mark itself, so editing one stroke moves only that
-    stroke. Drawn from one running generator, inserting or deleting a mark
-    reshuffled the jitter of every mark after it, and a gate that had passed
-    on the far side of the picture failed again."""
+    """A hand seeded by the mark itself, so editing one stroke changes only that
+    stroke. With one running generator, inserting or deleting a mark would
+    reshuffle the jitter of every mark after it, and a gate that had passed on
+    the far side of the picture could fail again."""
     key = zlib.crc32(repr((stage, tag, [tuple(round(float(c), 1) for c in p[:2])
                                         for p in points])).encode())
     return np.random.default_rng([_SEED, key])
@@ -72,25 +66,23 @@ def _catmull(points, per_span=12, alpha=0.5, closed=False):
     """Smooth curve through every control point, not near them.
 
     Catmull-Rom interpolates: the curve passes through the points you chose, so
-    a mark lands where you decided it should. A Bezier or a smoothing spline
-    would treat your decisions as suggestions and pull the line off them.
+    a mark lands where you put it. A Bezier or a smoothing spline would pull the
+    line off them.
 
-    **Centripetal**, not uniform: the knots are spaced by the square root of the
-    distance between points rather than evenly. On evenly spaced points the two
-    are indistinguishable; on unevenly spaced ones the uniform form takes the
-    tangent at a vertex as half the vector between its neighbours, so a vertex
-    with one near neighbour and one far one gets an enormous tangent, and the
-    curve can cusp or cross itself. Centripetal is provably free of both.
+    The spline is centripetal, not uniform: the knots are spaced by the square
+    root of the distance between points rather than evenly. On evenly spaced
+    points the two are the same. On unevenly spaced points the uniform form takes
+    the tangent at a vertex as half the vector between its neighbours, so a
+    vertex with one near and one far neighbour gets a very large tangent and the
+    curve can cusp or cross itself. The centripetal form avoids both.
 
-    **It does not make corners, and nothing here does.** No interpolating spline
-    can turn a right angle at a single vertex whose neighbours are far away --
-    it will leave the corner by a wide margin whatever the parameterisation,
-    and the two forms merely disagree about which axis it bulges along. A wall's
-    base bowed a hundred pixels onto the floor that way, and no trap covers a
-    fault like that, because the shape is not where its points are. **A shape
-    with a corner in it is not a curve**: draw it with `smooth=False`, which
-    densifies instead of interpolating -- what the block-in has always done -- or
-    plant a point on each side of every corner, close in.
+    It does not make corners. No interpolating spline can turn a right angle at
+    a single vertex whose neighbours are far away. The curve leaves the corner by
+    a wide margin whichever parameterisation is used (a wall's base can bow a
+    hundred pixels onto the floor), and no check catches it because the shape is
+    not where its points are. A shape with a corner is not a curve. Draw it with
+    `smooth=False`, which densifies the points instead of interpolating, or
+    place a point close in on each side of every corner.
     """
     points = [tuple(point[:2]) for point in points]
     if len(points) < 3:
@@ -130,8 +122,8 @@ def _densify(points, step=4.0):
 
     A straight run must be delivered as many close points. tldraw renders
     freehand through perfect-freehand, which smooths between whatever points it
-    is given -- hand it a sparse polygon and every corner comes back rounded
-    off, which is the shape the block-in exists to avoid.
+    is given. A sparse polygon comes back with every corner rounded off, which
+    is what the block-in is meant to avoid.
     """
     dense = []
     for index in range(len(points) - 1):
@@ -156,9 +148,9 @@ def _curvature(points):
 def _speed(points):
     """The two-thirds power law: v proportional to curvature^(-1/3).
 
-    Returned normalised to roughly 0..1. Slow through tight turns, fast along
-    gentle runs -- the hand does this on its own, and every other quantity below
-    is driven off it rather than off arc length.
+    Returned normalised to roughly 0..1: slow through tight turns, fast along
+    gentle runs. Every other quantity below is driven off this speed rather than
+    off arc length.
     """
     turn = _curvature(points)
     scale = np.percentile(turn, 85)
@@ -168,17 +160,16 @@ def _speed(points):
 
 
 def _wander(count, sigma):
-    """Smooth, self-correlated noise -- pink rather than white.
+    """Smooth, self-correlated noise (pink rather than white).
 
     Scaled by how much the filter is known to shrink white noise, not by the
-    spread this particular sample happened to come out with. Dividing by a
-    realised standard deviation is what used to put whole marks tens of pixels
-    off their own control points: the sigma here is a large fraction of the
-    stroke, so the slice that survives the filter is nearly constant, its spread
-    is nearly zero, and the quotient comes back as a large rigid offset that no
-    `hand` value bounds. A mark that does not land on the points it was given
-    is not a hand, it is a broken instrument -- the control points are the
-    drawing, and everything else in this file exists to serve them.
+    spread this particular sample came out with. Dividing by the realised
+    standard deviation would put whole marks tens of pixels off their control
+    points: sigma here is a large fraction of the stroke, so the slice that
+    survives the filter is nearly constant, its spread is nearly zero, and the
+    quotient becomes a large rigid offset that no `hand` value bounds. A mark
+    must land on the points it was given, because the control points are the
+    drawing.
     """
     pad = int(6 * sigma) + 3
     raw = _HAND.standard_normal(count + 2 * pad)
@@ -195,25 +186,24 @@ def _normals(points):
 def _drift(points, speed, amount):
     """Where a mark lands, not how much it shakes.
 
-    A trained hand does not tremble along a stroke. Watch someone ink: the line
-    is *smooth*. What varies between one of their marks and the next is where it
-    landed, how hard they leaned, and a slight systematic bow across the whole
-    arc -- never a wobble travelling along it. Tremor is what you get from a
-    hand that is unsure, resting on nothing, or moving too slowly, and putting
-    it into every line is the single loudest way to make a drawing look amateur.
+    A trained hand does not tremble along a stroke, so the line is smooth. What
+    varies between one mark and the next is where it landed, how hard the hand
+    leaned, and a slight bow across the whole arc. Tremor comes from a hand that
+    is unsure, unsupported or moving too slowly, and adding it to every line
+    makes a drawing look amateur.
 
-    So the deviation here is deliberately low-order:
+    So the variation here is low-order:
 
-    - **an offset**: the whole mark sits a little off where it was aimed,
-    - **a bow**: at most one gentle bend across the stroke, from the arm
-      swinging about a joint rather than tracking a mathematical path,
-    - **nothing above that**. The ~10 Hz physiological tremor is real and is
-      measured in tens of microns; at the scale a drawing is looked at it is
-      invisible, and rendering it is a lie about what a hand does.
+    - an offset: the whole mark sits a little off where it was aimed,
+    - a bow: at most one gentle bend across the stroke, from the arm swinging
+      about a joint rather than tracking a mathematical path,
+    - nothing above that. The physiological tremor (about 10 Hz) is measured in
+      tens of microns and is invisible at the scale a drawing is viewed, so it
+      is not modelled.
 
-    Signal-dependent motor noise still applies, but it shows up as variability
-    in *where the stroke ends up*, not as shake en route -- so speed scales the
-    offset, not a per-point jitter.
+    Signal-dependent motor noise still applies. It shows up as variability in
+    where the stroke ends up, not as shake along it, so speed scales the offset
+    and there is no per-point jitter.
     """
     count = len(points)
     if count < 4 or amount <= 0:
@@ -230,9 +220,9 @@ def _drift(points, speed, amount):
 def _run_on(points, speed, amount):
     """Overshoot or fall short, in proportion to the speed of arrival.
 
-    A stroke arriving fast carries past its target; one arriving slowly stops
-    near it. Fixed jitter at the ends misses this -- and a drawing whose lines
-    all meet exactly reads as assembled rather than drawn.
+    A stroke arriving fast carries past its target, and one arriving slowly stops
+    near it. Fixed jitter at the ends does not capture this, and a drawing whose
+    lines all meet exactly reads as assembled rather than drawn.
     """
     out = [tuple(point) for point in points]
     for end, inner in ((0, 1), (-1, -2)):
@@ -250,22 +240,21 @@ def _run_on(points, speed, amount):
 def _pressure(speed, lead, tail, weight, floor=0.0):
     """Press into the stroke, lift out of it, and lean where the hand slows.
 
-    Flat pressure is the loudest tell that a line was issued rather than drawn.
-    The slow parts of a stroke lay down more ink, which is the same fact as a
-    pen thickening into a corner.
+    Flat pressure is the clearest sign that a line was issued rather than drawn.
+    The slow parts of a stroke lay down more ink, as a pen thickens into a
+    corner.
 
-    **The ends must reach nothing.** A drawn line is pointed at both ends --
-    thick through the middle, tapering out as the tool accelerates in and
-    decelerates away. A line held at a floor of even a tenth of its width ends
-    bluntly, and a drawing whose every mark is a tube with cut ends reads as a
-    sketch no matter how well placed it is. So the ramp goes to zero, and the
-    weight floor exists only to stop a mark vanishing along its middle.
+    The ends must taper to nothing. A drawn line is pointed at both ends: thick
+    through the middle, tapering as the tool speeds up and slows down. A line
+    held at even a tenth of its width ends bluntly, and a drawing made of tubes
+    with cut ends reads as a diagram however well placed. So the ramp goes to
+    zero, and the weight floor only stops a mark vanishing along its middle.
 
     `floor` is the exception, and it belongs to the medium rather than to the
-    hand: **paint has a minimum bead**. Ink and graphite come off a point and
-    can taper to nothing, but a loaded brush of body colour lays a mark with
-    width in it from the moment it touches. A correction that tapers away to
-    nothing does not cover the thing it was put there to cover.
+    hand: paint has a minimum bead. Ink and graphite come off a point and can
+    taper to nothing, but a loaded brush of body colour lays a mark with width
+    in it from the moment it touches. A correction that tapers to nothing does
+    not cover what it was put there to cover.
     """
     count = len(speed)
     along = np.linspace(0.0, 1.0, count)
@@ -289,45 +278,41 @@ _GAUGE = 1.0
 def gauge(subject_height, reference=430.0):
     """Scale every nib to the size of the thing being drawn.
 
-    Draw a ladder before you trust it: one stroke per weight you intend to use,
-    rendered, read back with `check.py --weights`. You cannot predict a width
-    from the numbers, because the renderer's own scaling sits between them and
-    the pixels.
-
-    **Draw the ladder in its own document, never in the drawing.** There is no
-    "off to the side": `frame()` with `--padding 0` clips to the subject's
-    rectangle, so a ladder outside the frame is invisible and one inside it is
-    now part of the drawing, permanently, because the document on disk IS the
-    drawing. Use a throwaway `ladder.py` -> `ladder.json` with the same
-    `--palette` and `--padding`, and delete it after.
-
-    **Read the ladder in subject pixels, not render pixels.** The export comes
-    back at the browser's device pixel ratio -- normally 2x, so a 928-wide frame
-    renders 1848 wide -- and nothing in the render says so. Divide every width
-    you read off a render by (png width / frame width) before comparing it to
-    anything measured off the subject. A first ladder read came back "hairline =
-    6px" against a subject whose entire line span is 2-5px.
-
-    **`gauge` is for a single subject. On a scene, skip it.** A scene has no one
-    subject height: gauging on a 920px rider sets `_GAUGE = 2.14` and multiplies
-    every nib by it, against a subject whose lines are 4px. Both scene drawers
-    abandoned the nib names and calibrated `size`/`scale` directly off their own
-    measured ladder, which is what worked. `WEIGHTS`' internal span is 5.3x; a
-    flat cel subject wants about 4x, and no choice of gauge makes the names land
-    on it.
-
-    **Draw the ladder with the instrument you will use.** Each `tool` has its
-    own ladder and nothing about the numbers says so: one measured with a
-    `brush` and then applied with `flat` came out at 0.42x -- a top tube 5px
-    wide where 12px had been asked for, and a whole bicycle arriving at
-    `reference/bicycle.md`'s "reads as wire" failure by a route that file does
-    not name. Calibrate the instrument, not the weight. `scale` dominates;
-    `size` barely moves it.
-
     Line weight is meaningless in absolute pixels. The heaviest line in a
-    drawing is heavy *relative to the subject* -- a silhouette that reads as
+    drawing is heavy relative to the subject: a silhouette that reads as
     confident around a head 400px tall is a blot around one 120px tall. Call
     this once, with the height of the subject on the canvas, before drawing.
+
+    Draw a weight swatch before you trust a weight: one stroke per weight you
+    intend to use, rendered and read back with `check.py --weights`. You cannot
+    predict a width from the numbers, because the renderer's own scaling sits
+    between them and the pixels.
+
+    Draw the swatch in its own document, never in the drawing. `frame()` with
+    `--padding 0` clips to the subject's rectangle, so a swatch outside the frame
+    is invisible, and one inside it becomes part of the drawing, because the
+    document on disk is the drawing. Use a throwaway `swatch.py` -> `swatch.json`
+    with the same `--palette` and `--padding`, and delete it after.
+
+    Read the swatch in subject pixels, not render pixels. The export comes back
+    at the browser's device pixel ratio, normally 2, so a 928-wide frame renders
+    1848 wide, and nothing in the render says so. Divide every width you read off
+    a render by (png width / frame width) before comparing it to anything
+    measured off the subject. Without that, a hairline can read as 6px against a
+    subject whose whole line span is 2-5px.
+
+    `gauge` is for a single subject. On a scene, skip it. A scene has no one
+    subject height: gauging on a 920px figure sets `_GAUGE = 2.14` and multiplies
+    every nib by it, against a subject whose lines are 4px. In a scene, set
+    `size`/`scale` directly from your own measured swatch and ignore the nib
+    names. The internal span of `WEIGHTS` is 5.3x, while a flat cel subject
+    wants about 4x, and no choice of gauge makes the names land on it.
+
+    Draw the swatch with the instrument you will use. Each `tool` has its own
+    weights and nothing in the numbers says so. A swatch measured with `brush`
+    and then applied with `flat` came out at 0.42x, a 5px line where 12px had
+    been asked for. Calibrate the instrument, not the weight. `scale` dominates;
+    `size` barely moves it.
     """
     global _GAUGE
     _GAUGE = max(0.15, subject_height / reference)
@@ -366,20 +351,19 @@ INSTRUMENTS = {
 # --- marks -------------------------------------------------------------------
 
 def trap_outward(points, distance):
-    """Grow a closed flat outward, so its ink covers its edge rather than the
-    ground showing between them.
+    """Grow a closed flat outward, so the ink laid over it covers its edge and
+    the ground does not show between them.
 
-    A fill outline measured off the tracer sits at the colour transition, which
-    is INSIDE the ink line. Rendered verbatim the flat falls short by half a line
-    width, and wherever the contour bulges outward the ground shows through as a
-    pale notch bitten out of the object. Printers have always solved this by
-    trapping: the colour is made slightly larger than the line that will cover
-    it, so no registration error can open a gap. Nothing about the drawing wants
-    the flat's true edge to be visible, because it never is -- the ink is on top
-    of it.
+    A fill outline measured with trace.py sits at the colour transition, which
+    is inside the ink line. Rendered as measured, the flat falls short by half a
+    line width, and wherever the contour bulges outward the ground shows through
+    as a pale notch in the object. Printers call the fix trapping: the colour is
+    made slightly larger than the line that will cover it, so a registration
+    error cannot open a gap. The flat's true edge is never visible anyway,
+    because the ink is on top of it.
 
     A miter offset along each vertex's angle bisector, with the spike at a sharp
-    corner clamped rather than allowed to shoot off.
+    corner clamped.
     """
     import numpy as _np
     seen = _np.asarray([[float(p[0]), float(p[1])] for p in points])
@@ -413,54 +397,52 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     overlapping passes rather than one stroke, so this may return a list. `write`
     flattens.
 
-    `stage` says WHEN in the ladder the mark was made; `tag` says WHICH OBJECT it
-    belongs to. They are independent, and `--only` / `--hide` match either, so
-    `--only bike,frame` renders the bicycle at every stage and
-    `--only bike,blockin,frame` renders it over the composition rough. Tag every
-    mark of a tier-1 object; the ladder machinery is untouched, because the stage
-    is still there.
+    `stage` says when in the stage sequence the mark was made, and `tag` says
+    which object it belongs to. They are independent, and `--only` / `--hide`
+    match either. For an object tagged `bike`, `--only bike,frame` renders it at
+    every stage and `--only bike,blockin,frame` renders it over the composition
+    rough. Tag every mark of a tier-1 object. The stage is still recorded, so
+    the stage audit is unaffected.
 
-    Traps, all of them paid for:
+    Pitfalls:
 
-    - **A corner needs `smooth=False`.** No interpolating spline passes through
-      a corner: sent as a smooth path the curve leaves each of your points by a
-      wide margin, and the shape is then not where its points are -- you
-      measured honestly and the mark landed somewhere else. A row of teeth
-      measured as a straight-sided block came back as a lens. Either draw it
-      with straights, or plant a point either side of every corner, close in.
-    - **`closed=True` closes the path for you.** Repeat the first point as well
-      and the spline turns through a zero-length segment, which renders as a
-      cusp. A clock rim spent a round being blamed on its closure when it was
-      the duplicate point. A closed stroke carries no taper -- a loop has no
-      ends -- and its closing side is built like every other side, so a
-      triangle of three points renders three sides.
-    - **`fill="solid"` is a pale tint and `fill="fill"` is saturated -- until
-      `--palette` repoints that colour.** `repaint()` writes one value into
+    - A corner needs `smooth=False`. No interpolating spline passes through a
+      corner. Sent as a smooth path, the curve leaves each of your points by a
+      wide margin, so the shape is not where its points are. A row of teeth
+      measured as a straight-sided block can come back as a lens. Draw it with
+      straights, or place a point close in on each side of every corner.
+    - `closed=True` closes the path for you. If you repeat the first point as
+      well, the spline turns through a zero-length segment, which renders as a
+      cusp. A closed stroke carries no taper, because a loop has no ends, and
+      its closing side is built like every other side, so three points render
+      a triangle.
+    - `fill="solid"` is a pale tint and `fill="fill"` is saturated, until
+      `--palette` repoints that colour. `repaint()` writes one value into
       `solid`, `fill`, `semi` and `pattern`, so on a repointed name the two are
-      identical. True for the stock palette, false for the workflow this skill
-      prescribes.
-    - **A flat is its polygon PLUS a stroke of that path.** `tool="flat"` fills
-      *and* outlines, and with no `size`/`scale` given the outline takes
-      tldraw's own default -- roughly 5px each side. On a big flat that is free
-      trapping and invisible. On a small one it is a disaster and it is silent:
-      an 11px iris rendered at 21.5px, and three rounds of shrinking the same
-      polygon measured no change, because the polygon was never what rendered.
-      Pin `size`/`scale` on every flat.
-    - **Flats need `tool="flat"`.** At any translucency every overlap shows as
-      a seam.
+      identical. That holds for the stock palette and not for the palette
+      workflow this skill prescribes.
+    - A flat is its polygon plus a stroke of that path. `tool="flat"` fills and
+      outlines, and with no `size`/`scale` the outline takes tldraw's default,
+      roughly 5px each side. On a big flat that is free trapping and invisible.
+      On a small one it silently swells the shape: an 11px iris rendered at
+      21.5px, and shrinking the polygon changed nothing because the polygon was
+      never what rendered. Pin `size`/`scale` on every flat.
+    - Flats need `tool="flat"`. At any translucency every overlap shows as a
+      seam.
     """
     if tool == "pen" and (lead, tail) != (0.18, 0.22):
-        # the technical pen draws at constant pressure: a lead or tail was
-        # silently ignored, and a spoke meant to end in a point ended square
+        # the technical pen draws at constant pressure, so a lead or tail would
+        # be ignored and a line meant to end in a point would end square
         raise ValueError("stroke: the pen has no taper -- lead/tail do nothing on tool='pen'; "
                          "use tool='brush' for a line that ends in a point")
 
     # `trap=<px>` grows a closed flat outward so the ink laid over it covers its
-    # edge. OPT-IN, and deliberately not a default: trapping is directional. It
-    # belongs on a body flat, whose edge is meant to be hidden under a contour,
-    # and it ruins any flat that is a mark in its own right -- a vent, an eye, a
-    # cast shadow, a shade. Applied to every closed flat it swells the interior
-    # shapes until they eat the form. `--unfilled` says which flats need it.
+    # edge. It is opt-in and not a default, because trapping suits only some
+    # flats. It belongs on a body flat, whose edge is meant to be hidden under a
+    # contour. It spoils any flat that is a mark in its own right (a vent, an
+    # eye, a cast shadow), and applied to every closed flat it swells the
+    # interior shapes until they eat the form. `--unfilled` says which flats
+    # need it.
     look["authored"] = _origin(points)
     if tool == "flat" and closed and trap and len(points) >= 3:
         points = trap_outward(points, float(trap))
@@ -480,7 +462,7 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
 
     flat_points = [tuple(point[:2]) for point in points]
     if closed:
-        # a loop has no ends: close the CONTROL points, so the closing side is
+        # a loop has no ends: close the control points, so the closing side is
         # densified or interpolated like every other, and carry no taper
         lead = tail = 0.0
     path = _catmull(flat_points, per_span, closed=closed) if (smooth and len(points) > 2) \
@@ -526,30 +508,22 @@ def _emit(body, press, stage, tag, closed, look):
 
 # --- one verb -----------------------------------------------------------------
 #
-# `stroke` is the whole repertoire. There is no ellipse, no ruled line, no
-# block-in helper, and there will not be any: the marks a drawing is made of are
-# the marks a hand makes, and a hand has one of them. A straight is a stroke with
+# `stroke` is the only mark. There is no ellipse helper, no ruled-line helper and
+# no block-in helper, and none should be added. A straight is a stroke with
 # `smooth=False`. A block-in chord is a stroke with `smooth=False`. A ruled
-# construction line is a stroke with `smooth=False` and the hand turned down --
-# it is still drawn, and a ruled line laid by a person is not a different kind of
-# thing from a contour, it is the same tool held still.
+# construction line is a stroke with `smooth=False` and the hand turned down.
+# It is still drawn.
 #
 # `frame` below is not a mark. It is the edge of the picture.
 #
-# There was, and it is the single most expensive mistake this file has made. A
-# head was constructed with `ellipse(505, 348, 74, 68)` and a centre line down
-# the middle of it -- a frontal Loomis ball, for a head that is turned three
-# quarters to the right. Every feature was then measured honestly and hung on
-# that armature, every bounding box came out within ten pixels of the subject's,
-# and the result was not a face. The tool supplied the shape, so nobody looked
-# for it: the skull was a symbol before the subject was consulted.
-#
-# A ball drawn by hand is six or eight points that somebody chose after looking,
-# and its errors are where the looking was wrong. A ball computed from a centre
-# and two radii has no errors and no information -- it is the generic head,
-# arriving free of charge at the exact stage whose whole job is to find the
-# particular one. `stroke` is the language. If a form is round, say where its
-# round goes, in points.
+# A shape computed from a centre and two radii (an ellipse for a head, say) has
+# no errors and no information. It is the generic shape, supplied before the
+# subject has been looked at, at the stage whose job is to find the particular
+# one. A head built that way as a frontal ball on a head turned three quarters
+# gives features that each measure within ten pixels and still do not make the
+# face. A round form drawn by hand is six or eight points chosen after looking,
+# and its errors are where the looking was wrong. If a form is round, say where
+# its curve goes, in points.
 
 
 def frame(x0, y0, x1, y1):
@@ -573,17 +547,17 @@ def back(stage="fill"):
     return {"op": "back", "stage": stage}
 
 
-LADDER = ("gesture", "blockin", "contour", "ink")
+STAGES = ("gesture", "blockin", "contour", "ink")
 
 
 def audit(ops):
-    """The ladder, read off the script. Returns (counts, first index per stage,
+    """The stages, read off the script. Returns (counts, first index per stage,
     list of failures). A failure is a drawing with ink and no gesture, block-in
     or contour stage anywhere in it, or a stage whose first mark comes after the
-    first mark of the stage above it. It is a check that the stages EXIST, not
-    that each ink mark has a contour under it: on three finished drawings 26-81%
-    of ink strokes had no contour stroke within two line widths, so a per-mark
-    rule would refuse every drawing the skill has made."""
+    first mark of the stage above it. It checks that the stages exist, not that
+    each ink mark has a contour under it. On three finished drawings, 26-81% of
+    ink strokes had no contour stroke within two line widths, so a per-mark rule
+    would refuse ordinary drawings."""
     counts, first = {}, {}
     for index, op in enumerate(ops):
         if op.get("op") != "stroke":
@@ -593,11 +567,11 @@ def audit(ops):
         first.setdefault(stage, index)
     failures = []
     if counts.get("ink"):
-        for stage in LADDER[:-1]:
+        for stage in STAGES[:-1]:
             if not counts.get(stage):
-                failures.append(f"ink with no {stage} stage: the ladder was skipped")
-        # gesture, then block-in, then ink. The contour is required to exist,
-        # not to come first: forms drawn in depth order interleave their stages
+                failures.append(f"ink with no {stage} stage: the stages were skipped")
+        # gesture, then block-in, then ink. The contour must exist but need not
+        # come first, because forms drawn in depth order interleave their stages
         ordered = ("gesture", "blockin", "ink")
         order = [first[stage] for stage in ordered if stage in first]
         if order != sorted(order):
@@ -612,8 +586,8 @@ _CALLS = itertools.count()
 def _origin(points):
     """Where a stroke's points were written: the script line that asked for it,
     the file the call itself sits in, and the points as given, before trapping.
-    `at` carries the instruction offset too, so two calls on one line differ and
-    one call reached twice -- a loop, a comprehension, an import -- does not."""
+    `at` carries the instruction offset too, so two calls on one line differ,
+    while one call reached twice (a loop, a comprehension, an import) does not."""
     here = os.path.abspath(__file__)
     main = getattr(sys.modules.get("__main__"), "__file__", None)
     main = os.path.abspath(main) if main else None
@@ -653,23 +627,26 @@ LITERAL_FLOOR = 0.9
 
 
 def provenance(ops, source=None):
-    """Were these marks written by the drawer, in the script, or generated?
+    """Were these marks written by you in the script, or generated?
 
-    Returns (facts, failures). Three signals, each chosen because authored work
-    cannot trip it, measured on six hand-written drawings (89 to 498 strokes):
+    Returns (facts, failures). There are three signals, each chosen because
+    hand-written work does not trip it. They were measured on six hand-written
+    drawings (89 to 498 strokes):
 
-    - a stroke whose call sits in another file than the script -- a generated
-      section module, a helper library. Authored: 0 of 1,674 strokes.
-    - one call site in the script reached more than once -- a loop, a
-      comprehension, or an `import` of a module that draws. Authored: 0.
-    - control points that are not written as numbers in the script's own text:
-      loaded from JSON, computed from pixels, scaled. Authored: at least 99.5% are
-      literal (the rest are frame corners written as W, H); a drawing whose points
-      come out of a skeleton or a trace is at 0.2%. The floor is LITERAL_FLOOR.
+    - a stroke whose call sits in a different file from the script, such as a
+      generated section module or a helper library. Hand-written: 0 of 1,674
+      strokes.
+    - one call site in the script reached more than once (a loop, a
+      comprehension, or an `import` of a module that draws). Hand-written: 0.
+    - control points that are not written as numbers in the script's own text,
+      because they were loaded from JSON, computed from pixels or scaled.
+      Hand-written: at least 99.5% are literal (the rest are frame corners
+      written as W, H). A drawing whose points come from a skeleton or a trace
+      is at 0.2%. The floor is LITERAL_FLOOR.
 
-    What none of them can see is generated output pasted into the script as
-    literal lines. That is still a generated drawing, and the rule, not this
-    gate, is what forbids it.
+    None of them can see generated output pasted into the script as literal
+    lines. That is still a generated drawing, and the rule against it is what
+    forbids it, not this check.
     """
     strokes = [op for op in ops if op.get("op") == "stroke" and op.get("stage") != "frame"]
     calls, unrecorded = {}, 0
@@ -727,38 +704,36 @@ def script_source(ops, beside=None):
 
 
 def write(path, ops, swatch=False):
-    """Flatten the ops, audit the ladder, and save them.
+    """Flatten the ops, audit the stages, and save them.
 
     Refuses to write ink into a drawing with no gesture, block-in and contour
-    stage -- a drawing inked straight off its measurements passes every
-    placement check and reads as a diagram. The stages must exist; no mark is
-    checked for a contour under it. Refuses, too, marks the script did not write:
-    strokes generated in another file, stamped by a loop, or whose points were
-    loaded or computed rather than written down (see `provenance`). `swatch=True`
-    skips both, for a weight ladder or a calibration strip that is not a drawing.
+    stage. A drawing inked straight off its measurements passes every placement
+    check and reads as a diagram. The stages must exist, but no mark is checked
+    for a contour under it. Also refuses marks the script did not write: strokes
+    generated in another file, stamped by a loop, or whose points were loaded or
+    computed rather than written down (see `provenance`). `swatch=True` skips
+    both, for a weight swatch or a calibration strip that is not a drawing.
 
-    Stock colours are 13 fixed names, but the palette is mutable: pass
+    There are 13 stock colours, but the palette is mutable: pass
     `--palette colours.json` to the CLI to repoint any name at a real hex value.
-    `background` is repointable too, but it is **the ground, not a fourteenth
-    colour** -- a mark may not use it, and a drawing that needs to paint in the
+    `background` is repointable too, but it is the ground, not a fourteenth
+    colour. A mark may not use it, and a drawing that needs to paint in the
     paper's own colour must spend one of the 13 on it.
 
-    **The ground has a right answer: measure it off the subject.** One panel
-    carried `#FAF1D2` for six rounds against a subject wall of `#EFE9D1`, eleven
-    levels darker. Nothing in the picture looked wrong, because everything
-    sitting *on* the ground is judged by its contrast *with* it: the clock face
-    and the wall differed by five grey levels where the subject's differ by
-    seventeen, so a whole object failed to separate from the thing it hung on.
-    One line fixed it, no marks touched, and its structure score went 0.39 to
-    1.01. A wrong ground flattens every relationship in the picture at once and
-    is invisible to every check that compares marks.
+    The ground has a right answer: measure it off the subject. Everything on the
+    ground is judged by its contrast with it, so a wrong ground flattens every
+    relationship in the picture at once and no check that compares marks will
+    notice. For example, a ground of `#FAF1D2` against a subject wall of
+    `#EFE9D1` is eleven levels too light. An object on that wall then differs
+    from it by five grey levels where the subject's differ by seventeen, and the
+    object fails to separate from what it hangs on.
     """
     flat = []
     for op in ops:
         flat.extend(op) if isinstance(op, list) else flat.append(op)
     counts, _, failures = audit(flat)
     if failures and not swatch:
-        raise SystemExit("ladder: " + "; ".join(failures) + f"  (stages on the page: {counts})")
+        raise SystemExit("stages: " + "; ".join(failures) + f"  (stages on the page: {counts})")
     if not swatch:
         main = getattr(sys.modules.get("__main__"), "__file__", None)
         beside = os.path.dirname(os.path.abspath(main)) if main else None

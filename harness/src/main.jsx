@@ -206,7 +206,7 @@ function App() {
           repaint,
           load: (snapshot) => loadSnapshot(editor.store, snapshot),
           save: () => getSnapshot(editor.store),
-          census: () =>
+          shapeCounts: () =>
             editor.getCurrentPageShapes().reduce((tally, shape) => {
               const stage = shape.meta?.stage ?? 'unstaged'
               tally[stage] = (tally[stage] ?? 0) + 1
@@ -220,7 +220,7 @@ function App() {
             const hide = new Set(options.hide ?? [])
             // `only` is the complement: keep these and nothing else.
             //
-            // Both filters match a mark's STAGE (when in the ladder it was made)
+            // Both filters match a mark's STAGE (when in the stages it was made)
             // or its TAG (which object it belongs to), because a name is looked
             // up in both sets. The two axes are independent, so one flag covers
             // "just the ink", "just the bicycle", and "the bicycle over the

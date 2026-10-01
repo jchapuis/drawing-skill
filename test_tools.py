@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""The measuring tools and the gates, each held against a case it once got wrong.
+"""The measuring tools and the gates, each checked against a case it has to get right.
 
-Every case here is a fault a drawer hit on a real panel: a tool that crashed, a
-number that could not be read, a gate that passed a wrong result or buried a
-right one in noise. Each is rebuilt on a tiny synthetic image or op list, so the
-test says what the tool must do without shipping anyone's drawing.
+Each case is a fault a tool can have: a crash, a number that cannot be read, a
+gate that passes a wrong result or buries a right one in noise. Each is built on
+a tiny synthetic image or op list, so the test shows what the tool must do
+without needing a real drawing.
 
     python3 test_tools.py
 """
@@ -66,7 +66,7 @@ def _():
         assert code == 0, said
         orange = [r for r in json.load(open(f"{folder}/meas/block.json")) if r["colour"] == "orange"]
         x, y = orange[0]["box"][:2]
-        assert abs(x - 123) <= 3 and abs(y - 83) <= 3, orange[0]["box"]   # panel coordinates
+        assert abs(x - 123) <= 3 and abs(y - 83) <= 3, orange[0]["box"]   # picture coordinates
         code, said = tool(f"{HERE}/trace.py", "meas/block.png", "palette.json", "--offset", "120,80",
                           "--out", "x.json", cwd=folder)
         assert code != 0 and "disagrees" in said, said
@@ -84,15 +84,15 @@ def _():
         assert code != 0 and "light-violet" in said, said
 
 
-@case("--weights runs without --ref and names each rung by its position")
+@case("--weights runs without --ref and names each weight by its position")
 def _():
     with tempfile.TemporaryDirectory() as folder:
         image = Image.new("RGB", (200, 60), "white")
         pen = ImageDraw.Draw(image)
         for x, width in ((20, 3), (80, 9), (150, 5)):
             pen.rectangle([x, 5, x + width - 1, 55], fill="black")
-        image.save(f"{folder}/ladder.png")
-        code, said = tool(f"{HERE}/check.py", "ladder.png", "--weights", "30", cwd=folder)
+        image.save(f"{folder}/swatch.png")
+        code, said = tool(f"{HERE}/check.py", "swatch.png", "--weights", "30", cwd=folder)
         assert code == 0, said
         assert "3@21  9@84  5@152" in said, said
 
@@ -152,7 +152,7 @@ def _():
     assert rows["focus"][1] == "1" and rows["prop"][1] == "3", rows
 
 
-@case("--census gives no verdict where it cannot count the subject, and fails a real cull")
+@case("--counts gives no verdict where it cannot count the subject, and fails a real cull")
 def _():
     with tempfile.TemporaryDirectory() as folder:
         subject = Image.new("RGB", (300, 100), PALETTE["background"])
@@ -169,11 +169,11 @@ def _():
             json.dump({"drops": {"box": [0, 0, 300, 100], "count": 4, "value": "black"},
                        "miscount": {"box": [0, 0, 300, 100], "count": 6, "value": "black"}}, handle)
         code, said = tool(f"{HERE}/check.py", "drawing.png", "--ref", "subject.png",
-                          "--census", "parts.json", cwd=folder)
+                          "--counts", "parts.json", cwd=folder)
         assert code == 1 and "FAIL culled" in said and "UNCHECKED" in said, said
 
 
-@case("--census counts thick forms, not thin ramp specks of the same value")
+@case("--counts counts thick forms, not thin ramp specks of the same value")
 def _():
     with tempfile.TemporaryDirectory() as folder:
         subject = Image.new("RGB", (1200, 800), PALETTE["background"])
@@ -190,11 +190,11 @@ def _():
         with open(f"{folder}/parts.json", "w") as handle:
             json.dump({"drops": {"box": [0, 0, 1200, 800], "count": 3, "value": "orange"}}, handle)
         code, said = tool(f"{HERE}/check.py", "drawing.png", "--ref", "subject.png",
-                          "--census", "parts.json", cwd=folder)
+                          "--counts", "parts.json", cwd=folder)
         assert code == 0 and "all agree" in said, said
 
 
-@case("--ladder lists a fill whose outline doubles back, and not one that loops the same way")
+@case("--stages lists a fill whose outline doubles back, and not one that loops the same way")
 def _():
     outer = [[0, 0], [200, 0], [200, 200], [0, 200]]
     fill = lambda points: {"op": "stroke", "stage": "fill", "closed": True, "points": points}
@@ -215,6 +215,23 @@ def _():
         missing = check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"])
         assert [gone for _, _, gone in missing] == [["chain"]], missing
         parts["_absent"] = "chain: behind the near leg"
+        json.dump(parts, open(f"{folder}/parts.json", "w"))
+        assert check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"]) == []
+
+
+@case("--checklist counts a sub-form only under its own object, and reads two objects in one block")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/ref.md", "w") as handle:
+            handle.write("```checklist\nobject: house\nsub-forms: window door\n"
+                         "object: car\nsub-forms: wheel window\n```\n")
+        parts = {"house.wall.door": {"box": [0, 0, 1, 1]},
+                 "car.body.window.rear": {"box": [0, 0, 1, 1]},
+                 "car.wheel.front": {"box": [0, 0, 1, 1]}}
+        json.dump(parts, open(f"{folder}/parts.json", "w"))
+        missing = check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"])
+        assert [(name, gone) for name, _, gone in missing] == [("house", ["window"])], missing
+        parts["house.wall.windows"] = {"box": [0, 0, 1, 1]}
         json.dump(parts, open(f"{folder}/parts.json", "w"))
         assert check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"]) == []
 
@@ -256,7 +273,7 @@ def _():
     assert not hits, hits
 
 
-@case("--depth lists an overlap no interface row decides")
+@case("--depth lists an overlap that no row decides")
 def _():
     inventory = {"a": {"box": [0, 0, 1, 1]}, "b": {"box": [0, 0, 1, 1]}}
     ops = [{"op": "stroke", "stage": "frame", "points": [[0, 0], [400, 0], [400, 400], [0, 400]]},

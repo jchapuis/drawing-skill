@@ -1,29 +1,28 @@
 #!/bin/bash
-# The blind describer. One image, a fresh process that has seen no script, no
-# subject and no notes, five fixed questions; the answer is saved beside the
-# image as <image>.describe.md so the gate leaves a file.
+# The blind describer. It takes one image and answers five fixed questions in a
+# fresh process that has seen no script, no subject and no notes. The answer is
+# saved beside the image as <image>.describe.md, so the gate leaves a file.
 #
 #   describe.sh subject.png      # at stage 0: the answers the drawing must earn
-#   describe.sh gesture.png      # gate on stage 1: does the same event read?
+#   describe.sh gesture.png      # gate on stage 1: does the same action read?
 #   describe.sh drawing.png      # gate on stage 10: same question, final render
 #   describe.sh drawing.png B    # a second run, kept as drawing.describe.B.md
 #
-# A gate runs the describer twice and keeps what both runs say, so the second
-# run is NAMED: with one output file per image, the second run overwrote the
-# first and the "two runs" were one.
+# A gate runs the describer twice and keeps what both runs say. Name the second
+# run (the B above), because each image has one output file and an unnamed
+# second run would overwrite the first.
 #
-# An answer is accepted only if it answers the five questions. The CLI can
-# exit 0 with its own error text -- a session limit, a refusal -- and that
-# text was saved as the image's description; a gate reading the file saw a
-# description. Now it is kept as <out>.err, the call is retried once, and the
-# script exits 1 with no .describe file written.
+# An answer is accepted only if it answers all five questions. The CLI can exit
+# 0 with its own error text (a session limit, a refusal), and that text must not
+# be saved as the image's description. A rejected answer is kept as <out>.err,
+# the call is retried once, and the script exits 1 with no .describe file.
 #
 # To describe a part, crop it to its own PNG first and describe that. Never
 # hand it a sheet that also shows the subject: then it is not blind.
 #
-# The describer normally answers in ~20s, but when it hangs it hangs silently
-# and takes the whole run with it, so every call is capped and retried once.
-# `timeout` is not on macOS; perl's alarm is everywhere. Override with
+# The describer normally answers in about 20s. When it hangs it gives no sign
+# and blocks the whole run, so every call is capped and retried once. `timeout`
+# is not on macOS, so the cap uses perl's alarm. Override it with
 # DESCRIBE_TIMEOUT.
 set -e
 IMAGE="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"

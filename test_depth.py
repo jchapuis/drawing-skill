@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """The depth gate, checked in both directions.
 
-A gate nobody has seen fail is not a gate. Three of the checks here have at
-some point reported clean over a drawing that was wrong, so this one is held
-against a document known to be correct and one known to be broken, and has to
-tell them apart.
+A gate that has never been seen to fail cannot be trusted. Each check here
+could report clean over a wrong drawing, so this one is run against a document
+known to be correct and one known to be broken, and has to tell them apart.
 
     python3 test_depth.py
 """

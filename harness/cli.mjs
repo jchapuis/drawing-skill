@@ -9,48 +9,48 @@
  * between calls without anything having to stay running, and the same file
  * opens in tldraw for a human to edit by hand afterwards.
  *
- * TWO THINGS ABOUT THAT, BOTH PAID FOR:
+ * Two things to know about that.
  *
- * Ops are APPENDED. A flat script that is edited and re-run appends its whole
- * history again and the drawing DOUBLES on run 2 -- a handlebar drawn twice
- * 12px apart was diagnosed for rounds as a badly-drawn fist. For a
- * script-driven drawing the persistence is a hazard, not a feature: have
- * build.sh `rm -f DOC.json` before every call, so the document is rebuilt from
- * the one flat script every time and the script stays the single source of
- * truth. pen's fixed default seed makes the hand identical run to run.
+ * Ops are appended. A flat script that is edited and re-run appends its whole
+ * history again, and the drawing doubles on the second run (for example, a
+ * handlebar drawn twice 12px apart). For a script-driven drawing the persistence
+ * is a hazard, not a feature: have build.sh `rm -f DOC.json` before every call,
+ * so the document is rebuilt from the one flat script every time and the script
+ * stays the single source of truth. pen's fixed default seed makes the hand
+ * identical from run to run.
  *
- * The PNG comes back at the browser's DEVICE PIXEL RATIO, normally 2x: a frame
- * of 928 renders 1848 wide. Every width, gap and coordinate you read off a
- * render is in RENDER pixels. Divide by (png width / frame width) before
- * comparing anything to a measurement taken off the subject, or use
- * `--scale 0.5` to pin the export to 1:1. A weight ladder read without this
- * comes back at double, which is three nibs of error.
+ * The PNG comes back at the browser's device pixel ratio, normally 2: a frame of
+ * 928 renders 1848 wide. Every width, gap and coordinate you read off a render
+ * is in render pixels. Divide by (png width / frame width) before comparing
+ * anything to a measurement taken off the subject, or use `--scale 0.5` to pin
+ * the export to 1:1. A weight swatch read without this comes back at double,
+ * which is an error of about three nib sizes.
  *
- * Three flags have traps in them, all paid for:
+ * Three flags need care:
  *
- * --only / --hide match a mark's STAGE (when in the ladder it was made) or its
- *         TAG (which object it belongs to) -- pen.stroke takes both, and they
- *         are independent axes. `--only ink,frame` is the whole panel's ink;
- *         `--only bike,frame` is the bicycle at every stage; and
- *         `--only bike,blockin,frame` is the bicycle over the composition
+ * --only / --hide match a mark's stage (when in the stage sequence it was made)
+ *         or its tag (which object it belongs to). pen.stroke takes both, and
+ *         they are independent. `--only ink,frame` is the whole picture's ink;
+ *         `--only bike,frame` is the object tagged `bike` at every stage; and
+ *         `--only bike,blockin,frame` is that object over the composition
  *         rough, which is the view a detail pass on one object needs.
- * --only  is --hide's complement: keep these stages, drop the rest. It is what
- *         a study is made of -- one object worked to full depth over a faded
- *         composition rough, without leaving the panel's coordinate space, so
- *         it is registered from its first mark. INCLUDE `frame` IN THE LIST,
- *         or the render bounds collapse to the shapes you kept and every crop
- *         taken against it means something different.
- * --padding 0  makes the frame clip as well as pin. Contours then run past it,
- *         as they should, and fall off the edge instead of dragging the border
- *         out and leaving a margin of bare paper the drawing never reaches.
- *         Use it with pen.frame() whenever working from a reference, so every
- *         render shares the subject's coordinate space and overlay is exact.
+ * --only  is --hide's complement: keep these stages, drop the rest. It makes a
+ *         study: one object worked to full depth over a faded composition
+ *         rough, in the picture's own coordinate space, so it is registered
+ *         from its first mark. Include `frame` in the list, or the render
+ *         bounds collapse to the shapes you kept and every crop taken against
+ *         it means something different.
+ * --padding 0  makes the frame clip as well as pin. Contours then run past it
+ *         and fall off the edge, instead of dragging the border out and leaving
+ *         a margin of bare paper the drawing never reaches. Use it with
+ *         pen.frame() whenever working from a reference, so every render shares
+ *         the subject's coordinate space and overlay is exact.
  * --palette  repoints any of the 13 stock colour names at a real hex value:
  *         black grey light-violet violet blue light-blue yellow orange green
  *         light-green light-red red white. Any other name is refused.
  *         `background` is repointable too, but it is the ground, not a
- *         fourteenth colour: a mark may not use it. Measure it off the subject
- *         -- see pen.write's docstring for what a wrong ground costs.
+ *         fourteenth colour: a mark may not use it. Measure it off the subject.
+ *         See pen.write's docstring for what a wrong ground costs.
  */
 import { createServer } from 'node:http'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -168,8 +168,8 @@ async function main() {
       console.log(`applied ${ops.length} ops, ${made.length} new strokes`)
     }
 
-    const census = await page.evaluate(() => window.canvas.census())
-    console.log('on the page:', JSON.stringify(census))
+    const shapeCounts = await page.evaluate(() => window.canvas.shapeCounts())
+    console.log('on the page:', JSON.stringify(shapeCounts))
 
     await writeFile(docPath, JSON.stringify(await page.evaluate(() => window.canvas.save())))
 
