@@ -20,6 +20,10 @@
 # To describe a part, crop it to its own PNG first and describe that. Never
 # hand it a sheet that also shows the subject: then it is not blind.
 #
+# It runs with the Read tool only and no MCP servers (--strict-mcp-config):
+# otherwise the CLI appends notes about connected services to the answer, and
+# those notes pass the five-answer check and land in the saved file.
+#
 # The describer normally answers in about 20s. When it hangs it gives no sign
 # and blocks the whole run, so every call is capped and retried once. `timeout`
 # is not on macOS, so the cap uses perl's alarm. Override it with
@@ -41,7 +45,7 @@ Answer each in one to three plain sentences:
 
 ask() {
   perl -e 'alarm shift; exec @ARGV or exit 127' "$TIMEOUT" \
-    claude -p "$PROMPT" --model sonnet --allowedTools Read
+    claude -p "$PROMPT" --model sonnet --tools Read --allowedTools Read --strict-mcp-config
 }
 
 # an answer has all five numbered answers; anything else is the CLI talking
