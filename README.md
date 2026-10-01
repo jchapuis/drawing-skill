@@ -249,6 +249,8 @@ describe.sh       the blind describer: five fixed questions, no script
 check.py          the gates -- masses, overlay, scan, zoom, weights,
                     doubled, depth, checklist, counts, ranking, stages,
                     registration, unfilled, faces
+finish.py         turns drawing.png into final.png: medium, paper,
+                    sketch construction, scan look (style.json)
 build.sh          runs draw.py, audits the stages, renders every stage
 harness/          the tldraw canvas, driven from the command line
 docs/             the images in this README

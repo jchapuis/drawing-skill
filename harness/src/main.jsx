@@ -1,13 +1,33 @@
 import { createRoot } from 'react-dom/client'
 import {
   Box,
+  Circle2d,
   DefaultColorThemePalette,
+  DrawShapeUtil,
+  Polygon2d,
+  Polyline2d,
+  STROKE_SIZES,
+  SVGContainer,
   Tldraw,
   createShapeId,
   getSnapshot,
+  last,
   loadSnapshot,
+  useDefaultColorTheme,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
+// tldraw does not export the pieces its draw shape is built from, so they are
+// imported from the files themselves. They are the same module instances the
+// package uses, read and never changed.
+import {
+  getFreehandOptions,
+  getPointsFromSegments,
+} from '../node_modules/tldraw/dist-esm/lib/shapes/draw/getPath.mjs'
+import { getStrokePoints } from '../node_modules/tldraw/dist-esm/lib/shapes/shared/freehand/getStrokePoints.mjs'
+import { getSvgPathFromStrokePoints } from '../node_modules/tldraw/dist-esm/lib/shapes/shared/freehand/svg.mjs'
+import { svgInk } from '../node_modules/tldraw/dist-esm/lib/shapes/shared/freehand/svgInk.mjs'
+import { ShapeFill } from '../node_modules/tldraw/dist-esm/lib/shapes/shared/ShapeFill.mjs'
+import { getFillDefForExport } from '../node_modules/tldraw/dist-esm/lib/shapes/shared/defaultStyleDefs.mjs'
 
 // Every mark carries the stage that made it, so a later stage can fade the
 // construction back or wipe it entirely -- the pencil under the ink.
@@ -196,11 +216,218 @@ function apply(editor, ops) {
   return made
 }
 
+// tldraw smooths every pen stroke with a fixed streamline and smoothing of
+// 0.62. That irons out anything a few pixels across: a hook at the start of a
+// fast stroke, a wobble, a small overshoot. `?streamline=X` in the page address
+// swaps in this draw shape, which is tldraw's own one with those two numbers set
+// to X (lower keeps more of the points as given). Without it the stock shape
+// draws, so every render is exactly what it was.
+const STREAMLINE = (() => {
+  const raw = new URLSearchParams(window.location.search).get('streamline')
+  if (raw === null) return null
+  const value = Number(raw)
+  if (!(value >= 0 && value <= 1)) throw new Error(`streamline must be 0..1, got ${raw}`)
+  return value
+})()
+
+function freehand(props, width, complete, solid) {
+  return { ...getFreehandOptions(props, width, complete, solid), streamline: STREAMLINE, smoothing: STREAMLINE }
+}
+
+function strokeWidth(shape) {
+  return (STROKE_SIZES[shape.props.size] + 1) * shape.props.scale
+}
+
+// tldraw's DrawShapeSvg as it runs for an export (at zoom 1, so never forced
+// solid), with `freehand` in place of its options
+function LooseDrawSvg({ shape }) {
+  const theme = useDefaultColorTheme()
+  const points = getPointsFromSegments(shape.props.segments)
+  const complete = shape.props.isComplete || last(shape.props.segments)?.type === 'straight'
+  const width = strokeWidth(shape)
+  const options = freehand(shape.props, width, complete, false)
+  if (shape.props.dash === 'draw') {
+    return (
+      <>
+        {shape.props.isClosed && shape.props.fill && points.length > 1 ? (
+          <ShapeFill
+            d={getSvgPathFromStrokePoints(getStrokePoints(points, options), shape.props.isClosed)}
+            theme={theme}
+            color={shape.props.color}
+            fill={shape.props.isClosed ? shape.props.fill : 'none'}
+            scale={shape.props.scale}
+          />
+        ) : null}
+        <path d={svgInk(points, options)} strokeLinecap="round" fill={theme[shape.props.color].solid} />
+      </>
+    )
+  }
+  const strokePoints = getStrokePoints(points, options)
+  const dot = strokePoints.length < 2
+  const outline = dot
+    ? `M ${points[0].x} ${points[0].y} m -0.5, 0 a 0.5,0.5 0 1,0 1,0 a 0.5,0.5 0 1,0 -1,0`
+    : getSvgPathFromStrokePoints(strokePoints, shape.props.isClosed)
+  const dashes = { draw: 'none', solid: 'none', dotted: `0.1 ${width * 2}`, dashed: `${width * 2} ${width * 2}` }
+  return (
+    <>
+      <ShapeFill
+        d={outline}
+        theme={theme}
+        color={shape.props.color}
+        fill={dot || shape.props.isClosed ? shape.props.fill : 'none'}
+        scale={shape.props.scale}
+      />
+      <path
+        d={outline}
+        strokeLinecap="round"
+        fill={dot ? theme[shape.props.color].solid : 'none'}
+        stroke={theme[shape.props.color].solid}
+        strokeWidth={width}
+        strokeDasharray={dot ? 'none' : dashes[shape.props.dash]}
+        strokeDashoffset="0"
+      />
+    </>
+  )
+}
+
+class LooseDrawShapeUtil extends DrawShapeUtil {
+  getGeometry(shape) {
+    const points = getPointsFromSegments(shape.props.segments)
+    const width = strokeWidth(shape)
+    if (shape.props.segments.length === 1) {
+      const box = Box.FromPoints(points)
+      if (box.width < width * 2 && box.height < width * 2) {
+        return new Circle2d({ x: -width, y: -width, radius: width, isFilled: true })
+      }
+    }
+    const outline = getStrokePoints(points, freehand(shape.props, width, shape.props.isPen, true))
+      .map((point) => point.point)
+    if (shape.props.isClosed && outline.length > 2) {
+      return new Polygon2d({ points: outline, isFilled: shape.props.fill !== 'none' })
+    }
+    if (outline.length === 1) {
+      return new Circle2d({ x: -width, y: -width, radius: width, isFilled: true })
+    }
+    return new Polyline2d({ points: outline })
+  }
+
+  component(shape) {
+    return (
+      <SVGContainer>
+        <LooseDrawSvg shape={shape} />
+      </SVGContainer>
+    )
+  }
+
+  toSvg(shape, ctx) {
+    ctx.addExportDef(getFillDefForExport(shape.props.fill))
+    return (
+      <g transform={`scale(${1 / shape.props.scale})`}>
+        <LooseDrawSvg shape={shape} />
+      </g>
+    )
+  }
+}
+
+// Move every shape of a stage by (dx, dy) page units for one export, in place,
+// so its order in the stack is kept: a flat moved off its line still sits under
+// the ink it sat under. Gives back the undo.
+function offset(editor, shifts) {
+  const moved = []
+  for (const { stage, dx, dy } of shifts ?? []) {
+    for (const shape of byStage(editor, stage)) {
+      moved.push({ id: shape.id, type: shape.type, x: shape.x, y: shape.y })
+      editor.updateShapes([{ id: shape.id, type: shape.type, x: shape.x + dx, y: shape.y + dy }])
+    }
+  }
+  return () => editor.updateShapes(moved)
+}
+
+const SHAPE_UTILS = STREAMLINE === null ? [] : [LooseDrawShapeUtil]
+
 function App() {
   return (
     <Tldraw
+      shapeUtils={SHAPE_UTILS}
       onMount={(editor) => {
         window.editor = editor
+        const exportShapes = async (options) => {
+          // Hiding a stage renders the rest of the drawing without it. The
+          // load-bearing case is the line-off test: if the flats alone no
+          // longer separate foreground from background, the colour design has
+          // failed and no amount of rendering will rescue it.
+          const hide = new Set(options.hide ?? [])
+          // `only` is the complement: keep these and nothing else.
+          //
+          // Both filters match a mark's STAGE (when in the stages it was made)
+          // or its TAG (which object it belongs to), because a name is looked
+          // up in both sets. The two axes are independent, so one flag covers
+          // "just the ink", "just the bicycle", and "the bicycle over the
+          // composition rough" -- the last being a view of one object worked
+          // in place, which is what a detail pass on a scene needs.
+          const named = (shape) => [shape.meta?.stage, shape.meta?.tag]
+            .filter((name) => name)
+          const only = new Set(options.only ?? [])
+          const all = editor.getCurrentPageShapes()
+          const shapes = all
+            .filter((shape) => only.size === 0 || named(shape).some((name) => only.has(name)))
+            .filter((shape) => !named(shape).some((name) => hide.has(name)))
+            .map((shape) => shape.id)
+          if (shapes.length === 0) return null
+          const scale = options.scale ?? 1
+          const padding = options.padding ?? 32
+          // With the frame as the picture's edge, export exactly its bounds
+          // and leave the frame itself out: drawn, its stroke took the colour
+          // its stock name was repointed to, and a palette that spent that
+          // name on a dark flat framed every render in a 3px line
+          const frame = all.find((shape) => shape.meta?.stage === 'frame')
+          const held = frame && editor.getShapePageBounds(frame)
+          if (held && padding === 0 && !options.crop) {
+            const drawn = shapes.filter((id) => id !== frame.id)
+            if (drawn.length === 0) return null
+            const { blob } = await editor.toImage(drawn, {
+              format: 'png',
+              background: true,
+              scale,
+              padding: 0,
+              darkMode: false,
+              bounds: held,
+              pixelRatio: 2,
+            })
+            const ratio = 2 * scale
+            const size = [Math.round(held.w * ratio), Math.round(held.h * ratio)]
+            return encode(await redraw(blob, { ...options, size }))
+          }
+          const { blob } = await editor.toImage(shapes, {
+            format: 'png',
+            background: true,
+            scale,
+            padding,
+            darkMode: false,
+          })
+          // The frame is what the picture is; anything drawn past it is
+          // overrun, and a contour is *supposed* to overrun where it leaves
+          // the picture, so that the flat trapped under it stays covered
+          // right to the edge. But the export takes the union of every shape,
+          // so a single overrunning stroke drags the border out and leaves a
+          // margin of bare paper the drawing never reaches. Clip to the frame
+          // and the overruns fall off the edge, which is where they were
+          // aimed.
+          const edge = all.find((shape) => shape.meta?.stage === 'frame')
+          let crop = options.crop
+          let pageWidth = null
+          if (edge && !crop && padding === 0) {
+            const held = editor.getShapePageBounds(edge)
+            const spread = Box.Common(
+              shapes.map((id) => editor.getShapePageBounds(id)).filter(Boolean)
+            )
+            if (held && spread) {
+              crop = [held.x - spread.x, held.y - spread.y, held.w, held.h]
+              pageWidth = spread.w
+            }
+          }
+          return encode(await redraw(blob, { ...options, crop, pageWidth }))
+        }
         window.canvas = {
           apply: (ops) => apply(editor, ops),
           repaint,
@@ -213,81 +440,12 @@ function App() {
               return tally
             }, {}),
           shot: async (options = {}) => {
-            // Hiding a stage renders the rest of the drawing without it. The
-            // load-bearing case is the line-off test: if the flats alone no
-            // longer separate foreground from background, the colour design has
-            // failed and no amount of rendering will rescue it.
-            const hide = new Set(options.hide ?? [])
-            // `only` is the complement: keep these and nothing else.
-            //
-            // Both filters match a mark's STAGE (when in the stages it was made)
-            // or its TAG (which object it belongs to), because a name is looked
-            // up in both sets. The two axes are independent, so one flag covers
-            // "just the ink", "just the bicycle", and "the bicycle over the
-            // composition rough" -- the last being a view of one object worked
-            // in place, which is what a detail pass on a scene needs.
-            const named = (shape) => [shape.meta?.stage, shape.meta?.tag]
-              .filter((name) => name)
-            const only = new Set(options.only ?? [])
-            const all = editor.getCurrentPageShapes()
-            const shapes = all
-              .filter((shape) => only.size === 0 || named(shape).some((name) => only.has(name)))
-              .filter((shape) => !named(shape).some((name) => hide.has(name)))
-              .map((shape) => shape.id)
-            if (shapes.length === 0) return null
-            const scale = options.scale ?? 1
-            const padding = options.padding ?? 32
-            // With the frame as the picture's edge, export exactly its bounds
-            // and leave the frame itself out: drawn, its stroke took the colour
-            // its stock name was repointed to, and a palette that spent that
-            // name on a dark flat framed every render in a 3px line
-            const frame = all.find((shape) => shape.meta?.stage === 'frame')
-            const held = frame && editor.getShapePageBounds(frame)
-            if (held && padding === 0 && !options.crop) {
-              const drawn = shapes.filter((id) => id !== frame.id)
-              if (drawn.length === 0) return null
-              const { blob } = await editor.toImage(drawn, {
-                format: 'png',
-                background: true,
-                scale,
-                padding: 0,
-                darkMode: false,
-                bounds: held,
-                pixelRatio: 2,
-              })
-              const ratio = 2 * scale
-              const size = [Math.round(held.w * ratio), Math.round(held.h * ratio)]
-              return encode(await redraw(blob, { ...options, size }))
+            const undo = offset(editor, options.offset)
+            try {
+              return await exportShapes(options)
+            } finally {
+              undo()
             }
-            const { blob } = await editor.toImage(shapes, {
-              format: 'png',
-              background: true,
-              scale,
-              padding,
-              darkMode: false,
-            })
-            // The frame is what the picture is; anything drawn past it is
-            // overrun, and a contour is *supposed* to overrun where it leaves
-            // the picture, so that the flat trapped under it stays covered
-            // right to the edge. But the export takes the union of every shape,
-            // so a single overrunning stroke drags the border out and leaves a
-            // margin of bare paper the drawing never reaches. Clip to the frame
-            // and the overruns fall off the edge, which is where they were
-            // aimed.
-            const edge = all.find((shape) => shape.meta?.stage === 'frame')
-            let crop = options.crop
-            let pageWidth = null
-            if (edge && !crop && padding === 0) {
-              const held = editor.getShapePageBounds(edge)
-              const spread = Box.Common(
-                shapes.map((id) => editor.getShapePageBounds(id)).filter(Boolean)
-              )
-              if (held && spread) {
-                crop = [held.x - spread.x, held.y - spread.y, held.w, held.h]
-                pageWidth = spread.w
-              }
-            }
-            return encode(await redraw(blob, { ...options, crop, pageWidth }))
           },
         }
         window.canvasReady = true

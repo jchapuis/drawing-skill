@@ -41,23 +41,222 @@ _HAND = np.random.default_rng(11)
 
 
 _SEED = 11
+_SEED_GIVEN = False
 
 
 def seed(value):
     """Re-seed the hand. The same seed gives the same drawing; a different seed
-    gives the same drawing with different small variations."""
-    global _SEED
-    _SEED = value
+    gives the same drawing with different small variations. A seed set here wins
+    over the one in style.json."""
+    global _SEED, _SEED_GIVEN
+    _SEED, _SEED_GIVEN = value, True
 
 
-def _hand_for(points, stage, tag):
+def _hand_for(points, stage, tag, *salt):
     """A hand seeded by the mark itself, so editing one stroke changes only that
     stroke. With one running generator, inserting or deleting a mark would
     reshuffle the jitter of every mark after it, and a gate that had passed on
-    the far side of the picture could fail again."""
+    the far side of the picture could fail again.
+
+    `salt` gives a second, independent hand for the same mark. The style draws
+    from that one, so turning a style on never changes the draws the plain hand
+    makes."""
     key = zlib.crc32(repr((stage, tag, [tuple(round(float(c), 1) for c in p[:2])
                                         for p in points])).encode())
-    return np.random.default_rng([_SEED, key])
+    return np.random.default_rng([_SEED, key, *salt])
+
+
+# --- the style of the hand ---------------------------------------------------
+#
+# `style.json` beside draw.py says whose hand this is: how loose, which hand, in
+# what medium. It changes only how a point list lands: where its ends fall,
+# which way it is drawn, how it presses. It never adds a mark, moves a control
+# point or invents one. With no style the pen draws exactly as it always has.
+#
+# `finish`, `paper` and `scan` are read by finish.py, not here. They are checked
+# here so that a typo fails on the first stroke instead of after the render.
+
+STYLE_CHOICES = {
+    "medium": ("ink-pen", "brush-pen", "pencil", "marker", "watercolour+ink", "gouache"),
+    "finish": ("clean", "sketch"),
+    "handedness": ("right", "left"),
+    "paper": ("none", "smooth", "cold-press", "newsprint", "sketchbook"),
+}
+STYLE_KEYS = ("medium", "hand", "finish", "handedness", "paper", "scan", "seed")
+
+# What each medium draws with when the stroke does not name a tool. The second
+# entry adjusts that instrument for the medium. A marker has no taper because
+# its felt tip lays full width from the moment it touches.
+MEDIA = {
+    "ink-pen": ("brush", {"press": 0.6}),     # a nib swells less than a brush
+    "brush-pen": ("brush", {}),
+    "pencil": ("pencil", {}),
+    "marker": ("marker", {"taper": False}),
+    "watercolour+ink": ("brush", {}),
+    "gouache": ("gouache", {}),
+}
+
+# The stages whose ends a viewer reads as the drawing's own line. Construction
+# and fills are not drawn as finished line, so they get no hook, blob or gap.
+INKED = ("ink", "correct")
+
+_STYLE = None          # None until looked for; {} when there is no style
+
+
+def _checked(spec, where):
+    if not isinstance(spec, dict):
+        raise ValueError(f"{where}: a style is a JSON object of settings, got {type(spec).__name__}")
+    unknown = sorted(set(spec) - set(STYLE_KEYS))
+    if unknown:
+        raise ValueError(f"{where}: unknown style key(s) {unknown}; the known keys are {list(STYLE_KEYS)}")
+    for key, allowed in STYLE_CHOICES.items():
+        if key in spec and spec[key] not in allowed:
+            raise ValueError(f"{where}: {key} {spec[key]!r} is not one of {list(allowed)}")
+    if "hand" in spec:
+        hand = spec["hand"]
+        if isinstance(hand, bool) or not isinstance(hand, (int, float)) or not 0.0 <= hand <= 1.0:
+            raise ValueError(f"{where}: hand {hand!r} must be a number from 0 (tight) to 1 (loose)")
+    if "scan" in spec and not isinstance(spec["scan"], bool):
+        raise ValueError(f"{where}: scan {spec['scan']!r} must be true or false")
+    if "seed" in spec and (isinstance(spec["seed"], bool) or not isinstance(spec["seed"], int)):
+        raise ValueError(f"{where}: seed {spec['seed']!r} must be a whole number")
+    return dict(spec)
+
+
+def style(spec):
+    """Set the style: a dict, or the path of a JSON file. `None` clears it, and
+    the pen goes back to drawing as it does with no style.json.
+
+    Without this call, the first stroke reads `style.json` from the working
+    directory if there is one. An unknown key or value stops the drawing with
+    the reason, because a misspelt setting that is silently ignored gives a
+    drawing in a style nobody asked for.
+    """
+    global _STYLE, _SEED
+    if spec is None:
+        _STYLE = {}
+        return _STYLE
+    where = "style"
+    if isinstance(spec, (str, os.PathLike)):
+        where = os.fspath(spec)
+        try:
+            with open(spec) as handle:
+                spec = json.load(handle)
+        except json.JSONDecodeError as error:
+            raise ValueError(f"{where}: not valid JSON ({error})") from error
+    _STYLE = _checked(spec, where)
+    if "seed" in _STYLE and not _SEED_GIVEN:
+        _SEED = _STYLE["seed"]
+    return _STYLE
+
+
+def _style():
+    if _STYLE is None:
+        return style("style.json") if os.path.exists("style.json") else style(None)
+    return _STYLE
+
+
+def _looseness(spec):
+    """How much a styled hand varies, as a multiple of the plain pen.
+
+    `hand` 0.5 is the plain pen (1x). 0 is a careful hand at a quarter of that,
+    never none, because a hand with no variation at all is a plotter. 1 is a
+    loose one at 1.75x."""
+    return 0.25 + 1.5 * float(spec.get("hand", 0.5))
+
+
+def _pull(points, closed, handedness, chance):
+    """Put the points in the order the hand would draw them.
+
+    A right hand pulls a line from left to right, and a near-vertical one from
+    top to bottom. Most left-handers pull horizontals from right to left. The
+    points stay the same points and the line passes through each of them; only
+    where it starts, and so where the lead and tail taper fall, changes.
+
+    A closed loop has no ends, but it has a direction. Right-handers draw a
+    circle anticlockwise in all but about 1% of cases, left-handers clockwise in
+    about 39%. `chance` is a draw from 0 to 1 that picks which this loop is. The
+    loop keeps its first point and runs the other way round.
+    """
+    if len(points) < 2:
+        return points
+    if closed:
+        if len(points) < 3:
+            return points
+        xs = np.asarray([float(p[0]) for p in points])
+        ys = np.asarray([float(p[1]) for p in points])
+        # with y pointing down the page, a positive shoelace sum runs clockwise
+        clockwise = float(np.sum(xs * np.roll(ys, -1) - np.roll(xs, -1) * ys)) > 0
+        wanted = chance < (0.01 if handedness == "right" else 0.39)
+        return points if clockwise == wanted else [points[0]] + list(points[:0:-1])
+    dx = float(points[-1][0]) - float(points[0][0])
+    dy = float(points[-1][1]) - float(points[0][1])
+    if abs(dy) > 1.7 * abs(dx):            # within about 30 degrees of vertical
+        backwards = dy < 0
+    else:
+        backwards = dx < 0 if handedness == "right" else dx > 0
+    return list(points[::-1]) if backwards else points
+
+
+def _arc(points):
+    steps = np.linalg.norm(np.diff(points, axis=0), axis=1)
+    return np.concatenate([[0.0], np.cumsum(steps)])
+
+
+def _fall_short(points, speed, gap, at_start):
+    """Stop `gap` pixels before the end, where a line meets the one it runs into.
+
+    A drawing whose every junction closes exactly reads as assembled. A hand
+    lifts a little early, and leaves a hair of paper between the two lines. The
+    end is cut back along the line, so the mark is shorter, not moved.
+    """
+    if at_start:
+        points, speed = points[::-1], speed[::-1]
+    along = _arc(points)
+    total = along[-1]
+    if total <= gap * 3:
+        return (points[::-1], speed[::-1]) if at_start else (points, speed)
+    stop = total - gap
+    keep = int(np.searchsorted(along, stop, side="right"))
+    before, after = points[keep - 1], points[keep]
+    t = (stop - along[keep - 1]) / max(along[keep] - along[keep - 1], 1e-9)
+    end = before + (after - before) * t
+    points = np.vstack([points[:keep], end])
+    speed = np.concatenate([speed[:keep], speed[keep:keep + 1]])
+    return (points[::-1], speed[::-1]) if at_start else (points, speed)
+
+
+def _hook(points, size, turn):
+    """The curl a fast stroke starts with.
+
+    A stroke is a sum of overlapping velocity pulses that each rise and fall on
+    a lognormal curve (the sigma-lognormal model of handwriting). When the hand
+    sets off fast, the first pulse is still turning the pen into its direction
+    as it touches down, and the line starts with a small hook off its axis.
+    `size` is how far off the axis the first point sits, in pixels; the curl
+    eases back onto the line over the first few pixels.
+    """
+    along = _arc(points)
+    reach = min(4.0 * size, along[-1] / 4.0)
+    if reach <= 0 or size <= 0:
+        return points
+    near = along < reach
+    fade = (1.0 - along[near] / reach) ** 2
+    out = points.copy()
+    out[near] += _normals(points)[near] * (turn * size * fade)[:, None]
+    return out
+
+
+def _blob(press, points, size):
+    """The ink a slow start leaves behind.
+
+    When the hand sets down and then gathers speed slowly, the pen dwells on
+    its first point and the line opens with a small dot of extra ink. `size` is
+    the extra pressure at the first point; it fades over the first few pixels.
+    """
+    along = _arc(points)
+    reach = max(3.0, min(10.0, along[-1] / 6.0))
+    return np.clip(press + size * np.exp(-along / (reach / 2.0)), 0.0, 1.0)
 
 
 # --- the shape you asked for -------------------------------------------------
@@ -345,6 +544,11 @@ INSTRUMENTS = {
     # paint is thicker, and it never tapers to nothing, because a bead of paint
     # has width from the moment it touches.
     "gouache": dict(dash="draw", press=0.55, passes=1, alpha=1.0, spread=0.0, floor=0.45),
+    # graphite: pressure changes how dark it is more than how wide, and tldraw
+    # can vary only width, so the swing is small and the mark slightly see-
+    # through. It still tapers, but not to nothing, because a lead point has a
+    # width of its own.
+    "pencil": dict(dash="draw", press=0.35, passes=1, alpha=0.85, spread=0.0, floor=0.2),
 }
 
 
@@ -388,8 +592,8 @@ def trap_outward(points, distance):
     return [(float(x), float(y)) + tuple(p[2:]) for (x, y), p in zip(moved, points)]
 
 
-def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
-           tail=0.22, smooth=True, per_span=12, hand=1.0, tool="brush", nib=None,
+def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
+           tail=None, smooth=True, per_span=12, hand=1.0, tool=None, nib=None,
            trap=None, **look):
     """One mark. `points` are your decisions; everything else is the hand.
 
@@ -429,7 +633,18 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
       never what rendered. Pin `size`/`scale` on every flat.
     - Flats need `tool="flat"`. At any translucency every overlap shows as a
       seam.
+
+    The style (see `style`) changes only how these points land. `hand` scales
+    the drift, the run-on and the weight from mark to mark, and on ink and
+    correction marks it can leave a small gap at an end and starts the line
+    with a hook (fast) or a blob (slow). `handedness` sets which end the line is
+    drawn from. `medium` picks the tool when you did not name one. A `tool`,
+    `lead` or `tail` you pass always wins.
     """
+    explicit = {"tool": tool is not None, "lead": lead is not None, "tail": tail is not None}
+    tool = "brush" if tool is None else tool
+    lead = 0.18 if lead is None else lead
+    tail = 0.22 if tail is None else tail
     if tool == "pen" and (lead, tail) != (0.18, 0.22):
         # the technical pen draws at constant pressure, so a lead or tail would
         # be ignored and a line meant to end in a point would end square
@@ -449,7 +664,20 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
 
     global _HAND
     _HAND = _hand_for(points, stage, tag)
+    styled = _style()
     kit = INSTRUMENTS.get(tool, INSTRUMENTS["brush"])
+    loose = 1.0
+    if styled:
+        loose = _looseness(styled)
+        mine = _hand_for(points, stage, tag, 1)   # the style's own draws
+        if styled.get("medium") and not explicit["tool"] and stage != "frame":
+            tool, adjust = MEDIA[styled["medium"]]
+            kit = dict(INSTRUMENTS[tool], **{k: v for k, v in adjust.items() if k != "taper"})
+            if adjust.get("taper") is False:
+                lead = 0.0 if not explicit["lead"] else lead
+                tail = 0.0 if not explicit["tail"] else tail
+        if stage != "frame" and tool != "flat":
+            points = _pull(points, closed, styled.get("handedness", "right"), float(mine.random()))
     if nib:
         step, thickness = WEIGHTS[nib]
         look.setdefault("size", step)
@@ -474,18 +702,47 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=0.18,
     speed = _speed(body)
     reach = float(np.linalg.norm(np.diff(body, axis=0), axis=1).sum())
     # a short mark has no room to wander; scale the imprecision to the gesture
-    amount = hand * min(1.9, 0.4 + reach / 700.0)
+    amount = hand * loose * min(1.9, 0.4 + reach / 700.0)
+
+    # The style's end dynamics, decided once per mark so that every pass of a
+    # crayon ends and starts alike. Only open ink marks get them, and only from
+    # a hand that is not ruling a line (`hand` > 0).
+    gaps, hook, blob = [0.0, 0.0], 0.0, 0.0
+    if styled and stage in INKED and not closed and hand > 0:
+        looseness = float(styled.get("hand", 0.5))
+        for end in (0, 1):
+            if mine.random() < 0.3 * looseness:
+                gaps[end] = 1.0 + 3.0 * float(mine.random())
+        # 1 px on a short tight mark up to 3 px on a long loose one
+        size = min(3.0, hand * (1.0 + 2.0 * looseness) * min(1.0, 0.4 + reach / 250.0))
+        turn = 1.0 if mine.random() < 0.5 else -1.0
+        start = float(speed[0])
+        if speed.max() < 1e-6 or start >= 0.5:   # a straight line is drawn fast
+            hook = size * turn
+        elif start <= 0.25:
+            blob = 0.12 * size
 
     marks = []
     for pass_index in range(kit["passes"]):
         laid = _drift(body, speed, amount + kit["spread"] * pass_index)
         if not closed and hand > 0:
+            drifted = laid
             laid = np.asarray(_run_on(laid, speed, amount), dtype=float)
+        pace = speed
+        for end, gap in enumerate(gaps):
+            if gap:
+                # an end that stops short does not also carry past its target
+                laid[-end] = drifted[-end]
+                laid, pace = _fall_short(laid, pace, gap, at_start=end == 0)
+        if hook:
+            laid = _hook(laid, abs(hook), math.copysign(1.0, hook))
         # A technical pen has no pressure response: flat z, uniform width. A
         # brush has all of it. `press` scales between those two extremes.
-        lively = _pressure(speed, lead, tail,
-                           weight * (1.0 + float(_HAND.normal(0, 0.07 * hand))),
+        lively = _pressure(pace, lead, tail,
+                           weight * (1.0 + float(_HAND.normal(0, 0.07 * hand * loose))),
                            kit.get("floor", 0.0))
+        if blob:
+            lively = _blob(lively, laid, blob)
         flat = np.full(len(lively), float(np.clip(weight * 0.72, 0.12, 1.0)))
         press = flat + (lively - flat) * kit["press"]
         marks.append(_emit(laid, press, stage, tag, closed, dict(look)))

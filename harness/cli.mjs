@@ -51,6 +51,15 @@
  *         `background` is repointable too, but it is the ground, not a
  *         fourteenth colour: a mark may not use it. Measure it off the subject.
  *         See pen.write's docstring for what a wrong ground costs.
+ *
+ * Two flags are for the finished look (finish.py), never for a gate render:
+ *
+ * --offset STAGE:dx,dy  moves every mark of that stage by dx,dy page units for
+ *         this render only, keeping its place in the stack. `--offset fill:2,1`
+ *         puts the colour a little off the line, as a hand colouring in does,
+ *         while a flat that was under the ink stays under it. Repeatable.
+ * --streamline X  sets the smoothing tldraw puts on every stroke (fixed at
+ *         0.62) to X in 0..1. Lower keeps small hooks and wobbles the pen gave.
  */
 import { createServer } from 'node:http'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -106,6 +115,20 @@ function flags(name) {
   return found
 }
 
+// `--offset fill:2,-1`, repeatable. Parsed apart from `flags`, whose comma split
+// would cut a shift in half
+function offsets() {
+  const found = []
+  process.argv.forEach((word, at) => {
+    if (word !== '--offset') return
+    const raw = process.argv[at + 1] ?? ''
+    const match = raw.match(/^([\w-]+):(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/)
+    if (!match) throw new Error(`--offset wants STAGE:dx,dy, got '${raw}'`)
+    found.push({ stage: match[1], dx: Number(match[2]), dy: Number(match[3]) })
+  })
+  return found
+}
+
 async function main() {
   const docPath = process.argv[2]
   if (!docPath || docPath.startsWith('--')) {
@@ -114,7 +137,8 @@ async function main() {
       '                    [--scale N] [--flip] [--squint PX] [--crop x,y,w,h]\n' +
       '                    [--palette colours.json] [--padding N]\n' +
       '                    [--hide stage]...  (repeatable, or one comma list)\n' +
-      '                    [--only stage]...  keep ONLY these stages (a study)'
+      '                    [--only stage]...  keep ONLY these stages (a study)\n' +
+      '                    [--offset STAGE:dx,dy]...  [--streamline X]'
     )
     process.exit(2)
   }
@@ -132,6 +156,11 @@ async function main() {
   const padding = Number(flag('padding', '32'))
   const hide = flags('hide')
   const only = flags('only')
+  const offset = offsets()
+  const streamline = flag('streamline')
+  if (streamline !== null && !(Number(streamline) >= 0 && Number(streamline) <= 1)) {
+    throw new Error(`--streamline wants a number in 0..1, got '${streamline}'`)
+  }
 
   const { server, port } = await serve()
   const browser = await chromium.launch()
@@ -143,7 +172,8 @@ async function main() {
   })
 
   try {
-    await page.goto(`http://localhost:${port}/`)
+    const query = streamline === null ? '' : `?streamline=${Number(streamline)}`
+    await page.goto(`http://localhost:${port}/${query}`)
     await page.waitForFunction('window.canvasReady === true', { timeout: 30000 })
 
     const palettePath = flag('palette')
@@ -176,7 +206,7 @@ async function main() {
     if (pngPath) {
       const encoded = await page.evaluate(
         (options) => window.canvas.shot(options),
-        { scale, flip, squint, crop, padding, hide, only }
+        { scale, flip, squint, crop, padding, hide, only, offset }
       )
       if (encoded === null) {
         console.log('nothing on the page to render')

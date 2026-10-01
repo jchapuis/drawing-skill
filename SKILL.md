@@ -867,6 +867,46 @@ wherever a nearer pale form sits inside it, so check by eye what the run crossed
   restating the edge to silence it puts back the fault the other gate exists to
   catch.
 
+## Style: making it look drawn by a person
+
+The gates judge a clean tldraw render, and that render looks like vector art:
+flat colour, even ground, every line meeting exactly. A `style.json` beside
+`draw.py` changes how your marks land and how the finished picture is
+rendered. It never adds a mark. Without the file nothing changes.
+
+```json
+{"medium": "watercolour+ink", "hand": 0.5, "finish": "clean",
+ "handedness": "right", "paper": "cold-press", "scan": true, "seed": 11}
+```
+
+| key | values | what it changes |
+|---|---|---|
+| `medium` | `ink-pen`, `brush-pen`, `pencil`, `marker`, `watercolour+ink`, `gouache` | the default instrument in `pen.py` (an explicit `tool=` wins), and how `finish.py` puts colour and line on the paper |
+| `hand` | 0 (tight) to 1 (loose); 0.5 is the default hand | drift, overshoot, lines that stop 1–4px short of the line they meet, weight variance between marks, hooks at fast starts; lower smoothing in the final render |
+| `finish` | `clean`, `sketch` | `sketch` keeps gesture, block-in and contour in the final picture as faint graphite |
+| `handedness` | `right`, `left` | the direction each stroke is drawn in, so tapers and hooks fall where that hand puts them. The points do not move |
+| `paper` | `none`, `smooth`, `cold-press`, `newsprint`, `sketchbook` | paper tint and grain, multiplied into everything |
+| `scan` | `true`, `false` | a slight tilt, uneven light, sensor noise and a JPEG save |
+
+`build.sh` then also writes `final.png`, with the colour layer shifted a pixel
+or two off the line as hand-coloured prints are. **Gates and the describer
+always read `drawing.png`, never `final.png`.**
+
+Some of a human look is in what you draw, and no renderer supplies it. Decide
+these at stage 0 and write them in `reading.md`:
+
+- **How many marks.** An experienced hand states a contour once, with weight
+  where it matters, and lets edges get lost. A sketch restates a key contour
+  two or three times along its run, slightly apart. Both are marks you write.
+- **How far to drift.** A person copying a subject simplifies it and moves off
+  it by a few percent. With `hand` above 0.5, an outline scan within a few
+  percent of the subject is a pass. Do not correct it back toward a trace.
+- **Colour against line.** In `finish: sketch` a flat may stop short of its
+  line or run a little past it, and the rule against spill in
+  `reference/colour.md` does not apply. In `clean`, it does.
+- **Hatching** follows the hand: strokes slant `/` for a right hand and `\`
+  for a left.
+
 ## Reference
 
 `reference/method.md` is the full method. `reference/scene.md` covers the scene

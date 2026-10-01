@@ -115,7 +115,7 @@ form.
 |---|---|
 | Fill wanders *within* the ink's own width | a hand |
 | Fill falls short of the line | a white gap, always a mistake |
-| Fill spills past with no line over it | a smear, always a mistake |
+| Fill spills past with no line over it | a smear, always a mistake (except under `finish: sketch`, where a little loose colour is part of the look; see SKILL.md § Style) |
 
 So the independent points are an offset *inside* a trap wide enough to absorb
 them: trap generously first, then let the fill wander by less than the trap. A
