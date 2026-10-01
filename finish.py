@@ -251,7 +251,12 @@ def treat_medium(rng, drawing, ground, medium, tooth, handedness):
     image and how much each pixel is covered by paint or ink (for gouache)."""
     ink_amount, flats, flat_number = regions(drawing, ground)
     shape = drawing.shape[:2]
-    dense = density(drawing, ground)
+    # density is measured from white paper, not from the commonest colour. On a
+    # full-bleed picture the commonest colour is paint (a field, a sky), and any
+    # flat lighter than it would come out with negative density and be pushed
+    # back to the ground's colour
+    paper = np.ones(3)
+    dense = density(drawing, paper)
     flat_weight = ndimage.gaussian_filter(flats.astype(float), 1.0)
     # strokes that fill an area lean like / for a right hand and like \ for a left one
     slant = np.radians(rng.uniform(50, 65)) * (1 if handedness == "right" else -1)
@@ -310,7 +315,7 @@ def treat_medium(rng, drawing, ground, medium, tooth, handedness):
         dense = dense * warm
 
     covered = np.clip(flat_weight + ink_amount, 0, 1)
-    return from_density(dense, ground), covered
+    return from_density(dense, paper), covered
 
 
 def middles(image, marked):

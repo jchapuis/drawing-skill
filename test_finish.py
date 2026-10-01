@@ -97,6 +97,25 @@ def _():
     assert invented(planted, art, sketch).sum() > 0, "the check misses a dark mark on bare paper"
 
 
+@case("a flat lighter than a full-bleed ground keeps its colour; the ground itself is not the paper")
+def _():
+    # a mid-tone ground covering most of the picture, with a pale sky band and an ink line:
+    # the commonest colour is paint, not paper, and the sky must not sink into it
+    image = np.zeros((120, 160, 3))
+    image[:] = (186 / 255, 180 / 255, 125 / 255)
+    image[:30] = (241 / 255, 202 / 255, 132 / 255)
+    image[60:64, 20:140] = (38 / 255, 21 / 255, 19 / 255)
+    style = dict(STYLE, paper="none", scan=False, finish="clean")
+    for medium in ("watercolour+ink", "ink-pen", "marker", "gouache", "pencil", "brush-pen"):
+        out = finish.finish(dict(style, medium=medium), image)
+        sky, field = out[5:25, 40:120].mean(axis=(0, 1)), out[80:110, 40:120].mean(axis=(0, 1))
+        assert np.abs(sky - image[10, 80]).max() < 0.12, (medium, sky * 255)
+        assert sky.mean() > field.mean() + 0.05, (medium, sky * 255, field * 255)
+    # the check can fail: a sky that sank to the ground's colour is caught
+    sunk = image.copy(); sunk[:30] = image[100, 80]
+    assert np.abs(sunk[5:25, 40:120].mean(axis=(0, 1)) - image[10, 80]).max() >= 0.12
+
+
 @case("pencil turns ink to graphite grey; ink-pen keeps it near black")
 def _():
     art = drawing()
