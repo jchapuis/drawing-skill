@@ -610,6 +610,49 @@ def _():
         assert code == 1 and "wider than --line" not in said, said
 
 
+def framed(hatch, outline, spacing=16):
+    """Hatching `hatch` px wide at 45deg inside a square outline `outline` px wide."""
+    image = hatched(45, spacing=spacing, width=hatch)
+    ImageDraw.Draw(image).rectangle([40, 40, 360, 360], outline=(30, 20, 20), width=outline)
+    return image
+
+
+def framed_case(folder, drawing, *flags):
+    framed(3, 13).save(f"{folder}/subject.png")
+    drawing.save(f"{folder}/drawing.png")
+    with open(f"{folder}/parts.json", "w") as handle:
+        json.dump({"rock": {"shape": "hatched face", "box": [30, 30, 340, 340],
+                            "hatch": {"angle": 45, "spacing": 16, "length": 180}}}, handle)
+    return tool(f"{HERE}/check.py", "drawing.png", "--linework", "parts.json", "--ref",
+                "subject.png", "--line", "14", *flags, cwd=folder)
+
+
+@case("--linework, --hatch: fine hatching passes against fine; heavy hatching FAILs on width")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        code, said = framed_case(folder, framed(3, 13, spacing=17))
+        assert code == 0 and "FAIL" not in said.split("FAIL is")[0], said
+        assert "mark width" in said and "hatch/outline" in said, said
+        code, said = framed_case(folder, framed(9, 13))
+        assert code == 1 and "FAIL: hatch marks" in said and "FAIL: hatch is" in said, said
+        # the same widths through --hatch, on the drawing's own scale: a render at
+        # twice the subject's size is read in the subject's pixels
+        framed(3, 13).resize((800, 800), Image.LANCZOS).save(f"{folder}/fine2x.png")
+        framed(9, 13).resize((800, 800), Image.LANCZOS).save(f"{folder}/heavy2x.png")
+        for name, want in (("fine2x.png", 0), ("heavy2x.png", 1)):
+            code, said = tool(f"{HERE}/check.py", "subject.png", "--hatch", "60,60,280,280",
+                              "--ref", name, "--line", "14", cwd=folder)
+            assert code == want and ("FAIL: hatch marks" in said) == bool(want), said
+            assert "in the subject's pixels" in said, said
+
+
+@case("--linework: hatch light in pixels but heavy against a thin outline FAILs on the ratio")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        code, said = framed_case(folder, framed(6, 4))
+        assert code == 1 and "FAIL: hatch is" in said and "FAIL: hatch marks" not in said, said
+
+
 def weighted(widths, size=(400, 400)):
     image = Image.new("RGB", size, (240, 230, 210))
     pen = ImageDraw.Draw(image)

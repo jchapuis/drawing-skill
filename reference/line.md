@@ -217,7 +217,41 @@ colouring-book copy of it, however well they are placed.
    the same length, no two gaps equal.
 4. Re-run `--hatch` with `--ref drawing.png`. It flags (`<<`) a group missing,
    an angle more than 20° off, spacing off by more than half, or coverage under
-   half the subject's.
+   half the subject's. It FAILs (exit 1) a group whose marks are over 1.6× the
+   subject's width, or whose width as a share of the drawing's outline weight is
+   over 1.6× the subject's share. Both numbers print either way, in the
+   subject's pixels whatever size the render is.
+
+**Hatch weight: the lightest in the swatch, from the measured width.** Hatching
+takes the lightest weights you have. Pick its weight from the group's `width`
+in `--hatch`, never from the outline: a hatch drawn "a step under the contour"
+lands at the contour's weight, and a field of marks as heavy as the outline
+reads as heavy brush strokes however right their angles are. The subject's
+width is read at half each mark's darkness, so a soft upscaled line is not read
+wider than it is; match your swatch to that number.
+
+For fine marks use `tool="pen"`. A swatch rendered at 4x with `--scale 0.5`
+(1:1 with `subject.png`), widths at half darkness, and each line's contrast
+against a paper of 250 once downsampled 4x to the delivered size:
+
+| instrument | width at 4x | contrast at 1x |
+|---|---|---|
+| `pen`, `size="s"`, `scale=0.25` | 2px, never full black | 25: gone |
+| `pen`, `size="s"`, `scale=0.5` | 2px | 53: faint |
+| `pen`, `size="s"`, `scale=0.75` | 2px | 117: hairline, visible |
+| `pen`, `size="s"`, `scale=1.0` | 3px | 111 |
+| `pen`, `size="s"`, `scale=1.5` | 5px | 203: a solid 1px line |
+| `brush`, `size="s"`, `scale=0.35` | 3px | 150 |
+| `brush`, `size="m"`, `scale=0.6` | 7px | 226 |
+| `brush`, `size="m"`, `scale=1.0` | 11px | 236 |
+
+So the hairline at 4x is `pen` `size="s"` at `scale` 0.75–1.0: 2–3px, still a
+visible grey line at the delivered size. Under `scale` 0.5 it fades out there.
+`pen` has no taper; where the subject's marks end in a point, `brush`
+`size="s"` at `scale` 0.35–0.5 gives 3–5px with `tail=`. A `brush` at
+`size="m"` starts at 7px: that is outline territory on most subjects, not
+hatching. Render your own swatch before trusting these: the numbers move with
+the palette, the ground and the renderer.
 
 The instrument prints numbers only. Nothing turns a group into strokes, and a
 loop or comprehension that does is a generated mark, refused by `pen.write`. A
@@ -249,7 +283,8 @@ affordable:
   toward a black; lines curving *around* the form to imply volume.
 - A hatch line is a finer weight than the contour it sits against, and tapers at
   its free end (`lead=`/`tail=` on a `brush` or `marker`). The measured width is
-  the target.
+  the target, and its ratio to the outline: if the subject's hatch is a third
+  of its outline's weight, the drawing's is a third of its own.
 
 Texture that is not hatching (a rock's cracks, bark, the dashes of a stone wall)
 follows the same rules: measure the marks' direction, length and spacing with

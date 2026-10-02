@@ -329,6 +329,7 @@ def hatching(grey, line, light=False, contrast=30, groups=3):
     mask, lift = line_marks(grey, line, contrast, light)
     area = mask.size
     found = {"coverage": float(mask.sum()) / area if area else 0.0, "groups": []}
+    spine = across = None
     if mask.sum() < 3 * line:
         return found
     soft = cv2.GaussianBlur(lift, (0, 0), max(1.0, line / 3))
@@ -378,8 +379,13 @@ def hatching(grey, line, light=False, contrast=30, groups=3):
             width = rows.size / length
             if length < 2 * width or length < line:
                 continue    # a dot or a blot, not a stroke
+            if spine is None:
+                spine, across = _centre_widths(mask, lift, line)
+            # the mark's own width on its centre line; area over length for a mark too
+            # short to have one
+            on = spine[piece] & (labels[piece] == index)
             lengths.append(length)
-            widths.append(width)
+            widths.append(float(np.median(across[piece][on])) if on.sum() >= 3 else width)
             kept[piece] |= labels[piece] == index
         if len(lengths) < 2:
             continue
@@ -393,6 +399,56 @@ def hatching(grey, line, light=False, contrast=30, groups=3):
     if pooled:
         found["grain"] = _grain(grey, mask, line, light, float(np.median(pooled)))
     return found
+
+
+def _centre_widths(mask, lift, line):
+    """Each line mark's width read on its centre line at half its own darkness:
+    (centre-line mask, width per pixel). A mark is taken to end where its lift
+    falls under half the peak within `line` of it, not where it falls under the
+    `contrast` floor, so an upscaled subject's soft edge does not read wider
+    than a render's crisp one of the same weight."""
+    peak = ndimage.maximum_filter(lift, size=line | 1)
+    core = mask & (lift >= 0.5 * peak)
+    distance = cv2.distanceTransform(core.astype(np.uint8), cv2.DIST_L2, 5)
+    # the widest point within 2px, as weight_span reads it
+    return _thin(core), 2 * ndimage.maximum_filter(distance, size=5) - 1
+
+
+def outline_weight(grey, line, contrast=30):
+    """The outline's weight: the 95th percentile of the dark line widths in a
+    crop, read as hatching() reads a group's width. None with too few marks."""
+    mask, lift = line_marks(grey, line, contrast)
+    if mask.sum() < 3 * line:
+        return None
+    spine, across = _centre_widths(mask, lift, line)
+    if spine.sum() < 10:
+        return None
+    return float(np.percentile(across[spine], 95))
+
+
+HATCH_WIDTH = 1.6   # a hatch mark over this many times the subject's width is too heavy
+HATCH_SLACK = 2.0   # ... and over it by at least this many px, so a 1px reading is not a fail
+
+
+def hatch_weight(theirs, ours, outlines):
+    """FAIL lines for a drawing's hatch group heavier than the subject's, and
+    the numbers either way: (fails, text). Both widths are in the subject's
+    pixels. `outlines` is (subject, drawing) outline weight, either None."""
+    fails, text = [], []
+    seen, made = theirs["width"], ours["width"]
+    ratio = made / max(seen, 1.0)
+    text.append(f"mark width {made:.1f}px against the subject's {seen:.1f}px: {ratio:.1f}x")
+    if ratio > HATCH_WIDTH and made - seen >= HATCH_SLACK:
+        fails.append(f"hatch marks {ratio:.1f}x the subject's width (over {HATCH_WIDTH}x): "
+                     "draw them with a lighter weight from the swatch")
+    if all(outlines):
+        want, have = seen / outlines[0], made / outlines[1]
+        text.append(f"hatch/outline {have:.2f} against the subject's {want:.2f} "
+                    f"(outline {outlines[1]:.0f}px, subject's {outlines[0]:.0f}px)")
+        if have > HATCH_WIDTH * want and made - want * outlines[1] >= HATCH_SLACK:
+            fails.append(f"hatch is {have:.2f} of the outline's weight where the subject's is "
+                         f"{want:.2f}: thin the hatch, or weight the outline if it is the one too light")
+    return fails, text
 
 
 GRAIN_LENGTH = 3       # marks whose median length is under this many --line widths are short
@@ -558,27 +614,39 @@ def hatch_report(subject, drawing, box, line, light=False, names=("subject", "dr
     if drawing is None:
         print("\nwrite each mark of a group as its own stroke, from points you read off the "
               "subject.\nVary length and spacing inside the ranges above the way a hand does.")
-        return seen, None
-    made = hatching(_crop_grey(drawing.resize(subject.size, Image.LANCZOS), box), line, light)
+        return seen, None, 0
+    if drawing.size != subject.size:
+        print(f"{names[1]} is {drawing.width}x{drawing.height}; resized to the subject's "
+              f"{subject.width}x{subject.height}, so every width below is in the subject's pixels")
+    drawing = drawing.resize(subject.size, Image.LANCZOS)
+    made = hatching(_crop_grey(drawing, box), line, light)
     print(f"{names[1]}: line marks cover {made['coverage']:.0%} of the box, "
           f"{len(made['groups'])} group(s)")
     for number, group in enumerate(made["groups"], 1):
         print(f"  group {number}: {_group_text(group)}")
+    outlines = tuple(outline_weight(np.asarray(image.convert("L"), dtype=float), line)
+                     for image in (subject, drawing))
     print("\nsubject group -> the drawing's nearest group")
-    flagged = False
+    failures = 0
     for number, group in enumerate(seen["groups"], 1):
-        near, _ = match_group(made["groups"], group["angle"])
+        near, off = match_group(made["groups"], group["angle"])
         flags = hatch_flags({"angle": group["angle"], "spacing": group["spacing"]},
                             made["groups"], seen["coverage"], made["coverage"])
-        flagged |= bool(flags)
         print(f"  {group['angle']:4.0f}deg -> {_group_text(near)}"
               + ("".join(f"\n      << {flag}" for flag in flags)))
+        if near is not None and off <= 20:
+            fails, text = hatch_weight(group, near, outlines)
+            failures += len(fails)
+            print("".join(f"\n      {line_text}" for line_text in text)[1:]
+                  + "".join(f"\n      FAIL: {fail}" for fail in fails))
     if not seen["groups"]:
         print("  the subject has no group of parallel marks in this box")
     print("\n<< marks a group missing, an angle off by more than 20deg, a spacing off by "
-          "more than half,\nor coverage under half the subject's. Numbers say where the "
-          "hatching is; they are not marks.")
-    return seen, made
+          "more than half,\nor coverage under half the subject's. FAIL is a hatch mark over "
+          f"{HATCH_WIDTH}x the subject's width,\nor over {HATCH_WIDTH}x its share of the "
+          "outline's weight (outline = the 95th percentile line\nover the whole picture). "
+          "Numbers say where the hatching is; they are not marks.")
+    return seen, made, failures
 
 
 def linework(drawing, subject, inventory_path, line, box=None):
@@ -586,11 +654,29 @@ def linework(drawing, subject, inventory_path, line, box=None):
     the drawing, and the drawing's line weight span against the subject's.
     Returns (failures, unchecked)."""
     raw = load_parts(inventory_path)
+    if drawing.size != subject.size:
+        print(f"the drawing is {drawing.width}x{drawing.height}; resized to the subject's "
+              f"{subject.width}x{subject.height}, so every width below is in the subject's pixels")
     drawing = drawing.resize(subject.size, Image.LANCZOS)
     failures = unchecked = 0
+    if box is None:
+        boxes = [entry["box"] for name, entry in raw.items()
+                 if not name.startswith("_") and isinstance(entry, dict) and "box" in entry]
+        if boxes:
+            box = [min(b[0] for b in boxes), min(b[1] for b in boxes),
+                   max(b[0] + b[2] for b in boxes), max(b[1] + b[3] for b in boxes)]
+            box = [max(0, box[0]), max(0, box[1]), min(subject.width, box[2]) - max(0, box[0]),
+                   min(subject.height, box[3]) - max(0, box[1])]
+    if box is None:
+        box = [0, 0, subject.width, subject.height]
     rows = [(name, entry) for name, entry in raw.items()
             if not name.startswith("_") and isinstance(entry, dict) and entry.get("hatch")]
     print(f"{len(rows)} entries carry a hatch measurement (line marks up to {line}px wide)")
+    outlines = tuple(outline_weight(_crop_grey(image, box), line) for image in (subject, drawing))
+    if rows:
+        print("outline weight (95th percentile line over "
+              f"{','.join(map(str, box))}): subject "
+              + ", drawing ".join("none" if found is None else f"{found:.0f}px" for found in outlines))
     if not rows:
         print("  NOTHING TO CHECK for hatching: no entry carries `hatch`. If the subject has "
               "hatched\n  or textured regions, measure each with --hatch and write it into its entry.")
@@ -629,17 +715,11 @@ def linework(drawing, subject, inventory_path, line, box=None):
             continue
         flags = hatch_flags({"angle": want["angle"], "spacing": theirs["spacing"]},
                             made["groups"], seen["coverage"], made["coverage"])
-        print("    pass" + "".join(f"\n    << {flag}" for flag in flags))
-    if box is None:
-        boxes = [entry["box"] for name, entry in raw.items()
-                 if not name.startswith("_") and isinstance(entry, dict) and "box" in entry]
-        if boxes:
-            box = [min(b[0] for b in boxes), min(b[1] for b in boxes),
-                   max(b[0] + b[2] for b in boxes), max(b[1] + b[3] for b in boxes)]
-            box = [max(0, box[0]), max(0, box[1]), min(subject.width, box[2]) - max(0, box[0]),
-                   min(subject.height, box[3]) - max(0, box[1])]
-    if box is None:
-        box = [0, 0, subject.width, subject.height]
+        fails, text = hatch_weight(theirs, ours, outlines)
+        failures += bool(fails)
+        print("".join(f"    {line_text}\n" for line_text in text)
+              + ("".join(f"    FAIL: {fail}\n" for fail in fails)[:-1] if fails else "    pass")
+              + "".join(f"\n    << {flag}" for flag in flags))
     span = [weight_span(_crop_grey(image, box), line) for image in (subject, drawing)]
     print(f"\nline weights over {','.join(map(str, box))} (finest = 10th percentile, "
           "heaviest = 95th, on each mark's centre line):")
@@ -1978,11 +2058,14 @@ def main():
                        help="x,y,w,h: the line marks in that box of the positional image (the "
                             "subject): coverage, and per group of parallel marks its angle, "
                             "spacing, length and width. With --ref drawing.png, the drawing's "
-                            "box beside it, << on what differs. Numbers only, never strokes")
+                            "box beside it, << on what differs, FAIL (exit 1) on hatch marks "
+                            "over 1.6x the subject's width. Numbers only, never strokes")
     parse.add_argument("--linework", default="",
                        help="parts.json (needs --ref subject.png): FAIL where an entry's `hatch` "
-                            "angle has no line group in the drawing's box, and where the "
-                            "drawing's line weight span is under half the subject's")
+                            "angle has no line group in the drawing's box, where that group's "
+                            "marks are over 1.6x the subject's width or its share of the "
+                            "outline's weight, and where the drawing's line weight span is "
+                            "under half the subject's")
     parse.add_argument("--line", type=int, default=0,
                        help="--hatch, --linework: the widest mark read as a line; wider is a "
                             "flat. Default: the image's longer side / 200, at least 6")
@@ -2186,10 +2269,10 @@ def main():
         box = [int(part) for part in args.hatch.split(",")]
         line = args.line or max(6, round(max(drawing.size) / 200))
         other = Image.open(args.ref).convert("RGB") if args.ref else None
-        hatch_report(drawing, other, box, line, args.light,
-                     (f"subject ({os.path.basename(args.render)})",
-                      f"drawing ({os.path.basename(args.ref)})" if args.ref else "drawing"))
-        return
+        failures = hatch_report(drawing, other, box, line, args.light,
+                                (f"subject ({os.path.basename(args.render)})",
+                                 f"drawing ({os.path.basename(args.ref)})" if args.ref else "drawing"))[2]
+        sys.exit(1 if failures else 0)
 
     if args.linework:
         if not args.ref:
@@ -2198,9 +2281,10 @@ def main():
         line = args.line or max(6, round(max(subject.size) / 200))
         failures, unchecked = linework(drawing, subject, args.linework, line,
                                        [int(part) for part in args.box.split(",")] if args.box else None)
-        print("\nFAIL is a subject's hatching left out, or one weight where the subject has a "
-              "range.\nUNCHECKED means the written measurement does not reproduce on the subject; "
-              "re-measure\nit with --hatch. Exit 1 is a FAIL, 2 UNCHECKED rows. Neither is a pass.")
+        print("\nFAIL is a subject's hatching left out, hatching heavier than the subject's "
+              f"(over {HATCH_WIDTH}x its\nmark width, or over {HATCH_WIDTH}x its share of the "
+              "outline's weight), or one weight where the\nsubject has a range. UNCHECKED means "
+              "the written measurement does not reproduce on the subject;\nre-measure it with --hatch. Exit 1 is a FAIL, 2 UNCHECKED rows. Neither is a pass.")
         sys.exit(1 if failures else 2 if unchecked else 0)
 
     if args.masses:
