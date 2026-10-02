@@ -277,7 +277,8 @@ def report(subject, drawing, rows):
 
 
 def zoom(drawing, subject, box, factor=4):
-    """One feature, magnified, subject above and drawing below.
+    """One feature, magnified: subject left and drawing right for a box taller
+    than wide, subject above and drawing below otherwise.
 
     The other checks measure placement: whether a mark landed where it was
     meant to. None of them can see whether the mark is any good: whether it
@@ -911,6 +912,16 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
     return hits, worst, len(lines)
 
 
+def backwards_keys(inventory):
+    """Overlap rows whose key is written near/far: `in_front` names the key's
+    first half. The key is `far/near`. `depth` decides by `in_front` alone, so
+    such a row is still checked the right way round, but a key that contradicts
+    its own decision is a sign the decision was written in a hurry."""
+    return [key for key, entry in inventory.items()
+            if isinstance(entry, dict) and entry.get("in_front")
+            and len(key.split("/")) == 2 and key.split("/")[0] == entry["in_front"]]
+
+
 def depth(ops, inventory):
     """Does the write order deliver the occlusion the inventory decided on?
 
@@ -1155,12 +1166,9 @@ def checklist(inventory_path, references=None):
     are joined by |. A block may hold several `object:` lines, each followed by
     its `sub-forms:` line. `_absent` in parts.json is one string,
     "name: reason; ..."."""
-    import glob
-    import re
     with open(inventory_path) as handle:
         raw = json.load(handle)
-    sides = [side.split(".") for key in raw if not key.startswith("_")
-             for side in key.split("/")]
+    sides = _key_sides(raw)
     excused = {item.split(":")[0].strip() for item in str(raw.get("_absent", "")).split(";")
                if ":" in item}
     words_of = lambda alternatives: alternatives.split("|")
@@ -1172,6 +1180,28 @@ def checklist(inventory_path, references=None):
                 for word in words_of(objects) if word in parts]
 
     missing = []
+    for source, objects, subforms in _checklists(references):
+        tails = under(objects)
+        if not tails:
+            continue
+        gone = [alternatives for alternatives in subforms.split()
+                if not any(hit(word, tail) for tail in tails for word in words_of(alternatives))
+                and not set(words_of(alternatives)) & excused]
+        if gone:
+            missing.append((objects, source, gone))
+    return missing
+
+
+def _key_sides(raw):
+    """Every side of every inventory key, as its dotted segments."""
+    return [side.split(".") for key in raw if not key.startswith("_") for side in key.split("/")]
+
+
+def _checklists(references=None):
+    """Every (reference file, object alternatives, sub-forms) a ```checklist block holds."""
+    import glob
+    import re
+    found = []
     for path in sorted(references or glob.glob(os.path.join(HERE, "reference", "*.md"))):
         text = open(path).read()
         for block in re.findall(r"```checklist\n(.*?)```", text, re.S):
@@ -1182,16 +1212,27 @@ def checklist(inventory_path, references=None):
                                 for i in range(len(pairs))):
                 raise SystemExit(f"--checklist: {os.path.basename(path)} has a block that is not "
                                  "'object:' / 'sub-forms:' line pairs")
-            for objects, subforms in pairs:
-                tails = under(objects)
-                if not tails:
-                    continue
-                gone = [alternatives for alternatives in subforms.split()
-                        if not any(hit(word, tail) for tail in tails for word in words_of(alternatives))
-                        and not set(words_of(alternatives)) & excused]
-                if gone:
-                    missing.append((objects, os.path.basename(path), gone))
-    return missing
+            found += [(os.path.basename(path), objects, subforms) for objects, subforms in pairs]
+    return found
+
+
+def checklist_unmatched(inventory_path, references=None):
+    """When the inventory has objects and no checklist object names any of them,
+    (the inventory's top-level names, the checklist objects there are); else None.
+
+    `checklist` passes such an inventory with nothing checked: a `rooster.*`
+    inventory against a checklist keyed `bird` reads as every sub-form present.
+    This is a warning and not a failure, because a subject may have no reference."""
+    with open(inventory_path) as handle:
+        raw = json.load(handle)
+    sides = _key_sides(raw)
+    if not sides:
+        return None
+    available = [(objects, source) for source, objects, _ in _checklists(references)]
+    named = {word for objects, _ in available for word in objects.split("|")}
+    if any(named & set(parts) for parts in sides):
+        return None
+    return sorted({parts[0] for parts in sides}), available
 
 
 def count_forms(drawing, subject, inventory_path, palette_path, min_area):
@@ -1428,8 +1469,9 @@ def main():
     parse.add_argument("--zoom", default="",
                        help="x,y,w,h in the reference's own pixels, so comparing "
                             "two renders of the same drawing needs the box in render "
-                            "coordinates, not the subject's. Shows subject above, "
-                            "drawing below, magnified")
+                            "coordinates, not the subject's. Shows the two magnified: "
+                            "side by side (subject left) for a box taller than wide, "
+                            "else stacked (subject above, drawing below)")
     parse.add_argument("--unfilled", action="store_true",
                        help="with --ref: bare paper where the subject has the object")
     parse.add_argument("--faces", default="",
@@ -1501,6 +1543,17 @@ def main():
                   "\"name: reason; ...\".\nA sub-form left out without a reason was never "
                   "looked for, and every gate below\nchecks only what the inventory names.")
             sys.exit(1)
+        unmatched = checklist_unmatched(args.checklist)
+        if unmatched:
+            tops, available = unmatched
+            print(f"  WARN no checklist object matched any inventory object, so nothing was checked.\n"
+                  f"  inventory's top-level objects: {', '.join(tops)}\n"
+                  f"  checklist objects there are: "
+                  + "; ".join(f"{objects} ({source})" for objects, source in available)
+                  + "\n  if one of these is your subject under another name, key the inventory by "
+                  "that name.\n  A subject with no reference has no checklist, and this is "
+                  "then expected.")
+            return
         print("  PASSES — every checklisted sub-form has an entry or a reason")
         return
     if args.stages:
@@ -1558,6 +1611,10 @@ def main():
                   f"'{near}''s cover at op{fill_at}, so that edge draws across it")
         for key, why in unresolved:
             print(f"  UNRESOLVED {key}: {why}")
+        with open(args.depth[1]) as handle:
+            for key in backwards_keys(json.load(handle)):
+                print(f"  WARN {key}: key written near/far, since in_front names its first half. "
+                      "The key is far/near; in_front decides, so check it is the one in front")
         if not hits and not unresolved and count:
             print(f"  PASSES — the {count} listed occlusions are delivered by the write order")
         if not count:

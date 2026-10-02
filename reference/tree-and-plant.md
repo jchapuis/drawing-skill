@@ -181,12 +181,12 @@ listed as alternatives. Where the subject lacks one (a conifer may show no sky
 holes), write the reason in `_absent`.
 
 ```checklist
-object: tree
+object: tree|oak|pine|fir|palm|birch|willow|maple
 sub-forms: trunk branch|branches canopy|foliage hole|gap
 ```
 
 ```checklist
-object: flower
+object: flower|rose|tulip|daisy|sunflower|lily|poppy
 sub-forms: petal stem leaf|leaves
 ```
 

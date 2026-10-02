@@ -123,10 +123,13 @@ a 4x picture, they ranked cleanly:
 
 - **Points read by eye off a gridded or ticked crop came out 30-60px off** (a
   helmet's right edge, a thigh, a forearm's upper edge). A grid is fine for saying
-  which structure is where. It is not a coordinate.
+  which structure is where. It is not a coordinate, and never the evidence for
+  a fault.
 - **A scan across the subject** (`check.py --scan x,y,w,h --side S`, or a column
-  or row of its dark runs) fixed every one of those, and is the only source for a
-  point typed into `draw.py`.
+  or row of its dark runs) fixed every one of those, and is the source for a
+  landmark typed into `draw.py`. An outline of hundreds of points may be read
+  off a magnified grid crop to place it, but only as a draft: probe or scan the
+  placed points against the subject afterwards and move the ones that are off.
 - **Judging proportion from a side-by-side misled in both directions.** A drawn
   head looked 10% large with its chin 70px low. Measured on the same image, the
   chin was 6px off and the helmet 3% wide. A jersey band looked broken where the

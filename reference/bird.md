@@ -25,6 +25,7 @@ marks a claim taken from the named book.
 | **The wing is a leaf pasted on**, outlined all round | `check.py --overlay --box` on the wing: the subject's front edge of the folded wing is lost under the breast and flank feathers; the drawing has an unbroken contour there |
 | **The wingtip stops in the wrong place** against the tail | Measure where the tip of the primaries falls as a fraction of the visible tail length, on both. This is one of the most informative numbers on a perched bird |
 | **Legs as sticks from the belly**, with the joint bending the wrong way or the bird floating over its perch | `check.py --zoom` on the feet: count the toes in front of the perch and behind it, and measure the gap between belly and perch |
+| **A head thrown back reads as a head turned sideways** | Measure the beak axis and the nape line as angles on the subject and the drawing; a few degrees decide it (see § Chickens and other galliform birds) |
 | **Feathers drawn one by one everywhere**, so the body reads as scales | `check.py --masses`: the subject reads as a few large values, the drawing as noise. Pattern belongs where the subject has it (wing bars, scapulars) and nowhere else |
 
 Most of these come from drawing what a bird is known to have (a neck, a knee,
@@ -164,9 +165,72 @@ primaries can point back, so the outline changes more than the bones do;
 read the bones' positions (shoulder, wrist, tip) off the subject first and
 hang the feathers on them.
 
+## A spread wing at rest, seen from the side
+
+A bird standing with a wing held out (drying, displaying, about to flap) shows
+the open wing nearly flat to the viewer. Read it as three bands stacked from
+the leading edge down, in the order the feather groups lie [read: Sibley, bird
+topography]:
+
+| Band | What it looks like |
+|---|---|
+| **Coverts** | The top band, along the leading edge: short feathers in overlapping rows, whose lower edge is a scalloped line of rounded tips. Drawn as a straight bar, it reads as a stick |
+| **Secondaries** | The middle band, along the forearm: broad feathers of about equal length, their tips a row of shallow curves. The separations run from under the coverts to the tips |
+| **Primaries** | The outer band, from the wrist: longer, narrower feathers that fan out, their tips pointed and the notches between them deep. Stubby primaries with shallow notches read as a paddle |
+
+Each band has its own value and its own edge shape, and the band edges are the
+lines that make the wing read. Measure each band's width at the wrist and at
+the body, and the angle of the fan, on the subject.
+
+**Count the feathers on `--zoom`, not with `--counts`.** Wing feathers touch
+and are bounded by their own ink, so `--counts` usually returns UNCHECKED for
+primaries and secondaries, or counts merged groups. Count each band on the
+`--zoom` of the subject and of the drawing, and write both counts into
+`notes.md`.
+
+## Chickens and other galliform birds
+
+Chickens, pheasants, turkeys and grouse are galliform birds: a heavy body, a
+small head, a short rounded wing, and strong legs for walking and scratching.
+A domestic cock (rooster) reads by its head and tail far more than by its body,
+so an inventory that stops at the songbird list loses it. Its parts, named as
+in poultry handbooks [read: Damerow, *The Chicken Encyclopedia*]:
+
+- **Comb**: the fleshy crest on top of the head, from the beak base back over
+  the crown. A single comb is a row of points; other breeds have rose, pea or
+  other combs. Count the points and measure the comb's height against the head.
+- **Wattles**: the two fleshy lobes hanging under the beak. Their length
+  against the head is a measured number; they swing with the head.
+- **Earlobe**: a bare patch of skin below and behind the eye, often white or
+  red, separate from the wattle.
+- **Hackles**: long narrow neck feathers that hang over the shoulders like a
+  cape. They hide the neck's join to the body and carry the head's tilt into
+  the back.
+- **Saddle**: long narrow feathers on the lower back, in front of the tail,
+  hanging down over the sides.
+- **Sickles**: the long curved tail feathers of the cock, arching up and over
+  the rest of the tail. Each one is a separate stroke with its own curve;
+  drawn as one mass, the tail reads as a blob.
+
+A hen has a smaller comb and wattles, short hackles and saddle, and no sickles.
+
+**The crowing pose.** A crowing cock stands upright, stretches the neck, throws
+the head back and opens the beak with the beak pointing up. What makes "head
+thrown back" read is two angles: the nape line (the back of the neck from crown
+to shoulders) leaning back, and the beak's axis well above horizontal. A lift a
+few degrees short of the subject's on either reads as a head turned sideways
+with the beak open, and no numeric gate sees the difference. Measure the beak axis and the nape line as
+angles on the subject and on the drawing, and match them; a describer run on
+the head crop is what says whether the pose reads.
+
 ```checklist
-object: bird
+object: bird|rooster|cockerel|hen|chicken|pheasant|turkey|duck|goose|swan|owl|eagle|hawk|falcon|parrot|pigeon|dove|gull|heron|sparrow|finch|robin|crow|raven|magpie|songbird
 sub-forms: beak|bill eye head body wing primaries|primary tail leg foot|feet
+```
+
+```checklist
+object: rooster|cockerel|hen|chicken
+sub-forms: comb wattle
 ```
 
 ## Where a bird meets other things
@@ -201,4 +265,5 @@ write order against it.
 6. **Legs and feet**, from where they leave the feathers to the toes around
    the perch, with the perch drawn at the same stage.
 7. Feather groups, wing bars and facial marks last, only where the subject
-   has them.
+   has them. A galliform's comb and wattles go in with the head (step 3) and
+   its sickles with the tail (step 5): they are what makes it read.

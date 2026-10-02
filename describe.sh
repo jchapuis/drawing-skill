@@ -17,6 +17,17 @@
 # be saved as the image's description. A rejected answer is kept as <out>.err,
 # the call is retried once, and the script exits 1 with no .describe file.
 #
+# A usage or rate limit ("hit your session limit", "rate limit", 429) is not
+# retried, since a retry hits the same limit: the script says so and exits 3,
+# with no .describe file. Run at most 4 describes in parallel (xargs -P4); 19
+# at once hit the session limit and every call failed.
+#
+# The describer is shown a copy of the image under a random name in a temp
+# directory, never the image's own path: a crop named head_comb.png told it
+# "by its filename it may be a rooster's comb". The copy is removed afterwards,
+# and the answer still lands beside the original. The CLI also runs from that
+# directory, since it tells the model its working directory.
+#
 # To describe a part, crop it to its own PNG first and describe that. Never
 # hand it a sheet that also shows the subject: then it is not blind.
 #
@@ -32,7 +43,12 @@ set -e
 IMAGE="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OUT="${IMAGE%.*}.describe${2:+.$2}.md"
 TIMEOUT="${DESCRIBE_TIMEOUT:-180}"
-PROMPT="Use the Read tool to look at exactly one file: $IMAGE. Do not read anything else.
+BLIND="$(mktemp -d)"
+trap 'rm -rf "$BLIND"' EXIT
+EXT="${IMAGE##*.}"
+SHOWN="$BLIND/$(LC_ALL=C tr -dc a-z0-9 < /dev/urandom | head -c 12).$EXT"
+cp "$IMAGE" "$SHOWN"
+PROMPT="Use the Read tool to look at exactly one file: $SHOWN. Do not read anything else.
 You are describing a picture to someone who cannot see it. Report only what is visible.
 Do not judge quality, do not say whether anything is wrong, do not comment on style,
 do not guess how it was made. If you cannot tell, say 'cannot tell'.
@@ -43,10 +59,12 @@ Answer each in one to three plain sentences:
 4. What touches what? Name each contact between the main subject and the things around it.
 5. What does the main face express?"
 
-ask() {
-  perl -e 'alarm shift; exec @ARGV or exit 127' "$TIMEOUT" \
+# run from the temp directory: the CLI tells the model its working directory,
+# and a run directory's name (drw-runs/rooster) leaks the subject as well
+ask() (
+  cd "$BLIND" && perl -e 'alarm shift; exec @ARGV or exit 127' "$TIMEOUT" \
     claude -p "$PROMPT" --model sonnet --tools Read --allowedTools Read --strict-mcp-config
-}
+)
 
 # an answer has all five numbered answers; anything else is the CLI talking
 answered() { [ "$(grep -cE '^[[:space:]*#]*(\*\*)?[1-5][.)]' "$1")" -ge 5 ]; }
@@ -62,6 +80,14 @@ for attempt in 1 2; do
   fi
   cat "$TMP.stderr" >> "$TMP" 2>/dev/null; rm -f "$TMP.stderr"
   mv "$TMP" "$OUT.err"
+  if grep -qiE "hit your [a-z ]*limit|usage limit|rate.?limit|\b429\b" "$OUT.err"; then
+    echo "describe.sh: the CLI hit a usage or rate limit (kept in $OUT.err), so it is not" >&2
+    echo "retried. Wait for the limit to reset, then rerun. Run at most 4 describes in" >&2
+    echo "parallel (e.g. xargs -P4)." >&2
+    head -3 "$OUT.err" >&2
+    rm -f "$OUT"
+    exit 3
+  fi
   echo "describe.sh: attempt $attempt gave no five answers (kept in $OUT.err):" >&2
   head -3 "$OUT.err" >&2
 done

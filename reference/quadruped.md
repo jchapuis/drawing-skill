@@ -191,6 +191,20 @@ smallest, furthest animal ends up carrying the heaviest line in the picture.
 **An animal one plane back takes a lighter weight and a duller value than one in
 front. Settle depth before light when choosing weights.**
 
+## The sub-forms an inventory descends to
+
+An entry that stops at "the cow" or "the dog" gives the later checks one
+silhouette to judge. Write an entry for each of these the subject shows, and
+name the hidden ones in `_absent`:
+
+```checklist
+object: quadruped|animal|dog|puppy|cat|kitten|horse|pony|donkey|cow|bull|calf|ox|sheep|goat|pig|deer|fox|wolf|lion|tiger|bear
+sub-forms: head ear eye muzzle|snout|nose neck body|barrel|torso leg foot|feet|hoof|hooves|paw tail
+```
+
+`check.py --checklist parts.json` reads this block and fails on any sub-form
+the inventory neither names nor excuses in `_absent`.
+
 ## Build order
 
 1. **Say the posture in writing** (plantigrade, digitigrade or unguligrade) and

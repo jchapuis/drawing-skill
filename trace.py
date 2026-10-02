@@ -3,7 +3,7 @@
 
     python3 trace.py subject.png palette.json [--out regions.json] [--png regions.png]
                      [--ink black] [--line 8] [--min-area 150] [--fringe 0]
-                     [--offset X,Y | --local] [--space W,H]
+                     [--offset X,Y | --local] [--space W,H] [--smooth PX]
     python3 trace.py subject.png palette.json --measure-line [--ink black]
 
 Every pixel is classified to its nearest palette entry. Pixels of the ink colour
@@ -70,6 +70,17 @@ Every trace also reports the share of pixels further than 30 levels from every
 palette entry, with the largest such patches. A flat the palette is missing
 shows up as a patch, while grain and anti-aliasing stay scattered.
 
+--smooth PX is for a printed or textured subject: a halftone, a lithograph's
+grain, a scan of rough paper. Each pixel's colour there is a speck of ink or
+paper, not the flat it belongs to, so it classifies to the wrong entry and the
+regions come back as a tangle. With --smooth, every pixel is first replaced by
+the median colour of the square PX pixels either side of it (so 2 is a 5x5
+square). The specks go and the edges between flats stay where they were, so
+the regions' coordinates are in the same place as without it. Start at about
+the grain's spacing and raise it until the misfit share stops falling. Too
+large, and thin lines and small forms vanish into their neighbours, so measure
+--line on the smoothed picture too: --measure-line takes --smooth as well.
+
 --space W,H rescales the output into another coordinate space. Scaling a small
 trace up puts every boundary on a lattice the size of the factor, so measure at
 the resolution you draw at and use this only to scale down.
@@ -97,6 +108,16 @@ def classify(image, palette):
     labels = np.argmin(far, axis=1)
     miss = np.sqrt(np.maximum(0.0, far[np.arange(len(labels)), labels] + (pixels ** 2).sum(-1)))
     return names, labels.reshape(image.height, image.width), miss.reshape(image.height, image.width)
+
+
+def smooth(image, radius):
+    """The image with each pixel's colour the median over a square `radius`
+    pixels either side. Same size, so every coordinate stays where it was."""
+    if radius < 0:
+        raise SystemExit(f"--smooth takes a number of pixels, 0 or more, not {radius}")
+    if radius == 0:
+        return image
+    return Image.fromarray(cv2.medianBlur(np.ascontiguousarray(np.asarray(image)), 2 * radius + 1))
 
 
 def misfit(miss, level=30.0, floor=0.0005):
@@ -283,6 +304,9 @@ def main():
     parse.add_argument("--exclude", default="",
                        help="comma-separated palette names left out of the trace: a flat "
                             "within a few levels of the ground, which would take bare ground")
+    parse.add_argument("--smooth", type=int, default=0,
+                       help="median-filter the subject over a square PX pixels either side "
+                            "before classifying, for halftone or grain. 0 is off")
     parse.add_argument("--measure-line", action="store_true",
                        help="print the --ink line's width percentiles and exit")
     parse.add_argument("--cap", type=int, default=0,
@@ -292,7 +316,7 @@ def main():
 
     opened = Image.open(args.subject)
     stored = (opened.info or {}).get("offset")
-    image = opened.convert("RGB")
+    image = smooth(opened.convert("RGB"), args.smooth)
     with open(args.palette) as handle:
         palette = json.load(handle)
     unknown = [name for name in palette if name not in STOCK and name != "background"]

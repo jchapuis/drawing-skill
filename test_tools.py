@@ -10,6 +10,7 @@ without needing a real drawing.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -290,7 +291,7 @@ def _():
     with tempfile.TemporaryDirectory() as folder:
         fake = f"{folder}/bin"
         os.makedirs(fake)
-        for text, name in (("You've hit your session limit", "broken"),
+        for text, name in (("I can't help with that", "broken"),
                            ("1. a bike\n2. a wedge\n3. riding\n4. tyres on rocks\n5. strain", "fine")):
             with open(f"{fake}/claude", "w") as handle:
                 handle.write(f"#!/bin/sh\nprintf '%s\\n' \"{text}\"\n")
@@ -304,6 +305,138 @@ def _():
                 assert done.returncode == 1 and not written, (done.returncode, written)
             else:
                 assert done.returncode == 0 and written, done.stderr
+
+
+def fake_claude(folder, script):
+    """A `claude` on PATH that runs `script` (sh) instead of the real CLI."""
+    os.makedirs(f"{folder}/bin", exist_ok=True)
+    with open(f"{folder}/bin/claude", "w") as handle:
+        handle.write("#!/bin/sh\n" + script)
+    os.chmod(f"{folder}/bin/claude", 0o755)
+    return dict(os.environ, PATH=f"{folder}/bin:{os.environ['PATH']}")
+
+
+@case("describe.sh shows the describer a neutral copy of the image, and removes it after")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        # echo the prompt and the working directory back as the five answers
+        env = fake_claude(folder, 'printf "1. %s\n2. %s\n3. a\n4. b\n5. c\n" "$2" "$(pwd)"\n')
+        os.makedirs(f"{folder}/rooster")
+        Image.new("RGB", (4, 4)).save(f"{folder}/rooster/head_comb.png")
+        done = subprocess.run([f"{HERE}/describe.sh", f"{folder}/rooster/head_comb.png"], env=env,
+                              capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        said = open(f"{folder}/rooster/head_comb.describe.md").read()
+        assert "comb" not in said and "rooster" not in said, said
+        shown = said.split("exactly one file: ")[1].split(". Do not")[0]
+        assert shown.endswith(".png") and not os.path.exists(shown), shown
+
+
+@case("describe.sh stops on a usage limit with exit 3, without retrying, and caps parallel runs")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        env = fake_claude(folder, f'echo call >> "{folder}/calls"\n'
+                                  'printf "%s\\n" "You\'ve hit your session limit"\n')
+        Image.new("RGB", (4, 4)).save(f"{folder}/a.png")
+        done = subprocess.run([f"{HERE}/describe.sh", f"{folder}/a.png"], env=env,
+                              capture_output=True, text=True)
+        calls = len(open(f"{folder}/calls").read().split())
+        assert done.returncode == 3 and calls == 1, (done.returncode, calls, done.stderr)
+        assert "at most 4" in done.stderr and not os.path.exists(f"{folder}/a.describe.md"), done.stderr
+
+
+@case("build.sh STAGE=blockin renders only up to block-in, and unset renders everything")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        draw = ("from pen import stroke, frame, write\nops = [frame(0, 0, 400, 300)]\n"
+                "ops.append(stroke([(10, 10), (200, 150)], stage='gesture'))\n"
+                "ops.append(stroke([(10, 10), (200, 150)], stage='blockin', smooth=False))\n"
+                "ops.append(stroke([(20, 10), (200, 150)], stage='construction', smooth=False))\n"
+                "ops.append(stroke([(10, 10), (200, 150), (10, 150)], stage='fill', closed=True))\n"
+                "ops.append(stroke([(10, 10), (200, 150)], stage='contour'))\n"
+                "ops.append(stroke([(10, 10), (200, 150)], stage='ink'))\n"
+                "write('ops.json', ops)\n")
+        with open(f"{folder}/draw.py", "w") as handle:
+            handle.write(draw)
+        shutil.copy(f"{HERE}/build.sh", folder)   # build.sh runs where it sits
+        # a `node` that records which render it was asked for and the stages it was given
+        os.makedirs(f"{folder}/bin")
+        with open(f"{folder}/bin/node", "w") as handle:
+            handle.write(f"#!{sys.executable}\nimport json, sys\nargs = sys.argv[1:]\n"
+                         "ops = json.load(open(args[args.index('--ops') + 1]))\n"
+                         "png = args[args.index('--png') + 1]\nopen(png, 'w').close()\n"
+                         "print(png, sorted({o.get('stage', 'ink') for o in ops}), file=open('renders', 'a'))\n")
+        os.chmod(f"{folder}/bin/node", 0o755)
+        env = dict(os.environ, PATH=f"{folder}/bin:{os.environ['PATH']}", SKILL=HERE, STAGE="blockin")
+        done = subprocess.run(["bash", "build.sh"], cwd=folder, env=env,
+                              capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        renders = open(f"{folder}/renders").read()
+        stages = {op.get("stage") for op in json.load(open(f"{folder}/ops.json"))}
+        assert stages == {"frame", "gesture", "blockin"}, stages
+        assert "drawing.png" not in renders and "contour.png" not in renders, renders
+        assert not os.path.exists(f"{folder}/drawing.png"), renders
+        os.remove(f"{folder}/renders")
+        del env["STAGE"]
+        done = subprocess.run(["bash", "build.sh"], cwd=folder, env=env,
+                              capture_output=True, text=True)
+        assert done.returncode == 0 and "drawing.png" in open(f"{folder}/renders").read(), done.stderr
+        assert "ink" in {op.get("stage") for op in json.load(open(f"{folder}/ops.json"))}
+        env["STAGE"] = "inking"
+        done = subprocess.run(["bash", "build.sh"], cwd=folder, env=env,
+                              capture_output=True, text=True)
+        assert done.returncode != 0 and "not a stage" in done.stderr, done.stderr
+
+
+@case("--checklist warns when no checklist object matches the inventory, and not when one does")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/ref.md", "w") as handle:
+            handle.write("```checklist\nobject: bird\nsub-forms: beak wing\n```\n")
+        parts = {"rooster.head.beak": {"box": [0, 0, 1, 1]}, "rock": {"box": [0, 0, 1, 1]}}
+        json.dump(parts, open(f"{folder}/parts.json", "w"))
+        found = check.checklist_unmatched(f"{folder}/parts.json", [f"{folder}/ref.md"])
+        assert found == (["rock", "rooster"], [("bird", "ref.md")]), found
+        json.dump({"bird.head.beak": {"box": [0, 0, 1, 1]}}, open(f"{folder}/parts.json", "w"))
+        assert check.checklist_unmatched(f"{folder}/parts.json", [f"{folder}/ref.md"]) is None
+        json.dump({"zzqx.head": {"box": [0, 0, 1, 1]}}, open(f"{folder}/parts.json", "w"))
+        code, said = tool(f"{HERE}/check.py", "none.png", "--checklist", "parts.json", cwd=folder)
+        assert code == 0 and "WARN" in said and "zzqx" in said and "PASSES" not in said, said
+
+
+@case("--zoom: a tall box goes side by side, a wide one stacked, as the help says")
+def _():
+    subject = Image.new("RGB", (200, 200), "white")
+    # each magnified crop is 80x400 (or 400x80); two stacked along 400 would pass 800
+    tall = check.zoom(subject, subject, [0, 0, 20, 100], factor=4)
+    wide = check.zoom(subject, subject, [0, 0, 100, 20], factor=4)
+    assert tall.height < 600 and tall.width > 160, tall.size
+    assert wide.width < 600 and wide.height > 160, wide.size
+    _, said = tool(f"{HERE}/check.py", "--help", cwd=HERE)
+    said = " ".join(said.split())
+    assert "side by side (subject left) for a box taller than wide" in said, said
+
+
+@case("trace.py --smooth classifies a grainy flat as one, with its box where it was")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        panel(folder)
+        pixels = np.asarray(Image.open(f"{folder}/subject.png")).astype(int)
+        grain = np.random.default_rng(0).choice([-70, 0, 70], size=pixels.shape[:2], p=[.2, .6, .2])
+        pixels = np.clip(pixels + grain[..., None], 0, 255).astype(np.uint8)
+        Image.fromarray(pixels).save(f"{folder}/subject.png")
+        reads = {}
+        for smooth in ("0", "2"):
+            code, said = tool(f"{HERE}/trace.py", "subject.png", "palette.json", "--line", "8",
+                              "--smooth", smooth, "--out", f"r{smooth}.json", cwd=folder)
+            assert code == 0, said
+            share = float(said.split("% of pixels are over")[0].split()[-1])
+            orange = [r for r in json.load(open(f"{folder}/r{smooth}.json")) if r["colour"] == "orange"]
+            reads[smooth] = share, orange
+        assert reads["0"][0] > 10 and reads["2"][0] < 2, reads
+        assert len(reads["2"][1]) == 1, reads["2"][1]
+        x, y = reads["2"][1][0]["box"][:2]
+        assert abs(x - 123) <= 3 and abs(y - 83) <= 3, reads["2"][1][0]["box"]
 
 
 @case("line_width takes the smaller of the row and column run")

@@ -226,10 +226,16 @@ at**, and no part may be more than one stage ahead of any other. `pen.write`
 refuses ink in a drawing with no gesture, block-in or contour stage. It checks
 that those stages exist, not that each ink mark has a contour under it.
 
+One `draw.py` holds every stage, and `build.sh` renders all of it, so the easy
+path is to type every stage at once and gate them afterwards. Do not. Write one
+stage, render it alone with `STAGE=<name> ./build.sh --scale 0.5` (`gesture`,
+`blockin`, `construction`, `fill`, `contour`, `ink`, `correct`: it renders
+that stage and the ones before it), pass its gate, and only then write the next.
+
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | 0 | **Read** | `palette.json`, `regions.json`, `subject.describe.md`, `reading.md`, `parts.json` | every tier-1/2 part has a shape note; the acceptance list exists and quotes the describer's answers 3–5 |
-| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the action does not read here, no later stage puts it in. The exception is an action carried by value rather than silhouette (a hand that reads only as pale fingers against a dark glove). Then record the describer runs that show it and gate the action at stage 5 |
+| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the action does not read here, no later stage puts it in. There are two exceptions. One is an action carried by value rather than silhouette (a hand that reads only as pale fingers against a dark glove): record the describer runs that show it and gate the action at stage 5. The other is an action carried by a small feature that no loop can state (an open beak, a tilted head, a glance): record the runs and gate the action at the stage that draws that feature |
 | 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1/2 region as its `blockin` straights from `regions.json`, junctions as points shared by name | `check.py blockin.png --ref subject.png --overlay`: the straights sit on the subject's edges |
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
 | 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, drawn past where the ink will go (see the trapping notes below). Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line, and the object can then no longer occlude itself | `check.py drawing.png --ref subject.png --masses`: the two read as the same shape, said in words. Stages 5–8 interleave per form, so on a subject with heavy line, judge it once each form's ink is in. Its flats alone never match a subject whose line carries mass |
@@ -264,7 +270,9 @@ parts.json` is its only gate. That gate works only if stroke tags and inventory
 names use one vocabulary:
 
 - The key of an overlap is written `far/near` in tag names
-  (`mug.body/table.top`, not `body.mug/top.table`).
+  (`mug.body/table.top`, not `body.mug/top.table`). The order is easy to get
+  backwards; `--depth` warns on a key whose first side is the one `in_front`
+  names. `in_front` still decides the check, so fix the key to match it.
 - `in_front` sits only on overlap entries.
 - A part with no ink makes its rows UNRESOLVED, which is as serious as FAIL.
 - Matching is by prefix, so a parent's rows clear only when every sub-form is
@@ -325,7 +333,10 @@ figure with fully foreshortened thighs has a standing figure's outline). Another
 is an action the describer's category prior outvotes, such as a figure above a
 bicycle, which reads as riding whatever the lines say. In those cases, record
 that the action is gated at S2 instead, with the describer runs that show it,
-rather than redrawing an armature that cannot carry it.
+rather than redrawing an armature that cannot carry it. A third is an action
+carried by a small feature (an open beak, a head tilted back, a glance): loops
+cannot state it, and the masses at S2 cannot either. Record the describer runs
+and gate the action at the stage in S3 that draws that feature.
 
 **Every part gets its whole run of stages; budget never shortens one.** S0 is a
 large share of a scene, and a figure or a vehicle costs as much as a whole flat
@@ -377,7 +388,11 @@ and after the last.
 2. **Trace.** `python3 trace.py subject.png palette.json --png regions.png`,
    and look at `regions.png`. On a scene, use `subject_1x.png` for the reading
    and the masses, and each part's own crop when you reach it. A region is a
-   flat, not an object; naming the regions is the reading.
+   flat, not an object; naming the regions is the reading. A printed or
+   textured subject (halftone dots, lithograph grain, paper texture in a scan)
+   traces as a tangle of specks. Trace it with `--smooth PX`, which smooths the
+   texture out before classifying; take PX near the size of the texture's
+   repeat and check that the unmatched-colour figure falls.
 3. **Describe the subject.** Run `describe.sh subject.png A` and again with `B`
    (the run name keeps both files; on a scene, describe `subject_1x.png`). Its
    answers 3 (what each figure is doing), 4 (what touches what) and 5
@@ -410,6 +425,10 @@ and after the last.
      checklist lists for an object in the inventory has an entry, or a reason in
      `"_absent": "name: reason; ..."`. A sub-form listed only in prose gets read
      and then skipped: an inventory can still stop at the first level.
+     A checklist applies only when a key names one of its `object:` words.
+     When none does, `--checklist` warns that no reference object matched, and
+     its PASS then checks nothing. Use a listed name in the keys, or add the
+     subject's name to the reference's `object:` line.
    - Stop descending where the next level down would not survive at the scale
      you will draw it.
    - **Two instances of one object class get the same sub-form list.** The
@@ -429,9 +448,12 @@ and after the last.
      `subject_1x.png` at the box over four, since a 4x crop of a large part runs
      to thousands of pixels. A box under about 150px at 1x is cut from
      `subject.png` instead, since a 14px sweat drop comes back as "a
-     low-resolution crop". Run `describe.sh` on each crop (the calls are
-     independent and may run in parallel). Where it does not answer with the
-     part you named, fix the note or delete the entry.
+     low-resolution crop". Run `describe.sh` on each crop. The calls are
+     independent, but run at most four at once (`xargs -P4`): many at once can hit
+     the CLI's usage limit, and then every call fails. `describe.sh` exits 3 when the
+     CLI reports a usage or rate limit; wait, then rerun only those crops.
+     Where it does not answer with the part you named, fix the note or delete
+     the entry.
    - An answer that names a neighbour means the box is on the neighbour. If a
      tightened box still names it, the part has no silhouette of its own, and so
      does an answer of "cannot tell". Keep such a part when the acceptance list
@@ -452,7 +474,7 @@ and after the last.
      run `--counts parts.json` after S2 and after the object. It is the only gate
      that fails on an absence, and only where it counts the subject: separate
      forms of one value in a tight box. Crossing or touching forms (spokes, slots
-     bounded by their own ink) come back UNCHECKED; count those on `--zoom`, on
+     bounded by their own ink, a wing's feathers) come back UNCHECKED; count those on `--zoom`, on
      both images, into `notes.md`. The tracer drops forms under `--min-area` and
      hands dark forms narrower than `--line` to their neighbours, and `--masses`
      passes without a spray of droplets. A count deferred to "later" is never
@@ -662,8 +684,10 @@ write("ops.json", ops)
 ## Judges
 
 **Describer.** `describe.sh image.png [RUN]` saves its answer beside the image as
-`image.describe[.RUN].md`. A reply without five numbered answers (a rate limit,
-the CLI's own error) is refused with exit 1 and nothing written. The describer is
+`image.describe[.RUN].md`. A reply without five numbered answers (the CLI's own
+error) is refused with exit 1 and nothing written; a usage or rate limit exits 3.
+It shows the describer a copy under a neutral name, so a crop named after its
+part does not hand over the answer. The describer is
 blind and factual, and it excuses what it sees, so ask it what a thing is, never
 whether it is good. Where its answer to 3 or 4 differs from the subject's, the
 picture's action is wrong, and that is the first fault whatever the numbers say.
@@ -745,11 +769,11 @@ form it names is often real on the form next to it.
 | `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing (`--value NAMES` scans runs of those palette names instead of dark ones): the first non-ground pixel from that side, and the dark runs inward from it. The instrument for a coordinate and for a proportion. `<<` marks an edge off by over 2% of the box, and `runs a|b` marks a row whose line count differs: a thick line drawn as two, or an interior line drawn somewhere else |
 | `--overlay` | the drawing blended over the subject. With `--box x,y,w,h`, the two inks over that box (`--value black` reads only the line; without it every dark flat, such as a glove or bar tape, shows as ink): the subject's blue, the drawing's red, black where they coincide. The only view of interior lines (see above). It gives no number, on purpose |
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each shape note is printed over its crop. It answers whether the part is there, never whether it is recognisable. Only a describer on the assembled picture answers that. At S2 every feature whose marks wait for S3 reads MISSING?, which is the staging and not a fault |
-| `--checklist parts.json` | a sub-form that a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it |
+| `--checklist parts.json` | a sub-form that a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it. Warns when no reference object matched any key, which makes its PASS empty |
 | `--counts parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts; exit 1 is FAIL, exit 2 is UNCHECKED rows |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` (named when it outranks the whole focus tier), and two forms merged into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two bands meant to run together are listed too, and so is a contact between two objects' edges, so look before you merge |
-| `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass; it means tags and inventory are not one vocabulary. **UNLISTED** is a list to work through: one part's ink shown across another's flat where no row decides which is in front |
+| `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass; it means tags and inventory are not one vocabulary. **UNLISTED** is a list to work through: one part's ink shown across another's flat where no row decides which is in front. Warns on a key written `near/far` |
 | `--stages ops.json` | a stage that does not exist, and a mark the script did not write: called from another file, stamped by a loop or an import, points loaded or computed. It does not check that each ink has a contour under it. Pasted generated literals pass it |
 | `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`. On an upscaled or generated subject, also pass `--grain` of three times the upscale factor, or the serration reads as corners (in one case 150 false rows, and 4 with it). A deliberately straight form cut by intruding objects still fails it, and so does a silhouette flat whose region is punched by holes (vents written over a shell). More corners would be the wrong fix in both cases |
 | `--unfilled --paper C` (needs `--ref`) | bare paper where the subject carries the object: a flat short of its own ink, most often along an open edge that `--registration` cannot see. The object is read off the subject's ground (`palette.json`) and bareness off `--paper`. Render a check copy with `background` repointed to a colour nothing uses, and pass that |
@@ -826,10 +850,14 @@ drawn form look bigger and blockier beside the subject's soft edges. So an item
 raised by eye, whether by you, a critic or a person, is measured on subject and
 drawing before any mark, exactly like a critic's.
 
-Never read a coordinate off a zoom's tick labels or a resized grid crop. Both
-produced faults that did not exist (a small opening read as 50px high, two thin
-lines read as 20–40px off) and a probe of the render refuted them. Probe or scan
-the pixels. A number has a converse too: a row run through a dark form misreads
+To judge a fault, never read a coordinate off a zoom's tick labels or a resized
+grid crop. Both produced faults that did not exist (a small opening read as 50px
+high, two thin lines read as 20–40px off) and a probe of the render refuted
+them. Probe or scan the pixels. Placing marks is different: on a subject with
+hundreds of points, reading them off a magnified grid crop is often the only
+practical way, and it is allowed, provided the placed points are then checked
+by probing or scanning the pixels of subject and render. A number has a
+converse too: a row run through a dark form misreads
 wherever a nearer pale form sits inside it, so check by eye what the run crossed.
 
 ## Rules

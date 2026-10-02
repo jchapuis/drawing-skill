@@ -9,7 +9,7 @@ known to be correct and one known to be broken, and has to tell them apart.
 """
 import sys
 
-from check import depth
+from check import backwards_keys, depth
 
 INVENTORY = {
     "a/b": {"in_front": "b"},   # b is in front, so a's ink must precede b's fill
@@ -65,9 +65,14 @@ def main():
     hits, unresolved, _ = depth(ops, nut)
     assert not hits and not unresolved, (hits, unresolved)
 
+    # a key written near/far (in_front names its first half) is reported, not passed
+    assert backwards_keys({"foot.near/rock": {"in_front": "foot.near"},
+                           "rock/foot.far": {"in_front": "foot.far"}}) == ["foot.near/rock"]
+
     print("depth: right order passes, stage-major order fails, "
           "an unnamed pair is UNRESOLVED, tags resolve through '+' and '.', "
-          "ink-only near forms and S2 flats are ordered, a sub-form's own row wins")
+          "ink-only near forms and S2 flats are ordered, a sub-form's own row wins, "
+          "a near/far key is reported")
 
 
 if __name__ == "__main__":

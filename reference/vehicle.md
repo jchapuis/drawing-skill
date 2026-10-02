@@ -175,12 +175,12 @@ count, `--depth` and the part-crop describer nothing to check. Look for these on
 the subject, and write an entry for each that is there:
 
 ```checklist
-object: car|automobile
+object: car|automobile|truck|lorry|van|bus|jeep|taxi
 sub-forms: wheel|tyre|tire window|windscreen|windshield headlight door mirror arch
 ```
 
 ```checklist
-object: boat|ship
+object: boat|ship|yacht|ferry|sailboat
 sub-forms: hull deck reflection
 ```
 

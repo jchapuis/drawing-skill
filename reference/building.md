@@ -183,7 +183,7 @@ room's horizon, the chair is tilted or your horizon is wrong.
 inventory neither names nor excuses in `_absent`:
 
 ```checklist
-object: house|building
+object: house|building|cottage|barn|church|shed
 sub-forms: wall roof window door
 ```
 
@@ -193,7 +193,7 @@ sub-forms: floor wall ceiling
 ```
 
 ```checklist
-object: chair|stool
+object: chair|stool|armchair|bench
 sub-forms: seat leg back
 ```
 
