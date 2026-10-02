@@ -29,6 +29,13 @@ CASES = {
         "ops.append(stroke(P('b', 'c'), tag='y'))\n" + TAIL),
     "two calls on one line": (True, {}, HEAD + STAGES +
         "ops += [stroke([(1, 2), (30, 40)]), stroke([(5, 6), (70, 80)])]\n" + TAIL),
+    # Hand-typed hatching often repeats one offset exactly. A gate that refused
+    # translated copies would refuse this, which is why there is none (SKILL.md).
+    "hatch lines typed with one repeated offset": (True, {}, HEAD + STAGES +
+        "ops.append(stroke([(100, 200), (112, 168)], tag='wing.shaft'))\n"
+        "ops.append(stroke([(140, 205), (152, 173)], tag='wing.shaft'))\n"
+        "ops.append(stroke([(181, 203), (193, 171)], tag='wing.shaft'))\n"
+        "ops.append(stroke([(220, 210), (232, 178)], tag='wing.shaft'))\n" + TAIL),
     "a loop stamping literal points": (False, {}, HEAD + STAGES +
         "for pts in ([(1, 2), (30, 40)], [(5, 6), (70, 80)]):\n"
         "    ops.append(stroke(pts))\n" + TAIL),

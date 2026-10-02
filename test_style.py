@@ -63,8 +63,9 @@ ops.append(stroke([(20, 20), (380, 280)], stage='ink', lead=0.3, tail=0.1, hand=
 ops.append(back('fill'))
 write('ops.json', ops)
 """
-# sha256 of json.dumps(ops, sort_keys=True), from pen.py before the style layer
-BEFORE = "6c6fa7f9aa41404248e4b1a9ace157ba705417bbd95a92490603f083640645bf"
+# sha256 of json.dumps(ops, sort_keys=True), from pen.py before the style layer.
+# Regenerated once, when flats stopped drifting: only the fixture's flat changed.
+BEFORE = "9786f2af2de274298626fcd6772ca6c052cfd1d6ceb6e2178d26dab00481bc07"
 
 
 def draw(style_text=None):
@@ -103,6 +104,20 @@ def _():
     assert code == 0 and digest == BEFORE, (code, digest, said)
     code, digest, said = draw('{"hand": 0.5, "handedness": "right"}')
     assert code == 0 and digest != BEFORE, (code, said)
+
+
+@case("a flat lands on its points at any hand; an ink line on the same points drifts")
+def _():
+    square = [(100, 100), (900, 100), (900, 900), (100, 900)]
+    edge = lambda op: max(min(abs(x - 100), abs(x - 900), abs(y - 100), abs(y - 900))
+                          for x, y in xy(op))
+    for spec in (None, {"hand": 1.0}):
+        pen.style(spec)
+        flat = mark(square, stage="fill", tool="flat", closed=True, smooth=False,
+                    color="orange", size="s", scale=0.5)
+        assert edge(flat) < 0.01, (spec, edge(flat))
+    line = mark(square, stage="ink", closed=True, smooth=False)   # still hand 1
+    assert edge(line) > 1.0, edge(line)
 
 
 @case("a style.json in the folder is read on the first stroke and a bad one stops the drawing")

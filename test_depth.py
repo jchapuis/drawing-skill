@@ -69,10 +69,20 @@ def main():
     assert backwards_keys({"foot.near/rock": {"in_front": "foot.near"},
                            "rock/foot.far": {"in_front": "foot.far"}}) == ["foot.near/rock"]
 
+    # two sub-forms of one surface: "same" decides the row with no order, either way round
+    one = {"dog.chest/dog.ruff": {"in_front": "same"}}
+    for order in (["dog.chest", "dog.ruff"], ["dog.ruff", "dog.chest"]):
+        ops = [mark(stage, tag) for tag in order for stage in ("fill", "ink")]
+        hits, unresolved, rows = depth(ops, one)
+        assert rows == 1 and not hits and not unresolved, (hits, unresolved)
+    # ... and it is still UNRESOLVED when a side is not on the page
+    hits, unresolved, _ = depth([mark("fill", "dog.chest"), mark("ink", "dog.chest")], one)
+    assert [row[0] for row in unresolved] == ["dog.chest/dog.ruff"], unresolved
+
     print("depth: right order passes, stage-major order fails, "
           "an unnamed pair is UNRESOLVED, tags resolve through '+' and '.', "
           "ink-only near forms and S2 flats are ordered, a sub-form's own row wins, "
-          "a near/far key is reported")
+          "a near/far key is reported, an in_front \"same\" row needs no order")
 
 
 if __name__ == "__main__":

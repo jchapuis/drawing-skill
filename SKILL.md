@@ -67,8 +67,22 @@ generator.
 another file; a call site reached more than once (a loop, a comprehension, an
 import that draws); control points mostly not written as numbers in `draw.py`.
 On six hand-written drawings none of these fired, and on a generated one all
-three did. Generated output pasted in as literal lines passes these checks and
-is still forbidden. A scene stays affordable through its economy (five to twelve
+three did.
+
+**What the checks cannot see.** They read the finished `draw.py`, not how its
+numbers got there. Numbers written into it by a script look the same as numbers
+you typed: a script that adds a fixed offset to centres you chose to make a row
+of ticks, or that copies a list shifted, passes every check. There is no sound
+check for this. Hand-typed parallel hatching often repeats one offset exactly
+(finished hand-written drawings hold groups of three to six strokes that are
+exact translations of each other), so a check on repeated offsets would refuse
+honest work. The rule is the only guard: a script may write a line into
+`draw.py` only when you decided every number in it. If a script computed a
+coordinate, by offset, by copy or by formula, the mark was generated, whatever
+the checks say. Type each tick, and vary its length and spacing the way a hand
+does (`reference/line.md`).
+
+A scene stays affordable through its economy (five to twelve
 masses, a part list fixed at S0, marks spent near the centre of interest), never
 through a generator. Hatching is the same: each hatch line is its own stroke with
 its own points, and a hatched region costing a hundred lines of `draw.py` is
@@ -88,7 +102,9 @@ directory with `export SKILL=…`, or write the path into its `SKILL=` line (a
 copy cannot find the skill on its own, and says so). Your script is `draw.py`;
 it writes `ops.json`.
 
-**A scene's working space is the delivered size times four.** Every mark,
+**A scene's working space is the delivered size times four.** A single object
+gets the same 4x space when its smallest feature needs it (under about 40px at
+delivered size, which is most objects). Every mark,
 measurement and render lives in it. Make it once: `subject.png` is the
 delivered image upscaled 4x with `Image.BILINEAR`, and the delivered image is
 kept beside it as `subject_1x.png`, for the describer and for reading the whole
@@ -280,10 +296,21 @@ names use one vocabulary:
 - A part with no ink makes its rows UNRESOLVED, which is as serious as FAIL.
 - Matching is by prefix, so a parent's rows clear only when every sub-form is
   ordered.
+- Two sub-forms of one surface (a neck ruff and the chest, a muzzle and the
+  head) have no front: each one's ink crosses the other's flat. Write their row
+  with `"in_front": "same"`. `--depth` then checks no order for it, still wants
+  both names tagged on the page, and drops the pair from UNLISTED.
 
 A hole (a vent, a window, an eyelet) is an absence in its form, so its flat is
 written after the ink of the surface it pierces. Otherwise that contour runs
 across the opening.
+
+**A subject with no outline** (flat vector art, a poster, a cel without line)
+goes through the same stages. Its contour is the edges between flats, written
+as the flats' shared points: what the flats are cut to, with no weight of its
+own. The ink stage holds only what the subject draws as a dark line (spokes,
+cables, a chain, a seam), and nothing where it has none. Do not add an outline
+the subject lacks.
 
 Going back to an earlier stage invalidates everything after it, so re-run every
 stage after the one you changed. The script re-renders in one call, which makes
@@ -395,7 +422,8 @@ and after the last.
    textured subject (halftone dots, lithograph grain, paper texture in a scan)
    traces as a tangle of specks. Trace it with `--smooth PX`, which smooths the
    texture out before classifying; take PX near the size of the texture's
-   repeat and check that the unmatched-colour figure falls.
+   repeat and check that the unmatched-colour figure falls. A photograph has
+   no flats and no ink: read `reference/photograph.md` before tracing it.
 3. **Describe the subject.** Run `describe.sh subject.png A` and again with `B`
    (the run name keeps both files; on a scene, describe `subject_1x.png`). Its
    answers 3 (what each figure is doing), 4 (what touches what) and 5
@@ -496,9 +524,14 @@ and after the last.
      subject.png --hatch BOX`: `"hatch": {"angle": 127, "spacing": 33, "length":
      38}`, in degrees on the page (0 horizontal, 90 vertical, 45 a `/`) and px.
      A region with two groups (cross-hatching, or two planes in one box) gets
-     two entries, one per group. Add `"light": true` for pale lines cut into a
-     dark, measured with `--hatch BOX --light`. `--linework` fails a drawing
-     that has no group at that angle in that box.
+     two entries, one per group. For pale lines cut into a dark, measured with
+     `--hatch BOX --light`, add `"light": true` inside the `hatch` dict
+     (`"hatch": {"angle": 73, "spacing": 39, "length": 39, "light": true}`).
+     Placed beside `hatch` it is ignored and dark lines are checked; every check
+     warns on a key in an entry that it does not read. `--linework` fails a
+     drawing that has no group at that angle in that box. If `--hatch` warns
+     that the marks are grain, they are texture fragments (a photograph, fur):
+     write no entry for them (`reference/photograph.md`).
 
 ```json
 {
@@ -520,7 +553,9 @@ ops.append(stroke(P("hip", "knee", "ankle"), stage="gesture", nib="fine"))
 ops.append(stroke(P("hip", "knee", "ankle"), stage="blockin", smooth=False))
 ops.append(stroke(P("hip", "knee"), stage="ink", nib="medium", tag="figure.leg.near.thigh"))
 ops.append(stroke(P("knee", "ankle"), stage="ink", nib="medium", tag="figure.leg.near.shin"))
-write("ops.json", ops)
+ops.append(stroke([(430, 600), (470, 598), (468, 880), (440, 882)], stage="fill", tool="flat",
+                  closed=True, color="blue", size="s", scale=0.5, tag="figure.leg.near"))
+write("ops.json", ops)   # color= takes a palette name; --palette repoints it to the subject's hex
 ```
 
 - **Every mark goes on its own line with its own numbers.** No function that
@@ -661,7 +696,10 @@ write("ops.json", ops)
   each row's dark runs on the subject alone. Place ink from the scan, not the
   trace: strokes placed from the trace came out half a line inboard, and tubes
   read thin.
-- **Straights are `smooth=False`.** So is any closed quad (smoothed, four
+- **Straights are `smooth=False`.** Fills are smoothed by default, so any flat
+  with a corner on the frame (sky, sea, a field, a cliff running off the edge)
+  needs `smooth=False` too, or it bulges into a round hump at every corner. So
+  is any closed quad (smoothed, four
   corners render as a lens), any organic form's one named corner (a glove's
   cuff, a heel: smoothed through the right points, a glove lost its cuff and was
   named "the hood"), and every stroke of a faceted form such as a rock, crystal
@@ -677,12 +715,17 @@ write("ops.json", ops)
   on the drawing after its first ink: the same weight once ran 1–3px heavier on
   curves. A hard-edged pen matched to `--measure-line`'s p90 reads heavier than
   the subject's soft line, so match it to the dark core that `--weights` reads.
+  Then look at the swatch, and later the first ink, downsampled to the delivered
+  size. Weights matched in the 4x space can vanish there: a 3px line at 4x is
+  under 1px when the picture is viewed, and the drawing reads as flat colour.
+  Raise the finest weight until it shows at delivered size, and keep the span.
 
   Each tool has its own range. `pen` is the hairline instrument, and `brush`
   bottoms out near 2px at 1:1. At the same `size` and `scale` a brush runs about
   twice a pen's width. A long straight (a pole, a tube, a frame edge) wanders
-  several px off its points under the default hand, so pass `hand=0` there. The
-  named nibs are pitched for a ~430px subject. On a single object of another size
+  several px off its points under the default hand, so pass `hand=0` there. A
+  flat (`tool="flat"`) never drifts: it lands on its points at any `hand`, so
+  the ratio of two bands set side by side holds. The named nibs are pitched for a ~430px subject. On a single object of another size
   call `gauge(subject_height)`. On a 4x scene the named nibs are unusable, so pin
   `size` and `scale` from the swatch by hand, once for the whole document.
   `weight=` is pressure, not width.
@@ -793,8 +836,8 @@ form it names is often real on the form next to it.
 | `--checklist parts.json` | a sub-form that a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it. Warns when no reference object matched any key, which makes its PASS empty |
 | `--counts parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts; exit 1 is FAIL, exit 2 is UNCHECKED rows |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` (named when it outranks the whole focus tier), and two forms merged into one value. Zero-sum: the only way to lift a part is to put another down |
-| `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two bands meant to run together are listed too, and so is a contact between two objects' edges, so look before you merge |
-| `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass; it means tags and inventory are not one vocabulary. **UNLISTED** is a list to work through: one part's ink shown across another's flat where no row decides which is in front. Warns on a key written `near/far` |
+| `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two lines that cross in an X, or meet in a V or a T, at 5° or more (crossing spokes, a chain over a spoke) are not listed. Two lines that run side by side (two bands, parallel cables) are, and so is a contact between two objects' edges, so look before you merge |
+| `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass; it means tags and inventory are not one vocabulary. **UNLISTED** is a list to work through: one part's ink shown across another's flat where no row decides which is in front. Warns on a key written `near/far`. A row with `"in_front": "same"` (sub-forms of one surface) has no order to check |
 | `--stages ops.json` | a stage that does not exist, and a mark the script did not write: called from another file, stamped by a loop or an import, points loaded or computed. It does not check that each ink has a contour under it. Pasted generated literals pass it |
 | `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`. On an upscaled or generated subject, also pass `--grain` of three times the upscale factor, or the serration reads as corners (in one case 150 false rows, and 4 with it). A deliberately straight form cut by intruding objects still fails it, and so does a silhouette flat whose region is punched by holes (vents written over a shell). More corners would be the wrong fix in both cases |
 | `--unfilled --paper C` (needs `--ref`) | bare paper where the subject carries the object: a flat short of its own ink, most often along an open edge that `--registration` cannot see. The object is read off the subject's ground (`palette.json`) and bareness off `--paper`. Render a check copy with `background` repointed to a colour nothing uses, and pass that |
@@ -802,8 +845,8 @@ form it names is often real on the form next to it.
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x, ticked in whole-picture coordinates. **The primary gate on any object**: three versions of one object passed every numeric gate and ranged from a beetle to something a blind viewer named at once, and only the magnified pair told them apart. Ticks orient you; they are not a coordinate |
 | a blind viewer on a part's crop | what the part is. The only gate that fails a blob. A detector, not a meter |
 | `--weights rows` | the line hierarchy against the subject's, each run as `width@centre` |
-| `subject.png --hatch x,y,w,h [--ref drawing.png]` | the line marks in a box, flats left out: coverage, and per group of parallel marks its angle, spacing, length and width. With `--ref`, the drawing's box beside it, `<<` on a group missing, an angle more than 20° off, spacing off by more than half, or coverage under half. `--light` reads pale lines on a dark. Numbers only: where the hatching is, never strokes |
-| `--linework parts.json` (needs `--ref`) | hatching left out: FAIL where an entry's `hatch` angle has no line group within 20° in the drawing's box. And a flattened weight hierarchy: FAIL where the drawing's span (heaviest over finest line, 95th over 10th percentile on the marks' centre lines) is under half the subject's. Exit 1 FAIL, 2 UNCHECKED (the written angle does not reproduce on the subject) |
+| `subject.png --hatch x,y,w,h [--ref drawing.png]` | the line marks in a box, flats left out: coverage, and per group of parallel marks its angle, spacing, length and width. With `--ref`, the drawing's box beside it, `<<` on a group missing, an angle more than 20° off, spacing off by more than half, or coverage under half. `--light` reads pale lines on a dark. **WARN grain** when the marks are short (median under 3 × `--line`) and fade under a light blur: photo grain, fur or a dot screen, not hatching. Numbers only: where the hatching is, never strokes |
+| `--linework parts.json` (needs `--ref`) | hatching left out: FAIL where an entry's `hatch` angle has no line group within 20° in the drawing's box. And a flattened weight hierarchy: FAIL where the drawing's span (heaviest over finest line, 95th over 10th percentile on the marks' centre lines) is under half the subject's. A FAIL in a box whose lines run wider than `--line` adds a hint: an edge heavier than `--line` reads as a flat, so a narrow part between two of them loses its hatching; thin the edge first. Exit 1 FAIL, 2 UNCHECKED (the written angle does not reproduce on the subject) |
 
 Treat every number as a list to work through, never as a score. The cheap way to
 move a mark-counting number is to add marks, and a whole-picture pixel difference
@@ -970,6 +1013,9 @@ named devices for what is not rendered. The rest is detail, loaded per task.
   `building` (perspective, exteriors, interiors, furniture), `landscape` (sky,
   water, mountains, distance), `tree-and-plant` (trees, foliage, flowers, pots),
   `still-life` (ellipses, containers, glass, fruit, food, everyday objects).
+- Photographs: `photograph` (simplifying the values before tracing, finding the
+  silhouette, which edges to keep, fur and grass as directional strokes, and
+  why `--hatch` misreads grain).
 - Craft: `measuring` (comparative measurement, sighting, plumb lines), `light`,
   `line` (weight hierarchy, hatching and texture by hand, inking order), `tone`, `colour` (flatting,
   trapping), `correcting`, and `redrawing` (a generated image as subject: what

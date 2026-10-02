@@ -205,9 +205,11 @@ colouring-book copy of it, however well they are placed.
    horizontal, 90 vertical, 45 a `/`), the spacing between neighbours, the
    typical length and width, and the middle half of each range. Pale lines cut
    into a dark (feather shafts on a black wing, light grain on a dark rock) are
-   read with `--light`.
+   read with `--light`. If it warns of grain, the marks are texture fragments,
+   not hatching (a photograph, fur): see `photograph.md`.
 2. Write the group into the part's `parts.json` entry as `"hatch": {"angle",
    "spacing", "length"}`, one entry per group, so `--linework` can check it.
+   Pale lines add `"light": true` inside the same dict.
 3. Read the actual lines off a `--zoom` or a `--scan` across the group: where
    each line starts and ends. Then write each hatch line as its own `stroke`,
    on its own line of `draw.py`, with its own two or three measured points. Vary

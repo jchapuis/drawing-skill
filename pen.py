@@ -634,8 +634,9 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
     - Flats need `tool="flat"`. At any translucency every overlap shows as a
       seam.
 
-    The style (see `style`) changes only how these points land. `hand` scales
-    the drift, the run-on and the weight from mark to mark, and on ink and
+    The style (see `style`) changes only how these points land. A flat
+    (`tool="flat"`) has no drift and no run-on: it lands on its points. `hand`
+    scales the drift, the run-on and the weight from mark to mark, and on ink and
     correction marks it can leave a small gap at an end and starts the line
     with a hook (fast) or a blob (slow). `handedness` sets which end the line is
     drawn from. `medium` picks the tool when you did not name one. A `tool`,
@@ -703,12 +704,17 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
     reach = float(np.linalg.norm(np.diff(body, axis=0), axis=1).sum())
     # a short mark has no room to wander; scale the imprecision to the gesture
     amount = hand * loose * min(1.9, 0.4 + reach / 700.0)
+    if tool == "flat":
+        # A flat lands on its points. Drift moved a whole flat 3-5px, which
+        # changes the ratio of two bands set side by side (a tyre and its rim)
+        # with no gate noticing. The hand shows in the ink, not in the fill.
+        amount = 0.0
 
     # The style's end dynamics, decided once per mark so that every pass of a
     # crayon ends and starts alike. Only open ink marks get them, and only from
     # a hand that is not ruling a line (`hand` > 0).
     gaps, hook, blob = [0.0, 0.0], 0.0, 0.0
-    if styled and stage in INKED and not closed and hand > 0:
+    if styled and stage in INKED and not closed and hand > 0 and tool != "flat":
         looseness = float(styled.get("hand", 0.5))
         for end in (0, 1):
             if mine.random() < 0.3 * looseness:
@@ -725,7 +731,7 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
     marks = []
     for pass_index in range(kit["passes"]):
         laid = _drift(body, speed, amount + kit["spread"] * pass_index)
-        if not closed and hand > 0:
+        if not closed and hand > 0 and tool != "flat":
             drifted = laid
             laid = np.asarray(_run_on(laid, speed, amount), dtype=float)
         pace = speed
@@ -902,8 +908,11 @@ def provenance(ops, source=None):
       is at 0.2%. The floor is LITERAL_FLOOR.
 
     None of them can see generated output pasted into the script as literal
-    lines. That is still a generated drawing, and the rule against it is what
-    forbids it, not this check.
+    lines, including lines a script wrote by adding an offset to your points.
+    That is still a generated drawing, and the rule against it is what forbids
+    it, not this check. No sound check exists: hand-typed hatching repeats one
+    offset exactly as often as a script does (SKILL.md, "What the checks cannot
+    see").
     """
     strokes = [op for op in ops if op.get("op") == "stroke" and op.get("stage") != "frame"]
     calls, unrecorded = {}, 0

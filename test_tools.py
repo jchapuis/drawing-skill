@@ -274,6 +274,22 @@ def _():
     assert not hits, hits
 
 
+@case("--doubled passes spokes crossing in an X or meeting in a V; keeps lines run together")
+def _():
+    one = stroke("ink", "spoke", [(0, 200), (400, 200)])
+    for degrees in (8, 20, 60):                       # an X at a clear angle
+        rise = 200 * np.tan(np.radians(degrees))
+        other = stroke("ink", "spoke", [(0, 200 - rise), (400, 200 + rise)])
+        hits, _, _ = check.doubled([one, other])
+        assert not hits, (degrees, hits)
+    v = stroke("ink", "spoke", [(0, 200 - 400 * np.tan(np.radians(8))), (400, 200)])
+    assert not check.doubled([one, v])[0]               # a V into one hub hole
+    shallow = stroke("ink", "spoke", [(0, 197), (400, 203)])   # under 1 degree: one edge
+    assert check.doubled([one, shallow])[0]
+    wavy = stroke("ink", "edge", [(0, 201), (100, 199), (200, 201), (300, 199), (400, 201)])
+    assert check.doubled([one, wavy])[0]                # two guesses wandering across each other
+
+
 @case("--depth lists an overlap that no row decides")
 def _():
     inventory = {"a": {"box": [0, 0, 1, 1]}, "b": {"box": [0, 0, 1, 1]}}
@@ -283,6 +299,34 @@ def _():
     rows = check.crossings(ops, inventory)
     assert rows and rows[0][1:] == ("a", "b", "drawn across"), rows
     inventory["a/b"] = {"in_front": "a"}
+    assert not check.crossings(ops, inventory)
+
+
+@case("parts.json: a key no check reads warns, and names hatch for a misplaced light")
+def _():
+    good = {"rock": {"shape": "a face", "box": [0, 0, 4, 4], "tier": 1,
+                     "hatch": {"angle": 45, "spacing": 9, "length": 30, "light": True}},
+            "a/b": {"shape": "", "box": [0, 0, 1, 1], "in_front": "same"}, "_absent": "x: y"}
+    assert not check.unknown_keys(good)
+    bad = {"rock": {"shape": "a face", "box": [0, 0, 4, 4], "light": True,
+                    "hatch": {"angle": 45, "spacing": 9, "lenght": 30}}}
+    said = check.unknown_keys(bad)
+    assert len(said) == 2 and 'inside "hatch"' in said[0] and "'lenght'" in said[1], said
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/parts.json", "w") as handle:
+            json.dump(bad, handle)
+        code, said = tool(f"{HERE}/check.py", "x.png", "--checklist", "parts.json", cwd=folder)
+        assert "WARN parts.json: 'rock' has a key no check reads: 'light'" in said, said
+
+
+@case("--depth: an in_front \"same\" row takes two sub-forms of one surface off the unlisted list")
+def _():
+    inventory = {"a": {"box": [0, 0, 1, 1]}, "b": {"box": [0, 0, 1, 1]}}
+    ops = [{"op": "stroke", "stage": "frame", "points": [[0, 0], [400, 0], [400, 400], [0, 400]]},
+           stroke("fill", "b", BOX, closed=True, fill="fill"),
+           stroke("ink", "a", [(120, 200), (280, 200)])]
+    assert check.crossings(ops, inventory)
+    inventory["b/a"] = {"in_front": "same"}
     assert not check.crossings(ops, inventory)
 
 
@@ -486,6 +530,35 @@ def _():
     assert not flat["groups"] and flat["coverage"] < 0.01, flat   # a dark flat is not line
 
 
+def grainy(seed=3):
+    """A photograph's grain: noise streaked along 45deg, upscaled 4x as a
+    working-space subject is. It reads as a group of short parallel marks."""
+    rng = np.random.default_rng(seed)
+    small = np.clip(150 + rng.normal(0, 50, (100, 100)), 0, 255).astype(np.uint8)
+    streak = np.zeros((7, 7))
+    for at in range(7):
+        streak[6 - at, at] = 1.0 / 7
+    from scipy import ndimage as nd
+    small = nd.convolve(small.astype(float), streak).clip(0, 255).astype(np.uint8)
+    return Image.fromarray(small).resize((400, 400), Image.BILINEAR).convert("RGB")
+
+
+@case("--hatch warns that photo grain is not hatching, and does not warn on drawn hatching")
+def _():
+    noise = check.hatching(grey(grainy()), 14)
+    assert noise["groups"] and noise.get("grain"), noise      # it looks like a group, and is grain
+    drawn = check.hatching(grey(hatched(45, width=5)), 14)
+    assert drawn["groups"] and not drawn.get("grain"), drawn
+    with tempfile.TemporaryDirectory() as folder:
+        grainy().save(f"{folder}/photo.png")
+        code, said = tool(f"{HERE}/check.py", "photo.png", "--hatch", "0,0,400,400",
+                          "--line", "14", cwd=folder)
+        assert code == 0 and "WARN grain" in said, said
+        hatched(45).save(f"{folder}/print.png")
+        code, said = tool(f"{HERE}/check.py", "print.png", "--hatch", "0,0,400,400", cwd=folder)
+        assert code == 0 and "WARN grain" not in said, said
+
+
 @case("--hatch --ref: the drawing's flat box is flagged missing, its own hatching is not")
 def _():
     with tempfile.TemporaryDirectory() as folder:
@@ -522,6 +595,19 @@ def _():
         assert code == 1 and "FAIL:" in said, said
         code, said = linework_case(folder, hatched(45), hatch_angle=100)
         assert code == 2 and "UNCHECKED" in said, said   # written angle not on the subject
+
+
+@case("--linework: a FAIL names the line width when the box's lines run wider than --line")
+def _():
+    heavy = Image.new("RGB", (400, 400), (240, 230, 210))
+    pen = ImageDraw.Draw(heavy)
+    for x in (120, 280):
+        pen.line([(x, 20), (x, 380)], fill=(30, 20, 20), width=10)   # edges over --line 6
+    with tempfile.TemporaryDirectory() as folder:
+        code, said = linework_case(folder, heavy)
+        assert code == 1 and "wider than --line 6px" in said, said
+        code, said = linework_case(folder, flat_box())
+        assert code == 1 and "wider than --line" not in said, said
 
 
 def weighted(widths, size=(400, 400)):

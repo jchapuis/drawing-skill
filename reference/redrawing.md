@@ -9,6 +9,8 @@ The brief matters. Redrawing a photograph means finding the form under an
 appearance. Redrawing a generated image means **finding the form that was never
 there**, and declining to copy the things that make it read as machine-made.
 
+For a photograph as subject, see `photograph.md`.
+
 ## What it hands you free
 
 A generated flat-cel source is the most *measurable* subject you will get, and

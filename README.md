@@ -255,7 +255,7 @@ reference/        method.md (the full method), scene.md (the scene
                     quadruped, bird, bicycle, vehicle, building,
                     landscape, tree-and-plant, still-life) or craft
                     (measuring, line, colour, tone, light, correcting,
-                    redrawing)
+                    redrawing, photograph)
 pen.py            stroke()/frame()/write(): the hand, plus the
                     authorship audit write() runs before saving
 trace.py          measures a flat-cel subject's regions once; never

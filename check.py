@@ -356,6 +356,7 @@ def hatching(grey, line, light=False, contrast=30, groups=3):
         if all(_apart(centre, other) > 25 for other in chosen):
             chosen.append(centre)
     total = weights.sum()
+    pooled = []
     for centre in chosen[:groups]:
         near = usable & (np.minimum(np.abs(angle - centre), 180 - np.abs(angle - centre)) <= 15)
         if not near.any():
@@ -382,13 +383,51 @@ def hatching(grey, line, light=False, contrast=30, groups=3):
             kept[piece] |= labels[piece] == index
         if len(lengths) < 2:
             continue
+        pooled.extend(lengths)
         found["groups"].append({"angle": mean, "share": float(weights[near[usable]].sum() / total),
                                 "marks": len(lengths), "length": float(np.median(lengths)),
                                 "lengths": (float(np.percentile(lengths, 25)), float(np.percentile(lengths, 75))),
                                 "width": float(np.median(widths)),
                                 "spacing": _spacing(kept, mean),
                                 "coverage": float(kept.sum()) / area})
+    if pooled:
+        found["grain"] = _grain(grey, mask, line, light, float(np.median(pooled)))
     return found
+
+
+GRAIN_LENGTH = 3       # marks whose median length is under this many --line widths are short
+GRAIN_SURVIVAL = 0.3   # ... and grain when under this share of them outlives the blur
+
+
+def _grain(grey, mask, line, light, median_length):
+    """Are these marks grain rather than strokes? A dict when they are, else None.
+
+    A photograph's grain, a print's dot screen or fur texture breaks into short
+    fragments that the threshold reads as marks, and those come out as a group
+    with an angle, a spacing and a length like real hatching. Two things tell
+    them apart. The marks are short: their median length is under GRAIN_LENGTH
+    line widths. And they do not survive a blur of a quarter of `--line`: a drawn
+    stroke keeps its contrast under it, while a fragment of grain sits just over
+    the `contrast` floor and drops under it. Measured on a photographed lawn,
+    under a fifth of the mark pixels survived; on a hand-coloured print's
+    hatching, 46-84%. The same print's leg boxes, whose marks were mostly the
+    limb's own edges rather than hatching, came out at 18-21% and are flagged."""
+    blurred = cv2.GaussianBlur(np.asarray(grey, dtype=float), (0, 0), max(1.0, line / 3.5))
+    survival = float(line_marks(blurred, line, light=light)[0].sum()) / max(1.0, float(mask.sum()))
+    if median_length < GRAIN_LENGTH * line and survival < GRAIN_SURVIVAL:
+        return {"length": median_length, "survival": survival}
+    return None
+
+
+def grain_text(found, line):
+    grain = found.get("grain")
+    if not grain:
+        return None
+    return (f"WARN grain, not hatching: the marks' median length is {grain['length']:.0f}px "
+            f"(under {GRAIN_LENGTH} x --line {line}px) and {grain['survival']:.0%} of them outlive "
+            "a light blur.\n     These are fragments of texture (a photograph's grain, fur, a "
+            "dot screen). Do not\n     write them as a hatch entry; simplify the values first "
+            "(reference/photograph.md)\n     and read the real strokes off --zoom.")
 
 
 def _spacing(member, angle):
@@ -514,6 +553,8 @@ def hatch_report(subject, drawing, box, line, light=False, names=("subject", "dr
         print(f"  group {number}: {_group_text(group)}"
               + (f"\n           spacing {spacing[1]:.0f}-{spacing[2]:.0f}px, length {lo:.0f}-{hi:.0f}px "
                  "(middle half)" if spacing else ""))
+    if grain_text(seen, line):
+        print("  " + grain_text(seen, line))
     if drawing is None:
         print("\nwrite each mark of a group as its own stroke, from points you read off the "
               "subject.\nVary length and spacing inside the ranges above the way a hand does.")
@@ -544,8 +585,7 @@ def linework(drawing, subject, inventory_path, line, box=None):
     """--linework: every parts.json entry that carries `hatch` is measured on
     the drawing, and the drawing's line weight span against the subject's.
     Returns (failures, unchecked)."""
-    with open(inventory_path) as handle:
-        raw = json.load(handle)
+    raw = load_parts(inventory_path)
     drawing = drawing.resize(subject.size, Image.LANCZOS)
     failures = unchecked = 0
     rows = [(name, entry) for name, entry in raw.items()
@@ -568,6 +608,8 @@ def linework(drawing, subject, inventory_path, line, box=None):
               + (f", length {want['length']}px" if want.get("length") else "")
               + (", pale lines" if light else ""))
         print(f"    subject: {_group_text(theirs)}  (coverage {seen['coverage']:.0%})")
+        if grain_text(seen, line):
+            print("    " + grain_text(seen, line))
         print(f"    drawing: {_group_text(ours)}  (coverage {made['coverage']:.0%})")
         if theirs is None or their_off > 20:
             unchecked += 1
@@ -578,6 +620,12 @@ def linework(drawing, subject, inventory_path, line, box=None):
             failures += 1
             print(f"    FAIL: no line group within 20deg of {want['angle']:.0f}deg"
                   + (f" (nearest {ours['angle']:.0f}deg)" if ours else ""))
+            wide = weight_span(_crop_grey(drawing, entry["box"]), 2 * line)
+            if wide is not None and wide[2] > line:
+                print(f"    hint: lines here run to {wide[2]:.0f}px, wider than --line {line}px. "
+                      "A line over --line\n    reads as a dark flat, not a mark, so a narrow part "
+                      "between two such edges\n    reads as one flat and its hatching is not seen. "
+                      "Thin the edge under --line first.")
             continue
         flags = hatch_flags({"angle": want["angle"], "spacing": theirs["spacing"]},
                             made["groups"], seen["coverage"], made["coverage"])
@@ -1188,6 +1236,42 @@ class Cover:
         return hidden
 
 
+CROSSING_FLOOR = 5.0   # degrees: two lines meeting at less than this are one edge
+
+
+def _crossing(run, other, tree, touch, length, ends, near_ends):
+    """Is this run two lines crossing or meeting, rather than one edge stated twice?
+
+    Two lines that cross at an angle are within `touch` of each other for
+    2 * touch / sin(angle), and no further, and they end the run on opposite
+    sides of each other. Crossing spokes and a chain over a spoke do exactly
+    that. Two lines that meet in a V or a T (two spokes into one hub hole, one
+    ending on the other) touch for half that, and the run holds an end of one
+    of them. Two guesses at one edge run alongside each other for longer than
+    their angle explains, or meet at under CROSSING_FLOOR degrees, and stay
+    listed."""
+    nearest = tree.query(run)[1]
+    nearest = nearest[nearest < len(other)]
+    if len(nearest) < 2 or len(run) < 2:
+        return False
+    seg = other[nearest.min():nearest.max() + 1]
+    along_other = seg[-1] - seg[0]
+    along_run = run[-1] - run[0]
+    if np.hypot(*along_other) < 1e-6 or np.hypot(*along_run) < 1e-6:
+        return False
+    cosine = abs(float(along_other @ along_run)) / (np.hypot(*along_other) * np.hypot(*along_run))
+    angle = math.degrees(math.acos(min(1.0, cosine)))
+    if angle < CROSSING_FLOOR:
+        return False
+    if length > 1.5 * 2 * touch / math.sin(math.radians(angle)):
+        return False
+    if np.linalg.norm(run[:, None, :] - ends[None, :, :], axis=2).min() <= near_ends:
+        return True     # a V or a T: one of the two lines ends here
+    normal = np.array([-along_other[1], along_other[0]]) / np.hypot(*along_other)
+    sides = (run[[0, -1]] - seg[0]) @ normal
+    return bool(sides[0] * sides[1] < 0)
+
+
 def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
     """Is any edge stated twice on the page? Reads the script, and replays it.
 
@@ -1214,6 +1298,11 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
        as a doubling (29 items, none real). A run where the earlier stroke is
        buried under a later flat by half its own width is dropped. If that flat
        is later moved, the doubling shows up here again.
+    4. A crossing is not a doubling. Two spokes that cross in an X touch for a
+       short run fixed by their angle and end it on opposite sides of each
+       other (see `_crossing`). Two lines that run side by side, such as a pair
+       of parallel cables, are still listed: the gate cannot tell them from one
+       edge drawn twice, so look before you merge.
     """
     cover = Cover(ops)
     lines = []
@@ -1253,6 +1342,8 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
                 if cover.buried(run, lower[4], lower[5]).mean() >= 0.8:
                     continue
                 length = float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
+                if _crossing(run, other[2], trees[second], touch, length, ends, near_ends):
+                    continue
                 worst = max(worst, length)
                 if length > floor:
                     hits.append((one[0], one[1], other[0], other[1], round(length)))
@@ -1269,8 +1360,17 @@ def backwards_keys(inventory):
             and len(key.split("/")) == 2 and key.split("/")[0] == entry["in_front"]]
 
 
+SAME = "same"   # in_front value for two sub-forms of one surface (a ruff and a chest)
+
+
 def depth(ops, inventory):
     """Does the write order deliver the occlusion the inventory decided on?
+
+    A row whose `in_front` is "same" names two sub-forms of one surface, such
+    as a neck ruff and the chest, or a muzzle and the head, where each one's
+    ink crosses the other's flat and neither order is right. It has no order
+    to check. It still resolves only when both sides are tags on the page, and
+    being a row, it takes the pair off the UNLISTED list.
 
     Occlusion comes only from the order marks are written in. A flat cannot hide
     ink, because the ink is above it. So for any two forms that overlap, every
@@ -1302,12 +1402,15 @@ def depth(ops, inventory):
         return any(part == name or part.startswith(name + ".")
                    for part in str(tag).split("+"))
 
-    pairs = []
+    pairs, same = [], []
     for key, entry in inventory.items():
         near = entry.get("in_front") if isinstance(entry, dict) else None
         if not near:
             continue
         sides = key.split("/")
+        if near == SAME:
+            same.append((key, sides))
+            continue
         far = [side for side in sides if side != near]
         pairs.append((key, near, far[0] if len(sides) == 2 and len(far) == 1 else None))
 
@@ -1328,6 +1431,15 @@ def depth(ops, inventory):
                        for a, b in rows for longer, mate in ((a, b), (b, a)))
 
     hits, unresolved = [], []
+    for key, sides in same:
+        # two sub-forms of one surface: neither is in front, so there is no
+        # order to check, but both names must still be tags on the page
+        if len(sides) != 2:
+            unresolved.append((key, "the key does not name exactly two forms"))
+            continue
+        for side in sides:
+            if not any(owns(op.get("tag"), side) for op in ops if op.get("stage") in ("fill", "ink")):
+                unresolved.append((key, f"nothing is tagged '{side}'"))
     for key, near, far in pairs:
         if far is None:
             unresolved.append((key, f"the key does not name exactly two objects either side of '{near}'"))
@@ -1356,7 +1468,7 @@ def depth(ops, inventory):
             unresolved.append((key, f"nothing is tagged '{far}'"))
         elif behind > cover:
             hits.append((key, far, behind, near, cover))
-    return hits, unresolved, len(pairs)
+    return hits, unresolved, len(pairs) + len(same)
 
 
 def crossings(ops, inventory, floor=None):
@@ -1449,6 +1561,41 @@ def plain(text):
                    else "?" for character in text)
 
 
+ENTRY_KEYS = {"shape", "box", "tier", "front_of", "touches", "gap", "in_front", "count",
+              "value", "hatch"}
+HATCH_KEYS = {"angle", "spacing", "length", "light"}
+_WARNED = set()
+
+
+def unknown_keys(raw):
+    """Keys in parts.json entries that no check reads. A key in the wrong place
+    is silently ignored: `"light": true` beside `hatch` instead of inside it
+    checks dark lines where pale ones were meant."""
+    found = []
+    for name, entry in raw.items():
+        if name.startswith("_") or not isinstance(entry, dict):
+            continue
+        for key in sorted(set(entry) - ENTRY_KEYS):
+            hint = " (it belongs inside \"hatch\")" if key in HATCH_KEYS else ""
+            found.append(f"{name!r} has a key no check reads: {key!r}{hint}")
+        hatch = entry.get("hatch")
+        if isinstance(hatch, dict):
+            for key in sorted(set(hatch) - HATCH_KEYS):
+                found.append(f"{name!r} hatch has a key no check reads: {key!r}")
+    return found
+
+
+def load_parts(path):
+    """parts.json, with a warning on stderr for every key no check reads."""
+    with open(path) as handle:
+        raw = json.load(handle)
+    if os.path.abspath(path) not in _WARNED:
+        _WARNED.add(os.path.abspath(path))
+        for warning in unknown_keys(raw):
+            print(f"WARN parts.json: {warning}", file=sys.stderr)
+    return raw
+
+
 def read_inventory(path):
     """Load `parts.json`, in either of the two forms an entry may take.
 
@@ -1474,8 +1621,7 @@ def read_inventory(path):
     which is in front and how wide the gap is. It needs no machinery of its own.
     Overlaps are where scenes most often go wrong.
     """
-    with open(path) as handle:
-        raw = json.load(handle)
+    raw = load_parts(path)
     inventory = {}
     for name, entry in raw.items():
         if name.startswith("_"):
@@ -1513,8 +1659,7 @@ def checklist(inventory_path, references=None):
     are joined by |. A block may hold several `object:` lines, each followed by
     its `sub-forms:` line. `_absent` in parts.json is one string,
     "name: reason; ..."."""
-    with open(inventory_path) as handle:
-        raw = json.load(handle)
+    raw = load_parts(inventory_path)
     sides = _key_sides(raw)
     excused = {item.split(":")[0].strip() for item in str(raw.get("_absent", "")).split(";")
                if ":" in item}
@@ -1570,8 +1715,7 @@ def checklist_unmatched(inventory_path, references=None):
     `checklist` passes such an inventory with nothing checked: a `rooster.*`
     inventory against a checklist keyed `bird` reads as every sub-form present.
     This is a warning and not a failure, because a subject may have no reference."""
-    with open(inventory_path) as handle:
-        raw = json.load(handle)
+    raw = load_parts(inventory_path)
     sides = _key_sides(raw)
     if not sides:
         return None
@@ -1593,8 +1737,7 @@ def count_forms(drawing, subject, inventory_path, palette_path, min_area):
     design. An entry opts in with `"count": N` and `"value": "black+grey"`, the
     palette names its forms carry. Each box is classified to the palette on both
     images and the connected forms of those values are counted."""
-    with open(inventory_path) as handle:
-        raw = json.load(handle)
+    raw = load_parts(inventory_path)
     with open(palette_path) as handle:
         palette = json.load(handle)
     # the ground is classified too but never counted. If it were left out, it
@@ -1961,20 +2104,18 @@ def main():
     if args.depth:
         with open(args.depth[0]) as handle:
             written = json.load(handle)
-        with open(args.depth[1]) as handle:
-            hits, unresolved, count = depth(written, json.load(handle))
-        with open(args.depth[1]) as handle:
-            loose = crossings(written, json.load(handle))
+        inventory = load_parts(args.depth[1])
+        hits, unresolved, count = depth(written, inventory)
+        loose = crossings(written, inventory)
         print(f"{count} overlap rows carry an in_front decision")
         for key, far, ink_at, near, fill_at in hits:
             print(f"  FAIL {key}: '{far}' at op{ink_at} is written after "
                   f"'{near}''s cover at op{fill_at}, so that edge draws across it")
         for key, why in unresolved:
             print(f"  UNRESOLVED {key}: {why}")
-        with open(args.depth[1]) as handle:
-            for key in backwards_keys(json.load(handle)):
-                print(f"  WARN {key}: key written near/far, since in_front names its first half. "
-                      "The key is far/near; in_front decides, so check it is the one in front")
+        for key in backwards_keys(inventory):
+            print(f"  WARN {key}: key written near/far, since in_front names its first half. "
+                  "The key is far/near; in_front decides, so check it is the one in front")
         if not hits and not unresolved and count:
             print(f"  PASSES — the {count} listed occlusions are delivered by the write order")
         if not count:
