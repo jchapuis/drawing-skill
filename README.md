@@ -11,6 +11,21 @@ at any point.
 
 ## Gallery
 
+![A rooster: the subject, a first drawing, a second drawing after the linework gate, and the watercolour-and-ink finish](docs/rooster.jpg)
+
+A rooster from a hand-coloured print, drawn twice. Left to right: the subject;
+the first drawing, which had the shapes right but no hatching and one even
+outline; the second, after the skill learned to measure the subject's
+hatching and line weights (`--hatch`, `--linework`); and that drawing finished
+as watercolour and ink on cold-press paper (`style.json`). Subject: Randolph
+Caldecott, public domain.
+
+![A road bicycle: the subject, the drawing, and an ink-pen finish](docs/bicycle.jpg)
+
+A flat vector bicycle with no outline: the subject, the drawing, and the
+ink-pen finish on smooth paper. Subject: "Flat design Race Bicycle",
+Openclipart, CC0.
+
 ![The object stages on one picture: subject, S1 armature, block-in, S2 masses, finished](docs/stages.png)
 
 One picture through the object stages: subject, armature, block-in, masses, finished.
