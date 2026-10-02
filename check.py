@@ -276,6 +276,353 @@ def report(subject, drawing, rows):
           "finest, the\nheaviest, and the ratio between them.")
 
 
+def line_marks(grey, line, contrast=30, light=False):
+    """The thin line marks in a grey crop, with the flats left out: (mask, lift).
+
+    A mark is darker than what surrounds it and no wider than `line`. A black
+    top-hat with a disc of 2*line+1 lifts exactly those, so a dark flat wider
+    than the disc (a black boot, a shadow mass) reads as nothing however dark it
+    is, while a hatch stroke on a mid flat reads in full. `contrast` is how much
+    darker than its surround a pixel must be: paper grain and a print's dot
+    screen stay under it. `light` reads pale lines on a dark ground instead,
+    the white line an engraver cuts into a black."""
+    grey = np.asarray(grey, dtype=float)
+    if light:
+        grey = 255 - grey
+    size = 2 * line + 1
+    disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+    lift = cv2.morphologyEx(np.clip(grey, 0, 255).astype(np.uint8), cv2.MORPH_BLACKHAT,
+                            disc).astype(float)
+    mask = lift > contrast
+    labels, count = ndimage.label(mask, structure=np.ones((3, 3)))
+    if count:
+        # a speck the size of the grain is not a mark
+        sizes = ndimage.sum(mask, labels, range(1, count + 1))
+        mask = np.isin(labels, np.flatnonzero(sizes >= max(12, 2 * line)) + 1)
+    return mask, lift
+
+
+def _bend(angle):
+    """A line direction folded into 0..180."""
+    return angle % 180.0
+
+
+def _apart(one, other):
+    """The angle between two line directions, 0..90."""
+    gap = abs(_bend(one) - _bend(other))
+    return min(gap, 180.0 - gap)
+
+
+def _slant(angle):
+    return "-" if _apart(angle, 0) < 22.5 else "|" if _apart(angle, 90) < 22.5 else \
+        "/" if angle < 90 else "\\"
+
+
+def hatching(grey, line, light=False, contrast=30, groups=3):
+    """Where the line marks in a crop run, as numbers: coverage and per group of
+    parallel marks its direction, spacing, length and width.
+
+    Angles are line directions as seen on the page, 0 horizontal, 90 vertical,
+    45 a `/` and 135 a `\\`. The direction of each mark pixel comes from the
+    structure tensor, so where two groups cross (cross-hatching) each keeps its
+    own angle instead of averaging into a diagonal neither has."""
+    mask, lift = line_marks(grey, line, contrast, light)
+    area = mask.size
+    found = {"coverage": float(mask.sum()) / area if area else 0.0, "groups": []}
+    if mask.sum() < 3 * line:
+        return found
+    soft = cv2.GaussianBlur(lift, (0, 0), max(1.0, line / 3))
+    gx = cv2.Sobel(soft, cv2.CV_64F, 1, 0, ksize=3)
+    gy = cv2.Sobel(soft, cv2.CV_64F, 0, 1, ksize=3)
+    reach = max(1.5, line / 2)
+    jxx, jyy, jxy = (cv2.GaussianBlur(product, (0, 0), reach) for product in (gx * gx, gy * gy, gx * gy))
+    across = 0.5 * np.degrees(np.arctan2(2 * jxy, jxx - jyy))   # the gradient, y down
+    # the line runs at right angles to its gradient; flip y so 45 is `/` on the page
+    angle = _bend(-(across + 90.0))
+    sure = np.sqrt((jxx - jyy) ** 2 + 4 * jxy ** 2) / (jxx + jyy + 1e-9)
+    usable = mask & (sure > 0.4)
+    if usable.sum() < 3 * line:
+        return found
+    weights = sure[usable]
+    bins = np.histogram(angle[usable], bins=36, range=(0, 180), weights=weights)[0]
+    smooth = sum(np.roll(bins, shift) * w for shift, w in ((-2, 1), (-1, 2), (0, 3), (1, 2), (2, 1)))
+    peaks = [at for at in range(36)
+             if smooth[at] >= smooth[at - 1] and smooth[at] > smooth[(at + 1) % 36]
+             and smooth[at] >= 0.3 * smooth.max()]
+    peaks.sort(key=lambda at: -smooth[at])
+    chosen = []
+    for at in peaks:
+        centre = at * 5 + 2.5
+        if all(_apart(centre, other) > 25 for other in chosen):
+            chosen.append(centre)
+    total = weights.sum()
+    for centre in chosen[:groups]:
+        near = usable & (np.minimum(np.abs(angle - centre), 180 - np.abs(angle - centre)) <= 15)
+        if not near.any():
+            continue
+        # the group's own direction: a circular mean of the doubled angles
+        doubled = np.radians(2 * angle[near])
+        mean = _bend(np.degrees(np.arctan2((np.sin(doubled) * sure[near]).sum(),
+                                           (np.cos(doubled) * sure[near]).sum())) / 2)
+        member = mask & (np.minimum(np.abs(angle - mean), 180 - np.abs(angle - mean)) <= 20)
+        labels, count = ndimage.label(member, structure=np.ones((3, 3)))
+        along = np.array([math.cos(math.radians(mean)), -math.sin(math.radians(mean))])
+        lengths, widths, kept = [], [], np.zeros_like(member)
+        for index, piece in enumerate(ndimage.find_objects(labels), 1):
+            rows, cols = np.nonzero(labels[piece] == index)
+            if rows.size < 4:
+                continue
+            reach_along = cols * along[0] + rows * along[1]
+            length = reach_along.max() - reach_along.min() + 1
+            width = rows.size / length
+            if length < 2 * width or length < line:
+                continue    # a dot or a blot, not a stroke
+            lengths.append(length)
+            widths.append(width)
+            kept[piece] |= labels[piece] == index
+        if len(lengths) < 2:
+            continue
+        found["groups"].append({"angle": mean, "share": float(weights[near[usable]].sum() / total),
+                                "marks": len(lengths), "length": float(np.median(lengths)),
+                                "lengths": (float(np.percentile(lengths, 25)), float(np.percentile(lengths, 75))),
+                                "width": float(np.median(widths)),
+                                "spacing": _spacing(kept, mean),
+                                "coverage": float(kept.sum()) / area})
+    return found
+
+
+def _spacing(member, angle):
+    """Centre-to-centre distance between neighbouring parallel marks: the group
+    turned upright, then each row's runs read across. (median, p25, p75), or None
+    when no row crosses two marks."""
+    height, width = member.shape
+    side = int(math.ceil(math.hypot(height, width)))
+    canvas = np.zeros((side, side), np.uint8)
+    top, left = (side - height) // 2, (side - width) // 2
+    canvas[top:top + height, left:left + width] = member.astype(np.uint8) * 255
+    turn = cv2.getRotationMatrix2D((side / 2, side / 2), 90.0 - angle, 1.0)
+    upright = cv2.warpAffine(canvas, turn, (side, side), flags=cv2.INTER_NEAREST) > 0
+    gaps = []
+    for row in upright[::2]:
+        if row.sum() < 2:
+            continue
+        edges = np.flatnonzero(np.diff(np.concatenate(([0], row.astype(np.int8), [0]))))
+        centres = (edges[0::2] + edges[1::2] - 1) / 2
+        gaps.extend(np.diff(centres))
+    if not gaps:
+        return None
+    return tuple(float(np.percentile(gaps, q)) for q in (50, 25, 75))
+
+
+def _thin(mask):
+    """A mask's centre lines, one pixel wide (Zhang and Suen's thinning)."""
+    image = np.pad(mask.astype(np.uint8), 1)
+    while True:
+        changed = False
+        for first in (True, False):
+            p2, p3, p4 = image[:-2, 1:-1], image[:-2, 2:], image[1:-1, 2:]
+            p5, p6, p7 = image[2:, 2:], image[2:, 1:-1], image[2:, :-2]
+            p8, p9 = image[1:-1, :-2], image[:-2, :-2]
+            ring = [p2, p3, p4, p5, p6, p7, p8, p9, p2]
+            count = sum(ring[:8])
+            turns = sum(((a == 0) & (b == 1)).astype(np.uint8) for a, b in zip(ring, ring[1:]))
+            if first:
+                side = (p2 * p4 * p6 == 0) & (p4 * p6 * p8 == 0)
+            else:
+                side = (p2 * p4 * p8 == 0) & (p2 * p6 * p8 == 0)
+            drop = (image[1:-1, 1:-1] == 1) & (count >= 2) & (count <= 6) & (turns == 1) & side
+            if drop.any():
+                image[1:-1, 1:-1][drop] = 0
+                changed = True
+        if not changed:
+            return image[1:-1, 1:-1].astype(bool)
+
+
+def weight_span(grey, line, light=False, contrast=30):
+    """The finest and the heaviest line widths in a crop, flats left out:
+    (finest, middle, heaviest, count). Each width is read on a mark's centre
+    line, as twice the distance to its nearer edge, so a line crossing a row on
+    a slant is not read wide and every pixel of length counts once whatever the
+    line's weight. Finest is the 10th percentile and heaviest the 95th, so a
+    stray speck or one blot does not set the span."""
+    mask, _ = line_marks(grey, line, contrast, light)
+    if mask.sum() < 3 * line:
+        return None
+    distance = cv2.distanceTransform(mask.astype(np.uint8), cv2.DIST_L2, 5)
+    # the widest point within 2px, so the frayed tip of a centre line does not
+    # read as a hairline
+    widths = 2 * ndimage.maximum_filter(distance, size=5)[_thin(mask)] - 1
+    if widths.size < 10:
+        return None
+    return (float(np.percentile(widths, 10)), float(np.percentile(widths, 50)),
+            float(np.percentile(widths, 95)), int(widths.size))
+
+
+def _crop_grey(image, box):
+    x, y, w, h = box
+    return np.asarray(image.convert("L").crop((x, y, x + w, y + h)), dtype=float)
+
+
+def _group_text(group):
+    if group is None:
+        return "none"
+    spacing = group["spacing"]
+    return (f"{group['angle']:5.0f}deg {_slant(group['angle'])}  spacing "
+            + (f"{spacing[0]:.0f}px" if spacing else "-")
+            + f"  length {group['length']:.0f}px  width {group['width']:.0f}px  "
+              f"{group['marks']} marks  {group['share']:.0%} of the line")
+
+
+def match_group(groups, angle):
+    """The group nearest `angle`, and how far off it runs."""
+    if not groups:
+        return None, None
+    best = min(groups, key=lambda group: _apart(group["angle"], angle))
+    return best, _apart(best["angle"], angle)
+
+
+def hatch_flags(want, made, coverage_want, coverage_made):
+    """What differs between a subject group and the drawing's nearest one."""
+    flags = []
+    group, off = match_group(made, want["angle"])
+    if group is None:
+        return ["missing: the drawing has no line group here"]
+    if off > 20:
+        flags.append(f"angle off {off:.0f}deg: no group within 20deg of {want['angle']:.0f}")
+    if want.get("spacing") and group.get("spacing"):
+        ratio = group["spacing"][0] / want["spacing"][0]
+        if abs(ratio - 1) > 0.5:
+            flags.append(f"spacing {ratio:.1f}x the subject's")
+    if coverage_want and coverage_made < 0.5 * coverage_want:
+        flags.append(f"coverage {coverage_made:.0%} under half of {coverage_want:.0%}")
+    return flags
+
+
+def hatch_report(subject, drawing, box, line, light=False, names=("subject", "drawing")):
+    """--hatch: the line marks inside one box, measured, and with a drawing the
+    same box measured beside it. Prints numbers only, never points: where the
+    marks run, how far apart and how long. Placing each one is yours."""
+    print(f"--hatch {','.join(map(str, box))}: line marks up to {line}px wide (--line), "
+          f"{'paler' if light else 'darker'} than their surround by 30+.\n"
+          "angle is the line's direction on the page: 0 horizontal, 90 vertical, 45 /, 135 \\.")
+    seen = hatching(_crop_grey(subject, box), line, light)
+    print(f"\n{names[0]}: line marks cover {seen['coverage']:.0%} of the box, "
+          f"{len(seen['groups'])} group(s) of parallel marks")
+    for number, group in enumerate(seen["groups"], 1):
+        lo, hi = group["lengths"]
+        spacing = group["spacing"]
+        print(f"  group {number}: {_group_text(group)}"
+              + (f"\n           spacing {spacing[1]:.0f}-{spacing[2]:.0f}px, length {lo:.0f}-{hi:.0f}px "
+                 "(middle half)" if spacing else ""))
+    if drawing is None:
+        print("\nwrite each mark of a group as its own stroke, from points you read off the "
+              "subject.\nVary length and spacing inside the ranges above the way a hand does.")
+        return seen, None
+    made = hatching(_crop_grey(drawing.resize(subject.size, Image.LANCZOS), box), line, light)
+    print(f"{names[1]}: line marks cover {made['coverage']:.0%} of the box, "
+          f"{len(made['groups'])} group(s)")
+    for number, group in enumerate(made["groups"], 1):
+        print(f"  group {number}: {_group_text(group)}")
+    print("\nsubject group -> the drawing's nearest group")
+    flagged = False
+    for number, group in enumerate(seen["groups"], 1):
+        near, _ = match_group(made["groups"], group["angle"])
+        flags = hatch_flags({"angle": group["angle"], "spacing": group["spacing"]},
+                            made["groups"], seen["coverage"], made["coverage"])
+        flagged |= bool(flags)
+        print(f"  {group['angle']:4.0f}deg -> {_group_text(near)}"
+              + ("".join(f"\n      << {flag}" for flag in flags)))
+    if not seen["groups"]:
+        print("  the subject has no group of parallel marks in this box")
+    print("\n<< marks a group missing, an angle off by more than 20deg, a spacing off by "
+          "more than half,\nor coverage under half the subject's. Numbers say where the "
+          "hatching is; they are not marks.")
+    return seen, made
+
+
+def linework(drawing, subject, inventory_path, line, box=None):
+    """--linework: every parts.json entry that carries `hatch` is measured on
+    the drawing, and the drawing's line weight span against the subject's.
+    Returns (failures, unchecked)."""
+    with open(inventory_path) as handle:
+        raw = json.load(handle)
+    drawing = drawing.resize(subject.size, Image.LANCZOS)
+    failures = unchecked = 0
+    rows = [(name, entry) for name, entry in raw.items()
+            if not name.startswith("_") and isinstance(entry, dict) and entry.get("hatch")]
+    print(f"{len(rows)} entries carry a hatch measurement (line marks up to {line}px wide)")
+    if not rows:
+        print("  NOTHING TO CHECK for hatching: no entry carries `hatch`. If the subject has "
+              "hatched\n  or textured regions, measure each with --hatch and write it into its entry.")
+    for name, entry in rows:
+        want = entry["hatch"]
+        if "angle" not in want:
+            sys.exit(f"parts.json: {name!r} hatch has no angle")
+        light = bool(want.get("light"))
+        seen = hatching(_crop_grey(subject, entry["box"]), line, light)
+        made = hatching(_crop_grey(drawing, entry["box"]), line, light)
+        theirs, their_off = match_group(seen["groups"], want["angle"])
+        ours, our_off = match_group(made["groups"], want["angle"])
+        print(f"\n  {name}  box {','.join(map(str, entry['box']))}  written {want['angle']:.0f}deg"
+              + (f", spacing {want['spacing']}px" if want.get("spacing") else "")
+              + (f", length {want['length']}px" if want.get("length") else "")
+              + (", pale lines" if light else ""))
+        print(f"    subject: {_group_text(theirs)}  (coverage {seen['coverage']:.0%})")
+        print(f"    drawing: {_group_text(ours)}  (coverage {made['coverage']:.0%})")
+        if theirs is None or their_off > 20:
+            unchecked += 1
+            print(f"    UNCHECKED: the subject has no line group within 20deg of the written "
+                  f"{want['angle']:.0f}deg here")
+            continue
+        if ours is None or our_off > 20:
+            failures += 1
+            print(f"    FAIL: no line group within 20deg of {want['angle']:.0f}deg"
+                  + (f" (nearest {ours['angle']:.0f}deg)" if ours else ""))
+            continue
+        flags = hatch_flags({"angle": want["angle"], "spacing": theirs["spacing"]},
+                            made["groups"], seen["coverage"], made["coverage"])
+        print("    pass" + "".join(f"\n    << {flag}" for flag in flags))
+    if box is None:
+        boxes = [entry["box"] for name, entry in raw.items()
+                 if not name.startswith("_") and isinstance(entry, dict) and "box" in entry]
+        if boxes:
+            box = [min(b[0] for b in boxes), min(b[1] for b in boxes),
+                   max(b[0] + b[2] for b in boxes), max(b[1] + b[3] for b in boxes)]
+            box = [max(0, box[0]), max(0, box[1]), min(subject.width, box[2]) - max(0, box[0]),
+                   min(subject.height, box[3]) - max(0, box[1])]
+    if box is None:
+        box = [0, 0, subject.width, subject.height]
+    span = [weight_span(_crop_grey(image, box), line) for image in (subject, drawing)]
+    print(f"\nline weights over {','.join(map(str, box))} (finest = 10th percentile, "
+          "heaviest = 95th, on each mark's centre line):")
+    for label, found in zip(("subject", "drawing"), span):
+        print(f"  {label}: " + ("no line marks" if found is None else
+                                f"finest {found[0]:.0f}px  middle {found[1]:.0f}px  heaviest "
+                                f"{found[2]:.0f}px  span {found[2] / found[0]:.1f}x"))
+    if span[0] is None:
+        unchecked += 1
+        print("  UNCHECKED: the subject has no line marks here")
+    elif span[1] is None:
+        failures += 1
+        print("  FAIL: the drawing has no line marks here")
+    else:
+        want, have = span[0][2] / span[0][0], span[1][2] / span[1][0]
+        if have < 0.5 * want:
+            failures += 1
+            ends = []
+            if span[1][0] > 1.5 * span[0][0]:
+                ends.append(f"its finest line is {span[1][0] / span[0][0]:.1f}x the subject's: "
+                            "thin the interior lines")
+            if span[1][2] < span[0][2] / 1.5:
+                ends.append(f"its heaviest is {span[1][2] / span[0][2]:.1f}x the subject's: "
+                            "weight the silhouette and the contact shadows")
+            print(f"  FAIL: the drawing's span {have:.1f}x is under half the subject's {want:.1f}x"
+                  + "".join(f"\n    {end}" for end in ends))
+        else:
+            print(f"  pass: span {have:.1f}x against {want:.1f}x")
+    return failures, unchecked
+
+
 def zoom(drawing, subject, box, factor=4):
     """One feature, magnified: subject left and drawing right for a box taller
     than wide, subject above and drawing below otherwise.
@@ -1484,6 +1831,20 @@ def main():
     parse.add_argument("--weights", default="",
                        help="comma-separated rows: print the mark widths each one crosses, "
                             "as width@centre")
+    parse.add_argument("--hatch", default="",
+                       help="x,y,w,h: the line marks in that box of the positional image (the "
+                            "subject): coverage, and per group of parallel marks its angle, "
+                            "spacing, length and width. With --ref drawing.png, the drawing's "
+                            "box beside it, << on what differs. Numbers only, never strokes")
+    parse.add_argument("--linework", default="",
+                       help="parts.json (needs --ref subject.png): FAIL where an entry's `hatch` "
+                            "angle has no line group in the drawing's box, and where the "
+                            "drawing's line weight span is under half the subject's")
+    parse.add_argument("--line", type=int, default=0,
+                       help="--hatch, --linework: the widest mark read as a line; wider is a "
+                            "flat. Default: the image's longer side / 200, at least 6")
+    parse.add_argument("--light", action="store_true",
+                       help="--hatch: read pale lines on a dark ground (a white line cut into a black)")
     parse.add_argument("--masses", action="store_true",
                        help="both pictures as flat masses, no line. This is the "
                             "check that sees shape. Takes --box x,y,w,h and --colours N")
@@ -1557,7 +1918,6 @@ def main():
         print("  PASSES — every checklisted sub-form has an entry or a reason")
         return
     if args.stages:
-        import os
         from pen import audit, STAGES, provenance, script_source
         with open(args.stages) as handle:
             ops = json.load(handle)
@@ -1680,6 +2040,27 @@ def main():
         subject = Image.open(args.ref).convert("L")
         report(subject, drawing.convert("L").resize(subject.size, Image.LANCZOS), rows)
         return
+
+    if args.hatch:
+        box = [int(part) for part in args.hatch.split(",")]
+        line = args.line or max(6, round(max(drawing.size) / 200))
+        other = Image.open(args.ref).convert("RGB") if args.ref else None
+        hatch_report(drawing, other, box, line, args.light,
+                     (f"subject ({os.path.basename(args.render)})",
+                      f"drawing ({os.path.basename(args.ref)})" if args.ref else "drawing"))
+        return
+
+    if args.linework:
+        if not args.ref:
+            sys.exit("--linework needs --ref subject.png")
+        subject = Image.open(args.ref).convert("RGB")
+        line = args.line or max(6, round(max(subject.size) / 200))
+        failures, unchecked = linework(drawing, subject, args.linework, line,
+                                       [int(part) for part in args.box.split(",")] if args.box else None)
+        print("\nFAIL is a subject's hatching left out, or one weight where the subject has a "
+              "range.\nUNCHECKED means the written measurement does not reproduce on the subject; "
+              "re-measure\nit with --hatch. Exit 1 is a FAIL, 2 UNCHECKED rows. Neither is a pass.")
+        sys.exit(1 if failures else 2 if unchecked else 0)
 
     if args.masses:
         if not args.ref:

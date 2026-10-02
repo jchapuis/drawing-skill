@@ -33,6 +33,30 @@ Three tiers, and the ratio between finest and heaviest is roughly **8–10×**:
 With four stroke sizes available, that maps to `xl`/`l` for silhouette, `m` for
 plane breaks, `s` for detail.
 
+### Measuring the hierarchy
+
+Read the subject's span before choosing any weight, and read the drawing's after
+its first ink. `check.py drawing.png --linework parts.json --ref subject.png`
+prints the finest, middle and heaviest line width of each picture over the
+inventory's boxes, read on each mark's centre line, and fails when the drawing's
+span is under half the subject's. `--weights` on a few rows names single lines
+(`width@centre`), so you can say which line is the heaviest and where it sits.
+
+The common failure is one even, fairly heavy outline round every form, with the
+interior lines nearly as heavy. It measures as a finest line two or three times
+the subject's and a heaviest line about right. Fix it from the bottom:
+
+- **Interior lines thin.** Surface detail and lines inside a form go down to the
+  subject's finest width, usually a third or less of the silhouette.
+- **Silhouette heavier**, and not evenly: heavier on the shadow side and where
+  the form turns away, thinner on the lit side.
+- **Heaviest at the contacts**: under a form resting on another, where a foot
+  meets the ground, under an overhang, where a limb crosses the body. A heavy
+  line there stands in for the cast shadow.
+
+Each of these is a different `size` or pressure on a stroke you write, read back
+on the swatch and on the drawing with `--weights`.
+
 ### How wide a span
 
 Where line weight is quantified at all, it is quantified in technical pens, sold
@@ -167,13 +191,67 @@ harder than a large uniform black does.
 If a finished panel looks flat and grey when squinted, add a real black anchor
 **and** a real white breathing space. More mid-tone detail will not fix it.
 
-## Cross-hatching
+## Hatching and texture, by hand
+
+On a subject whose look is fine ink (an engraving, a pen drawing, an old printed
+illustration), the hatching carries the shading, the texture of each material and
+most of what makes it look drawn. Flats with an outline and no hatching read as a
+colouring-book copy of it, however well they are placed.
+
+**Measure, then write.** For each hatched region:
+
+1. Box it and run `check.py subject.png --hatch x,y,w,h`. It prints the share of
+   the box covered by line marks and, per group of parallel marks, its angle (0
+   horizontal, 90 vertical, 45 a `/`), the spacing between neighbours, the
+   typical length and width, and the middle half of each range. Pale lines cut
+   into a dark (feather shafts on a black wing, light grain on a dark rock) are
+   read with `--light`.
+2. Write the group into the part's `parts.json` entry as `"hatch": {"angle",
+   "spacing", "length"}`, one entry per group, so `--linework` can check it.
+3. Read the actual lines off a `--zoom` or a `--scan` across the group: where
+   each line starts and ends. Then write each hatch line as its own `stroke`,
+   on its own line of `draw.py`, with its own two or three measured points. Vary
+   length and spacing within the measured ranges, as a hand does: no two lines
+   the same length, no two gaps equal.
+4. Re-run `--hatch` with `--ref drawing.png`. It flags (`<<`) a group missing,
+   an angle more than 20° off, spacing off by more than half, or coverage under
+   half the subject's.
+
+The instrument prints numbers only. Nothing turns a group into strokes, and a
+loop or comprehension that does is a generated mark, refused by `pen.write`. A
+hatched region costing fifty or a hundred lines of `draw.py` is expected.
+
+**Indicate; do not fill.** A hand does not hatch a whole surface evenly, and
+neither should you. Hatching is kept affordable the way illustrators keep it
+affordable:
+
+- **At the edges and the turns.** Put the texture where the form turns away and
+  along the shadow edge, and let it thin out and stop as the surface comes into
+  the light. A few marks at the edge of a roof or a field of grass say the whole
+  surface is tiled or grassy [read: Guptill, *Rendering in Pen and Ink*].
+- **Near the centre of interest.** Spend the densest groups there and thin them
+  with distance from it, as with every other kind of detail.
+- **One group per plane.** Each plane of the form gets its own group, at its own
+  angle. Where the plane turns, the group changes direction or curves round the
+  form. A single angle across several planes flattens them into one.
+- **Anchor each line in a dark.** Start it at the shadow edge or the contour and
+  run it out into the light (`tone.md`), so the group has one hard edge and one
+  ragged one.
+
+**Line quality inside a group:**
 
 - **Bad**: all hatch lines the same length, intersecting at right angles. This
   reads as a mechanical mathematical pattern.
 - **Also bad**: two layers nearly parallel, which produces a moiré.
 - **Good**: varied lengths, some short and broken, getting heavier as they merge
   toward a black; lines curving *around* the form to imply volume.
+- A hatch line is a finer weight than the contour it sits against, and tapers at
+  its free end (`lead=`/`tail=` on a `brush` or `marker`). The measured width is
+  the target.
+
+Texture that is not hatching (a rock's cracks, bark, the dashes of a stone wall)
+follows the same rules: measure the marks' direction, length and spacing with
+`--hatch`, write each mark, indicate at the edges and let it thin out.
 
 ## The inking pass
 

@@ -70,7 +70,10 @@ On six hand-written drawings none of these fired, and on a generated one all
 three did. Generated output pasted in as literal lines passes these checks and
 is still forbidden. A scene stays affordable through its economy (five to twelve
 masses, a part list fixed at S0, marks spent near the centre of interest), never
-through a generator.
+through a generator. Hatching is the same: each hatch line is its own stroke with
+its own points, and a hatched region costing a hundred lines of `draw.py` is
+expected. It is kept affordable by indicating it, not by a loop (see
+`reference/line.md` § Hatching and texture).
 
 ## Setup
 
@@ -234,13 +237,13 @@ that stage and the ones before it), pass its gate, and only then write the next.
 
 | # | Stage | You produce | Gate |
 |---|---|---|---|
-| 0 | **Read** | `palette.json`, `regions.json`, `subject.describe.md`, `reading.md`, `parts.json` | every tier-1/2 part has a shape note; the acceptance list exists and quotes the describer's answers 3–5 |
+| 0 | **Read** | `palette.json`, `regions.json`, `subject.describe.md`, `reading.md`, `parts.json` | every tier-1/2 part has a shape note; the acceptance list exists and quotes the describer's answers 3–5; `reading.md` records the line character, and every hatched region you will draw has a `hatch` entry measured with `--hatch` |
 | 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the action does not read here, no later stage puts it in. There are two exceptions. One is an action carried by value rather than silhouette (a hand that reads only as pale fingers against a dark glove): record the describer runs that show it and gate the action at stage 5. The other is an action carried by a small feature that no loop can state (an open beak, a tilted head, a glance): record the runs and gate the action at the stage that draws that feature |
 | 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1/2 region as its `blockin` straights from `regions.json`, junctions as points shared by name | `check.py blockin.png --ref subject.png --overlay`: the straights sit on the subject's edges |
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
 | 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, drawn past where the ink will go (see the trapping notes below). Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line, and the object can then no longer occlude itself | `check.py drawing.png --ref subject.png --masses`: the two read as the same shape, said in words. Stages 5–8 interleave per form, so on a subject with heavy line, judge it once each form's ink is in. Its flats alone never match a subject whose line carries mass |
 | 6 | **Contour** | `stage="contour"`: the real edge, curved where the subject curves, from `contour` in `regions.json` | `--overlay` again |
-| 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states | `check.py drawing.png --doubled ops.json` and `--stages ops.json` pass |
+| 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states; then the hatching, group by group, each line its own stroke | `check.py drawing.png --doubled ops.json` and `--stages ops.json` pass; `--linework parts.json --ref subject.png` passes: every measured hatch group is there at its angle, and the weight span is at least half the subject's |
 | 9 | **Fill** | flats refined; blacks massed as one value before anything is graded | `--hide ink` still separates figure from ground |
 | 10 | **Correct** | `stage="correct"` marks aimed by the judges, with the number of rounds fixed at stage 0; `refuted.md` for every item that did not survive its measurement | `describe.sh drawing.png` matches the acceptance list clause by clause; `--registration`, `--parts`, `--ranking` |
 
@@ -314,7 +317,7 @@ only.
 | S4 | **Junctions** | nothing to assemble. Every object was drawn where it belongs, with its neighbours already on the page, so the overlaps table was satisfied as you went. Walk it once and confirm each row: the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; `--depth ops.json parts.json` clean, with no UNRESOLVED row; every row of the overlaps table has a recorded decision and a look |
 | S5 | **Emphasis** | nothing is drawn at whole-picture scale here. Emphasis was decided at S0 as each part's weight and edge count, and the far parts were drawn lighter and with fewer edges as you went. Walk the picture and confirm the gradient: weight and detail fall off with distance from the centre of interest and with depth, and masses have no marks | no part beyond the centre of interest carries its weight; a describer names every part |
 | S6 | **Overlaps** | the pass over the overlaps table, row by row, on the whole picture: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
-| S7 | **Blacks, texture, vignette** | one pass spotting the black pattern across objects; texture fields as one indicated pattern (a few marks that suggest the texture without drawing all of it); the whole drawing's silhouette against the paper | `--ranking parts.json`: the centre of interest leads, nothing shouts above its tier |
+| S7 | **Blacks, hatching, texture, vignette** | one pass spotting the black pattern across objects; each hatched region recorded at S0 drawn as its measured groups, one stroke per hatch line, dense at the edges, turns and centre of interest and thinning out into the light; texture elsewhere indicated (a few marks that suggest it without drawing all of it); the whole drawing's silhouette against the paper | `--ranking parts.json`: the centre of interest leads, nothing shouts above its tier; `--linework parts.json --ref subject.png`: no measured group missing or at the wrong angle, and the weight span at least half the subject's |
 | S8 | **Correct from a distance** | stage 10, on the whole picture, with the describer run twice. A blind viewer on each part's crop ranks the round: parts that are misnamed get the budget first, then parts whose shape notes are untrue | the acceptance list; `--ranking` still shows one centre of interest; no part misnamed. An item that returns after a round that addressed it is the stopping rule |
 
 **S0 items for `reading.md`:**
@@ -406,6 +409,16 @@ and after the last.
      difference is the likeness;
    - the light source, fixed now;
    - the two value groups;
+   - **the line character**, measured. The outline's weight range, finest to
+     heaviest in px (`check.py subject.png --linework parts.json --ref
+     subject.png` prints the subject's span, compared with itself; `--weights` on
+     a few rows gives single lines), and where
+     the heaviest lines sit (the silhouette, under forms, at contacts). Whether
+     the line is uniform or varied. Then every hatched or textured region: its
+     box, and from `--hatch BOX` its direction, spacing, mark length and value.
+     A subject whose look is mostly hatched ink (an engraving, a pen drawing, an
+     old print) has its look in this paragraph, and a drawing that leaves it out
+     reads as a colouring-book copy however well its flats are placed;
    - what you leave out, on purpose;
    - the budget and the number of correction rounds;
    - then the acceptance list.
@@ -479,12 +492,20 @@ and after the last.
      hands dark forms narrower than `--line` to their neighbours, and `--masses`
      passes without a spray of droplets. A count deferred to "later" is never
      taken.
+   - **Write each hatched region's measurement into its entry**, from `check.py
+     subject.png --hatch BOX`: `"hatch": {"angle": 127, "spacing": 33, "length":
+     38}`, in degrees on the page (0 horizontal, 90 vertical, 45 a `/`) and px.
+     A region with two groups (cross-hatching, or two planes in one box) gets
+     two entries, one per group. Add `"light": true` for pale lines cut into a
+     dark, measured with `--hatch BOX --light`. `--linework` fails a drawing
+     that has no group at that angle in that box.
 
 ```json
 {
   "nose": {"shape": "ON the silhouette: the profile leaves the brow, runs down and OUT to the tip, then turns back under it", "box": [540, 336, 45, 50]},
   "mug.handle.top/hand.near": {"shape": "the fingers close over the handle; the handle disappears behind them and reappears 30px to the left. No gap", "box": [318, 470, 96, 70], "in_front": "hand.near"},
-  "radiator.slots": {"shape": "seven slots radiating from the top edge, each tapering to both ends", "box": [380, 100, 330, 200], "count": 7, "value": "black"}
+  "radiator.slots": {"shape": "seven slots radiating from the top edge, each tapering to both ends", "box": [380, 100, 330, 200], "count": 7, "value": "black"},
+  "rock.face": {"shape": "short horizontal dashes along the front face, densest under the overhang", "box": [400, 3330, 1600, 150], "hatch": {"angle": 2, "spacing": 33, "length": 39}}
 }
 ```
 
@@ -781,6 +802,8 @@ form it names is often real on the form next to it.
 | `--zoom x,y,w,h` | whether the marks are any good, at 4x, ticked in whole-picture coordinates. **The primary gate on any object**: three versions of one object passed every numeric gate and ranged from a beetle to something a blind viewer named at once, and only the magnified pair told them apart. Ticks orient you; they are not a coordinate |
 | a blind viewer on a part's crop | what the part is. The only gate that fails a blob. A detector, not a meter |
 | `--weights rows` | the line hierarchy against the subject's, each run as `width@centre` |
+| `subject.png --hatch x,y,w,h [--ref drawing.png]` | the line marks in a box, flats left out: coverage, and per group of parallel marks its angle, spacing, length and width. With `--ref`, the drawing's box beside it, `<<` on a group missing, an angle more than 20° off, spacing off by more than half, or coverage under half. `--light` reads pale lines on a dark. Numbers only: where the hatching is, never strokes |
+| `--linework parts.json` (needs `--ref`) | hatching left out: FAIL where an entry's `hatch` angle has no line group within 20° in the drawing's box. And a flattened weight hierarchy: FAIL where the drawing's span (heaviest over finest line, 95th over 10th percentile on the marks' centre lines) is under half the subject's. Exit 1 FAIL, 2 UNCHECKED (the written angle does not reproduce on the subject) |
 
 Treat every number as a list to work through, never as a score. The cheap way to
 move a mark-counting number is to add marks, and a whole-picture pixel difference
@@ -932,8 +955,9 @@ these at stage 0 and write them in `reading.md`:
 - **Colour against line.** In `finish: sketch` a flat may stop short of its
   line or run a little past it, and the rule against spill in
   `reference/colour.md` does not apply. In `clean`, it does.
-- **Hatching** follows the hand: strokes slant `/` for a right hand and `\`
-  for a left.
+- **Hatching** follows the subject's measured angle where it has one. Where you
+  add hatching the subject does not dictate, it follows the hand: strokes slant
+  `/` for a right hand and `\` for a left.
 
 ## Reference
 
@@ -947,7 +971,7 @@ named devices for what is not rendered. The rest is detail, loaded per task.
   water, mountains, distance), `tree-and-plant` (trees, foliage, flowers, pots),
   `still-life` (ellipses, containers, glass, fruit, food, everyday objects).
 - Craft: `measuring` (comparative measurement, sighting, plumb lines), `light`,
-  `line` (weight hierarchy, inking order), `tone`, `colour` (flatting,
+  `line` (weight hierarchy, hatching and texture by hand, inking order), `tone`, `colour` (flatting,
   trapping), `correcting`, and `redrawing` (a generated image as subject: what
   it hands you free, what must not be copied).
 

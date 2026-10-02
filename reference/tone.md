@@ -36,6 +36,9 @@ What to do:
 This rule is a working explanation of why tonal bands look striped. It is the
 best account so far and has not been proved.
 
+How to measure a subject's hatch groups and write them as single strokes, and
+how to keep that affordable, is in `line.md` § Hatching and texture.
+
 ## The instrument decides whether tone can accumulate
 
 `pen.py` provides five instruments, and only some of them build tone:

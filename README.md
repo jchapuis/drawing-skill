@@ -155,6 +155,8 @@ score.
 | | `--overlay [--box]` | the two inks blended together; the only view of interior lines |
 | | `--zoom x,y,w,h` | whether the marks are any good at 4x; the primary gate on any object |
 | | `--weights rows` | the line hierarchy against the subject's, as width@centre |
+| | `--hatch x,y,w,h [--ref]` | the hatching in a box: coverage, and each group's angle, spacing, length and width; numbers, never strokes |
+| | `--linework parts.json` | a measured hatch group missing from the drawing, or a weight span under half the subject's |
 | | `--registration` | colour and line disagreeing |
 | | `--unfilled --paper C` | bare paper where the subject carries the object, and a flat painted where the subject is bare |
 | | `--faces ops.json --regions R` | a flat simpler than the traced region under it |

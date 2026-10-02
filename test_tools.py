@@ -447,4 +447,108 @@ def _():
     assert np.percentile(line_width(mask), 90) <= 6
 
 
+def hatched(angle, size=(400, 400), spacing=16, width=3, ground=(240, 230, 210)):
+    """A box of parallel strokes at `angle` (0 horizontal, 45 a `/`), `spacing`
+    apart measured across them."""
+    image = Image.new("RGB", size, ground)
+    pen = ImageDraw.Draw(image)
+    turn = np.radians(angle)
+    along, across = np.array([np.cos(turn), -np.sin(turn)]), np.array([np.sin(turn), np.cos(turn)])
+    middle = np.array(size) / 2
+    for step in range(-12, 13):
+        centre = middle + across * step * spacing
+        ends = [tuple(centre - along * 90), tuple(centre + along * 90)]
+        pen.line(ends, fill=(30, 20, 20), width=width)
+    return image
+
+
+def flat_box(size=(400, 400)):
+    image = Image.new("RGB", size, (240, 230, 210))
+    ImageDraw.Draw(image).rectangle([60, 60, 340, 340], fill=(30, 20, 20))
+    return image
+
+
+def grey(image):
+    return np.asarray(image.convert("L"), dtype=float)
+
+
+@case("--hatch: a hatched box gives one group at its angle and spacing; a flat box gives none")
+def _():
+    for angle in (30, 135):
+        found = check.hatching(grey(hatched(angle)), 6)
+        assert found["groups"], found
+        group = found["groups"][0]
+        assert check._apart(group["angle"], angle) <= 5, (angle, group)
+        assert abs(group["spacing"][0] - 16) <= 2, group
+        assert 150 <= group["length"] <= 200, group
+        assert found["coverage"] > 0.05, found
+    flat = check.hatching(grey(flat_box()), 6)
+    assert not flat["groups"] and flat["coverage"] < 0.01, flat   # a dark flat is not line
+
+
+@case("--hatch --ref: the drawing's flat box is flagged missing, its own hatching is not")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        hatched(45).save(f"{folder}/subject.png")
+        flat_box().save(f"{folder}/flat.png")
+        hatched(45, spacing=18).save(f"{folder}/same.png")
+        code, said = tool(f"{HERE}/check.py", "subject.png", "--hatch", "0,0,400,400",
+                          "--ref", "flat.png", cwd=folder)
+        assert code == 0 and "<< missing" in said, said
+        code, said = tool(f"{HERE}/check.py", "subject.png", "--hatch", "0,0,400,400",
+                          "--ref", "same.png", cwd=folder)
+        assert code == 0 and "<<" not in said.split("subject group")[1].split("<< marks")[0], said
+        assert "stroke(" not in said, said    # numbers, never marks
+
+
+def linework_case(folder, drawing, hatch_angle=45):
+    hatched(45).save(f"{folder}/subject.png")
+    drawing.save(f"{folder}/drawing.png")
+    with open(f"{folder}/parts.json", "w") as handle:
+        json.dump({"rock": {"shape": "hatched face", "box": [0, 0, 400, 400],
+                            "hatch": {"angle": hatch_angle, "spacing": 16, "length": 180}}}, handle)
+    return tool(f"{HERE}/check.py", "drawing.png", "--linework", "parts.json", "--ref",
+                "subject.png", cwd=folder)
+
+
+@case("--linework: hatching at the measured angle passes; at the wrong angle or absent, FAIL")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        code, said = linework_case(folder, hatched(50, spacing=20))
+        assert code == 0 and "FAIL:" not in said, said
+        code, said = linework_case(folder, hatched(135))
+        assert code == 1 and "FAIL: no line group within 20deg of 45deg" in said, said
+        code, said = linework_case(folder, flat_box())
+        assert code == 1 and "FAIL:" in said, said
+        code, said = linework_case(folder, hatched(45), hatch_angle=100)
+        assert code == 2 and "UNCHECKED" in said, said   # written angle not on the subject
+
+
+def weighted(widths, size=(400, 400)):
+    image = Image.new("RGB", size, (240, 230, 210))
+    pen = ImageDraw.Draw(image)
+    for at, width in enumerate(widths):
+        x = 30 + at * 50
+        pen.line([(x, 40), (x, 360)], fill=(30, 20, 20), width=width)
+    return image
+
+
+@case("--linework: a drawing at one weight fails against a subject's range; a matching range passes")
+def _():
+    varied = check.weight_span(grey(weighted([3, 3, 5, 9, 17, 17, 17])), 20)
+    uniform = check.weight_span(grey(weighted([9] * 7)), 20)
+    assert varied[2] / varied[0] > 4, varied
+    assert uniform[2] / uniform[0] < 1.5, uniform
+    with tempfile.TemporaryDirectory() as folder:
+        weighted([3, 3, 5, 9, 17, 17, 17]).save(f"{folder}/subject.png")
+        with open(f"{folder}/parts.json", "w") as handle:
+            json.dump({"post": {"shape": "posts", "box": [0, 0, 400, 400]}}, handle)
+        for widths, want in (([9] * 7, 1), ([3, 3, 5, 7, 15, 15, 15], 0)):
+            weighted(widths).save(f"{folder}/drawing.png")
+            code, said = tool(f"{HERE}/check.py", "drawing.png", "--linework", "parts.json",
+                              "--ref", "subject.png", "--line", "20", cwd=folder)
+            assert code == want, said
+            assert ("FAIL: the drawing's span" in said) == (want == 1), said
+
+
 sys.exit(1 if failed else 0)
