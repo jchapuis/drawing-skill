@@ -95,6 +95,14 @@ subject, and write an entry for each that is there:
   two small wheels the chain threads. It reads by the light gaps between those
   members; filled solid it is a block with holes.
 
+  The chain is one closed loop: upper run, wrap round the cassette, through the
+  derailleur's two wheels, lower run, wrap round the chainring, back to the
+  upper run. Each run meets the next at a tangent point shared by name, so the
+  loop has no gap (`line.md` § Continuous paths). Where the subject shows links,
+  the chain is a beaded line, not a plain one. The chainring's and the
+  cassette's teeth are counted and written, each as its own mark. `--joins`
+  lists a run that stops short.
+
 `check.py --checklist parts.json` reads this block and fails on any of these
 the inventory neither names nor excuses in `_absent`:
 

@@ -279,6 +279,49 @@ boundary between cloth lying on the form and cloth hanging free. Below it, cloth
 hangs vertically whatever the body is doing. Above it, every mark has a cause you
 can point at.
 
+## A small figure is still a whole figure
+
+People draw the eye at any size. A viewer finds a human figure in a picture
+before almost anything else, and reads what it is doing, so a recognisable
+figure is never a minor part however few pixels it covers. Its tier sets how
+heavy its line is and how much contrast it gets. It never sets which parts of the
+body exist.
+
+The usual failure is a small figure drawn as one closed outline: a round head
+on a body shape with no arms, and two straight tubes for legs. It reads as a
+gingerbread cut-out, and next to a subject whose small figures have hats,
+shoulders, bent knees and something in their hands, it is the first thing a
+viewer sees as wrong.
+
+At any size, a figure is built from:
+
+- the **head**, with its hat or the mass of its hair, and the **neck** under it;
+- the **shoulder line**, set at its own angle, and the **torso** under it;
+- **both arms**, each with an elbow and a hand. The hands hold whatever the
+  subject shows (a stick, a basket, a bag, a rein), and the held object is an
+  inventory entry of its own with its junctions (`figure.hand/stick`,
+  `stick/figure.shoulder`);
+- the **hips**, and **both legs**, each with a knee;
+- **both feet**, each with its direction on the ground.
+
+And it has a **pose taken from the gesture**: which leg is forward, how far the
+knees bend, how the body leans over the feet, where the weight sits. A walking
+figure has one leg straight and one bent, its feet at different heights. A
+figure standing on two straight legs side by side is not walking whatever the
+road under it says.
+
+Build it like any other part. Give it its own `--zoom` box, and a working
+resolution where its head is around 40px, so a head of 10px in the picture is
+drawn four times larger. Its stages, its joints in the inventory and its
+describer run on its crop are the same as for a large figure. Only its weight and
+its contrast are those of its tier. The cost is the strokes its joints need,
+written into the budget at stage 0, not taken from whatever is left at the end.
+
+```checklist
+object: person|people|figure|figures|man|men|woman|women|child|children|walker|walkers|rider|riders
+sub-forms: head torso|body arm leg foot|feet
+```
+
 ## Build order
 
 Draw figure and any object it rides or holds **together and at one stage

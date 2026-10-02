@@ -680,4 +680,77 @@ def _():
             assert ("FAIL: the drawing's span" in said) == (want == 1), said
 
 
+def ring(cx, cy, radius, count=24):
+    return [(cx + radius * np.cos(2 * np.pi * at / count), cy + radius * np.sin(2 * np.pi * at / count))
+            for at in range(count)]
+
+
+CHAIN = dict(size="m", scale=2.0)   # a 9px line: (3.5 + 1) x 2
+
+
+@case("--joins lists a chain stopping a few widths short of its sprocket, not one that meets it")
+def _():
+    sprocket = stroke("fill", "bike.cassette", ring(100, 200, 50), closed=True, fill="fill", size="s", scale=0.3)
+    # the run's left end aims at the ring's top-right, the gap measured edge to edge
+    for stop, listed in ((180, True), (108, False), (500, False)):
+        run = stroke("ink", "bike.chain.upper", [(600, 150), (stop, 150)], **CHAIN)
+        found = check.joins([sprocket, run])
+        assert bool(found) == listed, (stop, found)
+        if listed:
+            tag, end, missed = found[0]
+            assert tag == "bike.chain.upper" and end == (180, 150), found
+            assert missed[0][1] == "bike.cassette" and 9 <= missed[0][0] <= 72, missed
+
+
+@case("--joins passes a hand's 1-4px fall-short, a hatch line beside the next, and a hairline crossed")
+def _():
+    post = stroke("ink", "fence.post", [(300, 100), (300, 300)], **CHAIN)
+    rail = stroke("ink", "fence.rail", [(100, 200), (291.5, 200)], **CHAIN)   # 3px of paper
+    assert not check.joins([post, rail])
+    hatch = [stroke("ink", "rock.hatch", [(100, 100 + 20 * at), (200, 100 + 20 * at)], **CHAIN)
+             for at in range(4)]
+    assert not check.joins(hatch)
+    spoke = stroke("ink", "bike.spoke", [(400, 100), (400, 300)], size="s", scale=1.0)
+    chain = stroke("ink", "bike.chain", [(100, 200), (380, 200)], **CHAIN)
+    assert not check.joins([spoke, chain])
+    other = stroke("ink", "rider.arm", [(400, 100), (400, 300)], **CHAIN)
+    assert not check.joins([other, chain]), "another object's mark is not a join target"
+
+
+@case("--joins: a ring left open is found, and a pair in _gaps is excused")
+def _():
+    points = ring(200, 200, 80, 36)[:-2]          # two segments short of closing
+    found = check.joins([stroke("ink", "bike.chainring", points, **CHAIN)])
+    assert found and found[0][2][0][1] == "bike.chainring", found
+    sprocket = stroke("fill", "bike.cassette", ring(100, 200, 50), closed=True, fill="fill", size="s", scale=0.3)
+    run = stroke("ink", "bike.chain.upper", [(600, 150), (180, 150)], **CHAIN)
+    assert not check.joins([sprocket, run], ["bike.cassette/bike.chain"])
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/ops.json", "w") as handle:
+            json.dump([sprocket, run], handle)
+        code, said = tool(f"{HERE}/check.py", "--joins", "ops.json", cwd=folder)
+        assert code == 1 and "bike.chain.upper end at 180,150" in said and "bike.cassette" in said, said
+        with open(f"{folder}/parts.json", "w") as handle:
+            json.dump({"_gaps": ["bike.chain.upper/bike.cassette"]}, handle)
+        code, said = tool(f"{HERE}/check.py", "--joins", "ops.json", "--parts", "parts.json", cwd=folder)
+        assert code == 0 and "PASSES" in said, said
+
+
+@case("--checklist: a small figure, under any of its names, needs head, torso, arms, legs and feet")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        for name in ("figures", "walker", "rider", "people"):
+            with open(f"{folder}/parts.json", "w") as handle:
+                json.dump({name: {"shape": "a small figure walking", "box": [0, 0, 9, 9]}}, handle)
+            person = [gone for _, source, gone in check.checklist(f"{folder}/parts.json")
+                      if source == "figure.md"]
+            assert person and set(person[0]) == {"head", "torso|body", "arm", "leg", "foot|feet"}, (name, person)
+        built = {f"rider.{part}": {"shape": part, "box": [0, 0, 9, 9]}
+                 for part in ("head", "torso", "arm.near", "arm.far", "leg.near", "leg.far", "foot.near")}
+        built["bike.bar/rider.hand"] = {"shape": "the hand closes on the bar", "box": [0, 0, 9, 9]}
+        with open(f"{folder}/parts.json", "w") as handle:
+            json.dump(built, handle)
+        assert not [row for row in check.checklist(f"{folder}/parts.json") if row[1] == "figure.md"]
+
+
 sys.exit(1 if failed else 0)

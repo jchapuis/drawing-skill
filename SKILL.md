@@ -30,7 +30,7 @@ not instead of drawing.
 - **Lost and found edges**: a lost edge fades into what is behind it; a found edge is crisp. Losing most edges is how a form is pushed back.
 - **Massing**: treating forms as simple shapes of one value. A **mass** is a form drawn only as a flat shape with no ink or marks of its own. A **part** is an object drawn with its own marks.
 - **Centre of interest**: the one place in the picture that carries the strongest contrast and the most detail.
-- **Tier**: a part's rank in `parts.json`. Tier 1 is the focus.
+- **Tier**: a part's rank in `parts.json`. Tier 1 is the focus. A tier sets how heavy and how contrasted a part is drawn, never which of its sub-forms exist.
 - **Gate**: a check a stage must pass before the next stage begins.
 - **Describer** and **critic**: the two judges, described under Judges.
 - **Emphasis**: how heavy and how detailed a part is drawn relative to the centre of interest.
@@ -259,7 +259,7 @@ that stage and the ones before it), pass its gate, and only then write the next.
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
 | 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, drawn past where the ink will go (see the trapping notes below). Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line, and the object can then no longer occlude itself | `check.py drawing.png --ref subject.png --masses`: the two read as the same shape, said in words. Stages 5–8 interleave per form, so on a subject with heavy line, judge it once each form's ink is in. Its flats alone never match a subject whose line carries mass |
 | 6 | **Contour** | `stage="contour"`: the real edge, curved where the subject curves, from `contour` in `regions.json` | `--overlay` again |
-| 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states; then the hatching, group by group, each line its own stroke | `check.py drawing.png --doubled ops.json` and `--stages ops.json` pass; `--linework parts.json --ref subject.png` passes: every measured hatch group is there at its angle and no heavier than the subject's, and the weight span is at least half the subject's |
+| 7–8 | **Ink** | `stage="ink"`, one stroke per edge, each width measured on the subject, every stroke tagged by the edge it states; then the hatching, group by group, each line its own stroke | `check.py drawing.png --doubled ops.json` and `--stages ops.json` pass; `check.py --joins ops.json --parts parts.json` lists no line stopping just short of the mark it runs at; `--linework parts.json --ref subject.png` passes: every measured hatch group is there at its angle and no heavier than the subject's, and the weight span is at least half the subject's |
 | 9 | **Fill** | flats refined; blacks massed as one value before anything is graded | `--hide ink` still separates figure from ground |
 | 10 | **Correct** | `stage="correct"` marks aimed by the judges, with the number of rounds fixed at stage 0; `refuted.md` for every item that did not survive its measurement | `describe.sh drawing.png` matches the acceptance list clause by clause; `--registration`, `--parts`, `--ranking` |
 
@@ -342,7 +342,7 @@ only.
 | S2 | **Masses** | `stage="blockin"` straights for the masses, then their flats `stage="fill"`: the middle tone over the whole, then lights, then darks, honouring sharp and lost edges. Every object's mass goes in here, part or mass. The part/mass split decides whether an object gets marks, never whether its value exists. A part left out is a hole in the tone plan, and when a whole value group lives inside parts (the darks usually do) the gate cannot pass until they are in. A flat is not ink, so this costs nothing at the gate. No object's marks yet | `--masses` against the subject at thumbnail size; no object has an ink contour (`--stages` shows ink 0) |
 | S3 | **Every object, in place** | run stages 2 to 9 of the object stages on each object. Block-in straights first, in the one `draw.py`, in whole-picture coordinates, writing from the furthest object forward. This is write order, not work order: work the centre of interest first if the budget says so, and insert it at its depth. Its brief from S0: which of its edges are lost, what is in front of it, its emphasis. **Refine the object's S2 mass into its stage-5 fill.** They are the same line of `draw.py`: edit its points in place from the object's own trace and never stack a second fill over it, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap. A figure is built from its three masses and every joint, and is not cheap | `--zoom` on the object, beside the subject, before you leave it. This is not optional. Then its own stage gates, `--faces` and `--unfilled` |
 | S4 | **Junctions** | nothing to assemble. Every object was drawn where it belongs, with its neighbours already on the page, so the overlaps table was satisfied as you went. Walk it once and confirm each row: the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; `--depth ops.json parts.json` clean, with no UNRESOLVED row; every row of the overlaps table has a recorded decision and a look |
-| S5 | **Emphasis** | nothing is drawn at whole-picture scale here. Emphasis was decided at S0 as each part's weight and edge count, and the far parts were drawn lighter and with fewer edges as you went. Walk the picture and confirm the gradient: weight and detail fall off with distance from the centre of interest and with depth, and masses have no marks | no part beyond the centre of interest carries its weight; a describer names every part |
+| S5 | **Emphasis** | nothing is drawn at whole-picture scale here. Emphasis was decided at S0 as each part's weight and edge count, and the far parts were drawn lighter and with fewer edges as you went. Fewer edges means edges lost into the mass behind, never sub-forms left out: a far figure keeps its arms, legs and feet. Walk the picture and confirm the gradient: weight and detail fall off with distance from the centre of interest and with depth, and masses have no marks | no part beyond the centre of interest carries its weight; a describer names every part |
 | S6 | **Overlaps** | the pass over the overlaps table, row by row, on the whole picture: the accent where forms touch, tangents broken by overlap or separation, lost edges confirmed lost, rails and wires only where both values are measured either side | every row of the table has a recorded decision and a look |
 | S7 | **Blacks, hatching, texture, vignette** | one pass spotting the black pattern across objects; each hatched region recorded at S0 drawn as its measured groups, one stroke per hatch line, dense at the edges, turns and centre of interest and thinning out into the light; texture elsewhere indicated (a few marks that suggest it without drawing all of it); the whole drawing's silhouette against the paper | `--ranking parts.json`: the centre of interest leads, nothing shouts above its tier; `--linework parts.json --ref subject.png`: no measured group missing, at the wrong angle or heavier than the subject's, and the weight span at least half the subject's |
 | S8 | **Correct from a distance** | stage 10, on the whole picture, with the describer run twice. A blind viewer on each part's crop ranks the round: parts that are misnamed get the budget first, then parts whose shape notes are untrue | the acceptance list; `--ranking` still shows one centre of interest; no part misnamed. An item that returns after a round that addressed it is the stopping rule |
@@ -377,6 +377,15 @@ two blocks, though the inventory names their fingers or levers. The same part,
 drawn alone with no budget limit, matches the subject piece for piece. So a part
 that must be recognisable is either drawn through stages 2–10 with its own
 correction rounds, or it is a mass. Never leave one half-drawn.
+
+A small human figure is the part most often cut down this way, to a round head
+on an outline with no arms and two tubes for legs. People draw the eye at any
+size, so a figure is never a minor part and never a mass with an outline. However
+small, it has a head (with its hat or hair), neck, shoulders, torso, two arms
+with elbows and hands holding what the subject shows, hips, two legs with knees,
+and feet, in the stride or pose of the gesture, and it gets its own `--zoom` and a
+working resolution where its head is around 40px. Its tier lightens its line,
+not its anatomy (`reference/figure.md` § A small figure is still a whole figure).
 
 When one agent cannot carry every part, split the scene: one agent per part,
 each writing its own section of the one `draw.py` in its depth position, with
@@ -471,7 +480,10 @@ and after the last.
      its PASS then checks nothing. Use a listed name in the keys, or add the
      subject's name to the reference's `object:` line.
    - Stop descending where the next level down would not survive at the scale
-     you will draw it.
+     you will draw it. That scale is the part's working resolution, with its
+     smallest feature near 40px, not the picture's. A human figure always
+     descends at least to head, torso, arms, legs and feet, whatever its tier
+     (the person checklist in `reference/figure.md` enforces it).
    - **Two instances of one object class get the same sub-form list.** The
      second of two wheels, hands or shoes is read with less attention and comes
      back with fewer entries, and its missing sub-form is missing from every
@@ -584,6 +596,12 @@ write("ops.json", ops)   # color= takes a palette name; --palette repoints it to
   angle at the joint, and reads as the unbent form however exactly the joint was
   measured. The points hold the bend, the render throws it away, and no numeric
   gate reports it. Give each member its own stroke, or pass `smooth=False`.
+- **A chain, belt, rope, cable, hose or wire is one continuous path.** Write it
+  as consecutive strokes that share their end points by name, each meeting the
+  wheel or anchor it wraps at the tangent point, with no gap. Carry its texture
+  (a beaded or linked line) when the subject shows it, and count and write the
+  teeth of a gear. `--joins` lists a run that stops short. See
+  `reference/line.md` § Continuous paths.
 - **The tracer's points are measurements, not marks.** You read positions off a
   contour and type the ones that carry the shape into `draw.py`. The region list
   is never iterated into strokes. Keep perimeter order. Resequencing folds the
@@ -843,6 +861,7 @@ form it names is often real on the form next to it.
 | `--counts parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts; exit 1 is FAIL, exit 2 is UNCHECKED rows |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` (named when it outranks the whole focus tier), and two forms merged into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two lines that cross in an X, or meet in a V or a T, at 5° or more (crossing spokes, a chain over a spoke) are not listed. Two lines that run side by side (two bands, parallel cables) are, and so is a contact between two objects' edges, so look before you merge |
+| `--joins ops.json [--parts parts.json]` | a line that stops just short of the mark it runs at, in the same object (the tag up to its first `.`): a gap of one to eight line widths, edge to edge, which reads as neither a join nor a separation. A chain short of its sprocket, a spoke short of its rim, a ring left open. Ends that some mark touches pass, and so does a styled hand's 1–4px fall-short. Marks beside the end (a hatch group's next line), a hairline under half the end's width, and marks with the end's own tag are not join targets. A pair meant to stop short goes in parts.json's `"_gaps": ["tagA/tagB", ...]`, matched by tag prefix. Exit 1 when anything is listed |
 | `--depth ops.json parts.json` | an occlusion the inventory decided on that the write order does not deliver: the far form's ink after the near form's fill, drawn across it. **UNRESOLVED** is not a pass; it means tags and inventory are not one vocabulary. **UNLISTED** is a list to work through: one part's ink shown across another's flat where no row decides which is in front. Warns on a key written `near/far`. A row with `"in_front": "same"` (sub-forms of one surface) has no order to check |
 | `--stages ops.json` | a stage that does not exist, and a mark the script did not write: called from another file, stamped by a loop or an import, points loaded or computed. It does not check that each ink has a contour under it. Pasted generated literals pass it |
 | `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`. On an upscaled or generated subject, also pass `--grain` of three times the upscale factor, or the serration reads as corners (in one case 150 false rows, and 4 with it). A deliberately straight form cut by intruding objects still fails it, and so does a silhouette flat whose region is punched by holes (vents written over a shell). More corners would be the wrong fix in both cases |

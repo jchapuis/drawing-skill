@@ -65,7 +65,7 @@ render that was actually looked at.
 6  CONTOUR          gate: check.py --overlay, again, on the curve
    |
    v  the real edge, curved where the subject curves
-7-8 INK             gate: check.py --doubled and --stages both pass
+7-8 INK             gate: check.py --doubled, --joins and --stages pass
    |                       (stages 5-8 interleave per form, far to near)
    v  one stroke per edge, width measured, tagged by the edge it states
 9  FILL             gate: rendered with --hide ink, figure still
@@ -176,6 +176,7 @@ score.
 | | `--unfilled --paper C` | bare paper where the subject carries the object, and a flat painted where the subject is bare |
 | | `--faces ops.json --regions R` | a flat simpler than the traced region under it |
 | depth/order | `--doubled ops.json` | one edge stated twice on the page |
+| | `--joins ops.json [--parts parts.json]` | a line stopping one to eight line widths short of the mark it runs at (a chain short of its sprocket, a ring left open); `_gaps` in parts.json excuses a pair |
 | | `--depth ops.json parts.json` | write order that does not deliver the inventory's `in_front`; UNRESOLVED where tags and inventory disagree |
 | counts/inventory | `--parts parts.json` | a part absent, or drifted out of its box |
 | | `--checklist parts.json` | a sub-form a reference's checklist names, missing with no `_absent` reason; blocks `build.sh` |
@@ -264,7 +265,7 @@ crop.py           one object's measuring crop at 1:1, corner of the
                     whole image stored in the PNG
 describe.sh       the blind describer: five fixed questions, no script
 check.py          the gates -- masses, overlay, scan, zoom, weights,
-                    doubled, depth, checklist, counts, ranking, stages,
+                    doubled, joins, depth, checklist, counts, ranking, stages,
                     registration, unfilled, faces
 finish.py         turns drawing.png into final.png: medium, paper,
                     sketch construction, scan look (style.json)

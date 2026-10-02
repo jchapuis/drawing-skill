@@ -191,6 +191,49 @@ harder than a large uniform black does.
 If a finished panel looks flat and grey when squinted, add a real black anchor
 **and** a real white breathing space. More mid-tone detail will not fix it.
 
+## Continuous paths: chains, belts, ropes, cables
+
+A chain, a belt, a rope, a cable, a hose or a wire is one continuous path, even
+where it is written as several strokes. The eye follows it end to end, and a
+break anywhere along it reads as a broken object: a chain whose run stops short
+of the sprocket is an open loop, and a cable that stops before its stop hangs
+loose. A path is drawn like this:
+
+- **Every piece meets the next with no gap.** Write the path as consecutive
+  strokes (a straight run, the wrap round a wheel, the next run) that share their
+  end points by name: the end of one is the start of the next, from one entry
+  of the dict of measured points. Two numbers typed separately for one junction
+  drift apart.
+- **A run meets a wheel at its tangent point.** A straight run leaves a round
+  form where the line touches the circle without cutting it, which is the point
+  where the radius is square to the run. Measure that point on the subject's
+  `--zoom` and name it. The wrap round the wheel starts and ends at those named
+  points. Stopping at the wheel's outline anywhere else leaves a kink or a gap.
+- **An anchor is a point the path reaches.** A rope ends at the hand or the
+  ring that holds it, and a cable at its stop or its housing. The last point of
+  the stroke is that anchor's named point.
+- **Give each run its own tag** (`bike.chain.upper`, `bike.chain.wrap.rear`).
+  `--joins` does not compare a stroke with others under the same tag, since a
+  hatch group shares one, so runs under one tag are never checked against each
+  other.
+- **Carry the path's texture when the subject shows it.** A chain's links, a
+  rope's twist and a beaded cable read as a textured line, and a plain line in
+  their place reads as a wire. Look at the subject's `--zoom`: if the line is
+  beaded or linked, draw it as one. `dash="dotted"` or `dash="dashed"` on the
+  stroke gives a beaded or broken line along your own path. The renderer sets
+  the spacing, so compare it with the subject's link pitch on `--zoom`, and
+  where it does not match, write the links as small marks, each its own stroke,
+  at the measured pitch. Either way the path's points are yours.
+- **Teeth are a repeated small form.** A gear's or a sprocket's teeth are
+  counted (`--counts`, or on `--zoom` into `notes.md`) and written, each tooth
+  as its own points, like any other group of repeated forms. A plain circle in
+  their place reads as a ring, not a gear.
+
+`check.py --joins ops.json --parts parts.json` lists every ink end that stops
+one to eight line widths short of a mark of its own object that it runs at:
+too far to read as a join, too near to read as a separation. A gap the subject
+really shows goes in parts.json as `"_gaps": ["tagA/tagB"]`.
+
 ## Hatching and texture, by hand
 
 On a subject whose look is fine ink (an engraving, a pen drawing, an old printed
@@ -222,6 +265,13 @@ colouring-book copy of it, however well they are placed.
    over 1.6× the subject's share. Both numbers print either way, in the
    subject's pixels whatever size the render is.
 
+**Check the outline weight first.** Run `--weights` on a few rows across the
+outline, on the subject and on your drawing, before you write a hatch mark. The
+outline sets the scale every hatch mark is read against: hatching that matches
+the subject's width in pixels still reads heavy against an outline drawn too
+thin, and right against an outline drawn at the subject's weight. Fix the
+outline first.
+
 **Hatch weight: the lightest in the swatch, from the measured width.** Hatching
 takes the lightest weights you have. Pick its weight from the group's `width`
 in `--hatch`, never from the outline: a hatch drawn "a step under the contour"
@@ -230,7 +280,18 @@ reads as heavy brush strokes however right their angles are. The subject's
 width is read at half each mark's darkness, so a soft upscaled line is not read
 wider than it is; match your swatch to that number.
 
-For fine marks use `tool="pen"`. A swatch rendered at 4x with `--scale 0.5`
+**Hatch character: tapered, and in the line's colour.** A hand-drawn hatch mark
+tapers at both ends, thin where the nib lands and lifts, and it is drawn in the
+subject's line colour. Measure that colour: sample the centre of a few marks on
+the subject at the magnified view and put the value in `palette.json`, on the
+name you ink with. Old prints and pen drawings are often a warm dark brown, not
+pure black. Uniform marks with square ends in pure black read heavier than
+their width, so a group that matches the subject's width can still look like
+heavy brush strokes. Use `tool="brush"`, whose default `lead` and `tail` taper
+both ends, at the small sizes below. `tool="pen"` has no taper: keep it for a
+subject whose hatching is a technical pen's even hairline.
+
+A swatch rendered at 4x with `--scale 0.5`
 (1:1 with `subject.png`), widths at half darkness, and each line's contrast
 against a paper of 250 once downsampled 4x to the delivered size:
 
@@ -247,8 +308,8 @@ against a paper of 250 once downsampled 4x to the delivered size:
 
 So the hairline at 4x is `pen` `size="s"` at `scale` 0.75–1.0: 2–3px, still a
 visible grey line at the delivered size. Under `scale` 0.5 it fades out there.
-`pen` has no taper; where the subject's marks end in a point, `brush`
-`size="s"` at `scale` 0.35–0.5 gives 3–5px with `tail=`. A `brush` at
+`pen` has no taper; for a mark that ends in a point at both ends, `brush`
+`size="s"` at `scale` 0.35–0.5 gives 3–5px, tapered by its `lead` and `tail`. A `brush` at
 `size="m"` starts at 7px: that is outline territory on most subjects, not
 hatching. Render your own swatch before trusting these: the numbers move with
 the palette, the ground and the renderer.
@@ -282,7 +343,8 @@ affordable:
 - **Good**: varied lengths, some short and broken, getting heavier as they merge
   toward a black; lines curving *around* the form to imply volume.
 - A hatch line is a finer weight than the contour it sits against, and tapers at
-  its free end (`lead=`/`tail=` on a `brush` or `marker`). The measured width is
+  both ends (`lead=` and `tail=` on a `brush` or `marker`), more at the end that
+  runs out into the light. The measured width is
   the target, and its ratio to the outline: if the subject's hatch is a third
   of its outline's weight, the drawing's is a third of its own.
 

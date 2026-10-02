@@ -1430,6 +1430,116 @@ def doubled(ops, touch=3.0, near_ends=8.0, floor=15.0):
     return hits, worst, len(lines)
 
 
+HAND_GAP = 4.0          # px: the most a styled hand's line stops short (pen.py, 1-4 px)
+NEAR_MISS = (1.0, 8.0)  # line widths: a gap in this band is neither a join nor a separation
+
+
+def _object(tag):
+    """The object a stroke belongs to: its tag up to the first '.'."""
+    return str(tag or "").split("+")[0].split(".")[0]
+
+
+def _pair_excused(one, other, gaps):
+    """Is the pair named in parts.json's `_gaps` list, either way round, by tag
+    or by a prefix of it?"""
+    kin = lambda tag, name: tag == name or tag.startswith(name + ".")
+    for row in gaps:
+        a, _, b = str(row).partition("/")
+        if (kin(one, a) and kin(other, b)) or (kin(one, b) and kin(other, a)):
+            return True
+    return False
+
+
+def joins(ops, gaps=()):
+    """Ink ends that stop just short of the mark they run at, in the same object.
+
+    A chain, a cable, a frame member or an outline that is meant to meet another
+    line and stops a few line widths away reads as a broken line. The eye
+    accepts a join (the end touches) and a clear separation (the end stops well
+    away), and reads anything between as a mistake. A pixel check cannot tell a
+    near miss from a deliberate gap, so this reads the script.
+
+    For each end of each open ink stroke on the page:
+
+    1. Every other ink or fill mark of the same object (the tag up to its first
+       '.') is measured edge to edge: the distance between centrelines less half
+       of each mark's width. A fill counts by its outline. The stroke's own line
+       counts too, beyond the stretch next to the end, so a ring left open is
+       found.
+    2. If any of them is closer than the lower bound, the end is joined and
+       passes. The lower bound is one line width of the end's stroke, and never
+       under HAND_GAP + 1, so the 1-4 px a styled hand leaves short of a
+       junction is not listed.
+    3. Otherwise every mark the end runs at, within the upper bound
+       (NEAR_MISS[1] line widths), is listed. A mark the end runs at lies ahead
+       of it, within 60 degrees of its direction. Marks beside the end (the next
+       line of a hatched group, a parallel streak) are spacing, not a missed
+       join. Three more are skipped: an ink mark under half the end's width,
+       since a heavier line crosses a hairline (a spoke, a cable) and does not
+       end on it; a mark with the end's own tag, since that is one group's
+       spacing (so a path drawn in several strokes takes one tag per run); and a
+       pair in `gaps`, parts.json's `_gaps` list of "tagA/tagB" pairs meant to
+       stop short, matched by tag or a prefix of it, either way round.
+
+    An end buried under a flat painted after it is not on the page and is
+    skipped. Returns (end tag, end point, [(gap px, other tag), ...]), the
+    smallest gap first."""
+    cover = Cover(ops)
+    marks = []
+    for index, z in cover.z.items():
+        op = ops[index]
+        if op.get("stage") not in ("ink", "fill") or not op.get("points"):
+            continue
+        points = np.asarray([p[:2] for p in op["points"]], float)
+        if op.get("closed") and len(points) > 2:
+            points = np.vstack([points, points[:1]])
+        walked = _walk(points) if len(points) > 1 else points
+        along = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(walked, axis=0), axis=1))])
+        marks.append((index, str(op.get("tag", "")), _object(op.get("tag")), op, points,
+                      walked, along, cKDTree(walked), nib(op)))
+    found = []
+    for index, tag, thing, op, points, walked, along, _, width in marks:
+        if op.get("stage") != "ink" or op.get("closed") or len(points) < 2 or along[-1] < 1.0:
+            continue
+        low, high = max(NEAR_MISS[0] * width, HAND_GAP + 1.0), NEAR_MISS[1] * width
+        back = max(2.0 * width, 8.0)
+        ends = ((walked[0], walked[int(np.searchsorted(along, min(back, along[-1])))], along > high + width),
+                (walked[-1], walked[int(np.searchsorted(along, max(0.0, along[-1] - back)))],
+                 along < along[-1] - high - width))
+        for end, behind, own_far in ends:
+            if cover.buried(end[None, :], cover.z[index], width / 2.0)[0]:
+                continue
+            heading = end - behind
+            heading = heading / max(float(np.hypot(*heading)), 1e-9)
+            near = []
+            for other, other_tag, other_thing, other_op, _, other_walked, _, tree, other_width in marks:
+                if other_thing != thing:
+                    continue
+                if other == index:
+                    if not own_far.any():
+                        continue
+                    pool = walked[own_far]
+                    at = pool[int(np.argmin(np.linalg.norm(pool - end, axis=1)))]
+                else:
+                    at = other_walked[tree.query(end)[1]]
+                centre = float(np.hypot(*(at - end)))
+                gap = centre - width / 2.0 - other_width / 2.0
+                ahead = centre > 1e-9 and float(np.dot((at - end) / centre, heading)) >= 0.5
+                fine = other_op.get("stage") == "ink" and other_width < width / 2.0
+                sibling = other != index and other_tag == tag
+                near.append((gap, other_tag, ahead and not fine and not sibling))
+            if not near or min(gap for gap, _, _ in near) < low:
+                continue
+            missed = {}
+            for gap, other_tag, runs_at in near:
+                if runs_at and gap <= high and not _pair_excused(tag, other_tag, gaps):
+                    missed[other_tag] = min(missed.get(other_tag, gap), gap)
+            if missed:
+                found.append((tag, tuple(int(round(c)) for c in end),
+                              sorted((round(gap, 1), other_tag) for other_tag, gap in missed.items())))
+    return sorted(found, key=lambda row: row[2][0][0])
+
+
 def backwards_keys(inventory):
     """Overlap rows whose key is written near/far: `in_front` names the key's
     first half. The key is `far/near`. `depth` decides by `in_front` alone, so
@@ -2027,7 +2137,9 @@ def ranking(drawing, subject, inventory):
 
 def main():
     parse = argparse.ArgumentParser()
-    parse.add_argument("render")
+    parse.add_argument("render", nargs="?", default="",
+                       help="the render; the script-only checks (--joins, --doubled, --depth, "
+                            "--stages, --checklist, --faces) do without it")
     parse.add_argument("--ref")
     parse.add_argument("--out", default="check.png")
     parse.add_argument("--width", type=int, default=460)
@@ -2095,6 +2207,10 @@ def main():
     parse.add_argument("--doubled", default="",
                        help="an ops JSON: is any edge stated twice? Reads the "
                             "script, not the render")
+    parse.add_argument("--joins", default="",
+                       help="an ops JSON: ink ends that stop one to eight line widths short of "
+                            "another mark of the same object, neither joined nor clearly apart. "
+                            "With --parts parts.json, pairs in its \"_gaps\" list are excused")
     parse.add_argument("--depth", nargs=2, metavar=("OPS", "PARTS"), default=None,
                        help="write order against the inventory's in_front column")
     parse.add_argument("--checklist", default="",
@@ -2237,9 +2353,29 @@ def main():
               "control.")
         sys.exit(1 if hits else 0)
 
+    if args.joins:
+        with open(args.joins) as handle:
+            written = json.load(handle)
+        gaps = load_parts(args.parts).get("_gaps", []) if args.parts else []
+        if not isinstance(gaps, list):
+            sys.exit('parts.json: "_gaps" is a list of "tagA/tagB" pairs')
+        hits = list(joins(written, gaps))
+        for tag, end, missed in hits:
+            print(f"  NEAR MISS {tag} end at {end[0]},{end[1]} stops "
+                  + ", ".join(f"{gap:.0f}px short of {other}" for gap, other in missed))
+        if not hits:
+            print("  PASSES — every ink end either meets a mark of its object or stops well clear")
+        print(f"\na gap of {NEAR_MISS[0]:.0f} to {NEAR_MISS[1]:.0f} line widths reads as a line "
+              "that missed, not as a join or a\nseparation. Close it by ending both strokes on one "
+              "named point, or, where the subject\nshows the gap, add the pair to parts.json's "
+              "\"_gaps\" list (\"tagA/tagB\").")
+        sys.exit(1 if hits else 0)
+
     if args.faces:
         sys.exit(1 if faces(args.faces, args.regions, args.face_ratio, args.grain) else 0)
 
+    if not args.render:
+        parse.error("this check needs a render")
     drawing = Image.open(args.render).convert("RGB")
     plumbs = [float(value) for value in args.plumb.split(",") if value.strip()]
 
