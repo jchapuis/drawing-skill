@@ -87,7 +87,9 @@ first, and measure it rather than going on your impression of it.
 6. **The two value groups**, then the three-value plan. Two objects on different
    depth planes must never share a value, or they merge into one plane.
 7. **What you will leave out.** An omission you chose is economy. One you did
-   not notice is a failure.
+   not notice is a failure. Economy applies to texture, detail and variation
+   inside a form. It never removes an object that a viewer of the subject
+   names: a small figure can be drawn with few marks, but it is drawn.
 8. **The inventory**, below.
 
 ### The inventory: name the parts, then look for them

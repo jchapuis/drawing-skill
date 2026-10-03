@@ -352,7 +352,7 @@ only.
 - **One** centre of interest.
 - The tone plan: a dominant value and two to four masses.
 - The masses: five to twelve, each edge marked sharp or lost, no object with a closed contour.
-- Every object marked as a **part** or a **mass**. A part is an object (the lamp, the chair, the figure), never a feature of one. An object the describer names in answers 3–4 is a part, because the acceptance list will ask for it. The exception is an object with no silhouette of its own against its surround. Write that down now as a clause the drawing will not earn.
+- Every object marked as a **part** or a **mass**. A part is an object (the lamp, the chair, the figure), never a feature of one. An object the describer names in answers 3–4 is a part, because the acceptance list will ask for it. The exception is an object with no silhouette of its own against its surround: it is still drawn, as part of the mass it sits in, and its clause is the only one the drawing may leave unearned. Write that down now. Budget is never a reason for an unearned clause.
 - For each part: its box (the `--zoom` and measuring crop), its smallest feature at working resolution, its nested parts (a face inside a figure), and its emphasis relative to the centre of interest.
 - The overlaps table, with an `in front` column per crossing, masses included. A road cut into a hillside is in front of it, and S2 needs that order to run each far mass under the near one. Rows that name a mass stay UNRESOLVED until its one line is written, so check them at S4.
 - The counts of repeated small forms, including the zeroes.
@@ -475,7 +475,12 @@ and after the last.
      A subject whose look is mostly hatched ink (an engraving, a pen drawing, an
      old print) has its look in this paragraph, and a drawing that leaves it out
      reads as a colouring-book copy however well its flats are placed;
-   - what you leave out, on purpose;
+   - what you leave out, on purpose. That may be texture, small detail and
+     variation inside a form, never an object. Every object a viewer of the
+     subject names (the describer's answers 1, 3 and 4) is drawn, as a part or
+     as a mass, however small and however tight the budget. If the budget
+     cannot carry every named object, say so and ask for more budget or a split
+     across agents; never drop the object and mark its clause as not earned;
    - the budget and the number of correction rounds;
    - then the acceptance list.
 
