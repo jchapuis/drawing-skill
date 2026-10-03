@@ -10,7 +10,7 @@ floating legs*. Even after the heads are rebuilt, the worst box in the inventory
 measured, and so was the third worst.
 
 This applies to any four-legged animal, not only cattle. Cattle are the worked
-example below.
+example below; dog and cat heads have a section of their own.
 
 ## The schema is a diagnostic, never a scaffold
 
@@ -169,6 +169,77 @@ Measure each of these off the subject; an unmeasured guess is usually wrong:
 - **The blaze is a strip down the middle.** The dark side panels must come
   **most** of the way in; at a third of the way in each face reads as a white
   head with two smudges.
+
+## The head (dogs and cats)
+
+A dog's or a cat's head is a **rounded skull** with a **muzzle** set on its
+front, and the two meet at the **stop**: the step down from the forehead to the
+bridge of the nose, at or just below the eyes. The likeness of one animal
+against another of the same kind lives almost entirely in how those three
+relate, so this is where a drawing goes generic first. Ellenberger, Baum and
+Dittrich's *An Atlas of Animal Anatomy for Artists* shows the dog and cat skulls
+under the coat, and Ken Hultgren's *The Art of Animal Drawing* builds both heads
+from a ball for the cranium with a smaller block or wedge for the muzzle
+[read: Ellenberger et al.; Hultgren]. In paraphrase, both say the following.
+
+- **The skull.** The cranium is a ball, widest across the cheekbones (the
+  zygomatic arches) rather than at the crown. Under a heavy coat its outline is
+  fur, so place it from the eyes and the ear bases, not from the silhouette.
+  A cat's cranium is large against its face; a dog's ranges from round to long
+  and narrow with the breed.
+- **The stop.** Its depth and height decide the profile: a deep stop gives a
+  domed forehead over a separate muzzle, a shallow one a nearly straight line
+  from crown to nose. In a three-quarter view it shows as the place where the
+  bridge of the nose leaves the forehead between the eyes.
+- **The muzzle.** On a dog, a block or wedge running forward from the stop to
+  the nose, with the upper lip (the flews) hanging at its sides and the lower
+  jaw tucked under it. It is narrower than the skull and usually tapers. On a
+  cat it is short: two rounded whisker pads under a small nose, with a small
+  chin below, barely projecting from the face.
+- **How the ears join.** An ear grows from the top or the side of the cranium,
+  never from the cheek, and its base is wider than it looks. A dropped ear
+  (most retrievers, spaniels, hounds) folds at its base and hangs from it, so
+  the fold is a hard edge high on the skull and the flap falls over the side of
+  the head. A pricked ear (cats, many dogs) stands on the top corner of the
+  skull with its opening turned forward or out.
+- **The eyes.** They sit in sockets under the brow, on the front of the head
+  and angled outward a little on a dog, more forward on a cat. The lids follow
+  the eyeball; a ring of dark lid or socket shadow is usually what reads, more
+  than a drawn outline. Brows, lashes and a white round the iris are rarely
+  visible and turn an animal's face human when drawn.
+
+### Landmark ratios: measure them on the subject before drawing
+
+Write these in `reading.md` with the pixel coordinates you read them from, in
+the subject's view (three-quarter, profile or front). They are **measured on
+the subject, never taken from a typical breed**: the point is how this animal
+differs from the average one, and a ratio from a breed standard draws the
+standard.
+
+| ratio | measured as |
+|---|---|
+| eye spacing / head width | distance between the eye centres, over the skull's width at the eye line (cheek edge to cheek edge, or to where the far ear joins it; ear flaps and loose fur left out) |
+| eye line to nose tip / head height | vertical distance from the eye line to the nose, over crown to chin |
+| muzzle length / skull length | stop to nose tip, over stop to the back of the skull (in profile); in a front or three-quarter view, eye line to nose over crown to eye line |
+| ear base position | where the ear's front edge leaves the skull, as a fraction of head height down from the crown and of head width from the near side |
+| head width / chest width | skull width at the eye line, over the chest's widest point (in a lying or sitting pose, its width just below the jaw) |
+
+A jaw that is too deep or too square is common in a drawn dog; when the head
+looks boxy, measure the depth from the bottom of the nose to the chin over head
+height as well.
+
+To read them on the drawing, use the same landmarks:
+
+- `--scan` on the head's box, from the side the face turns toward, prints the
+  silhouette edge row by row for subject and drawing, which gives the skull's
+  width at the eye line and the jaw's taper;
+- `--overlay --box` on the head shows the two inks over each other: eye
+  centres, the nose, the stop and the mouth line. Say for each subject line
+  which drawn line is meant to be it and how far it runs off;
+- the eye and nose centres are the dark blobs in each box; their positions can
+  be right while the skull around them is too wide, which changes every ratio
+  that divides by head width. That is the usual cause of a head that looks
+  boxy with every feature in its place.
 
 ## A herd is individuals, and the check is arithmetic
 

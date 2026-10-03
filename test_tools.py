@@ -753,4 +753,67 @@ def _():
         assert not [row for row in check.checklist(f"{folder}/parts.json") if row[1] == "figure.md"]
 
 
+def coat(folder, name, light, mid, shade, ground=(59, 77, 34)):
+    """A green ground, a three-step coat and a black outline. The light band is the
+    largest, so the median is the light and only the mid-tone reading sees the mid."""
+    image = Image.new("RGB", (300, 240), ground)
+    pen = ImageDraw.Draw(image)
+    pen.rectangle([60, 40, 240, 200], fill=light)
+    pen.rectangle([60, 136, 240, 175], fill=mid)
+    pen.rectangle([60, 176, 240, 200], fill=shade)
+    pen.rectangle([60, 40, 240, 200], outline=(20, 18, 16), width=6)
+    image.save(os.path.join(folder, name))
+    return image
+
+
+GOLD = ((243, 226, 165), (196, 138, 72), (147, 112, 63))
+
+
+@case("--colour: the same coat in a box half ground and outline passes; a beige mid-tone is flagged")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        subject = coat(folder, "subject.png", *GOLD)
+        same = coat(folder, "same.png", *GOLD).resize((600, 480))
+        beige = coat(folder, "beige.png", GOLD[0], (184, 160, 120), GOLD[2])
+        box = {"coat": [20, 20, 260, 200]}
+        (_, theirs, ours, flags), = check.colour_match(same, subject, box, (59, 77, 34))
+        assert flags == [], (theirs, ours, flags)
+        assert abs(theirs[0] - ours[0]) < 3 and abs(theirs[3] - ours[3]) < 0.03, (theirs, ours)
+        (_, theirs, ours, flags), = check.colour_match(beige, subject, box, (59, 77, 34))
+        assert "mid-tone saturation" in flags, (theirs, ours, flags)
+        assert flags == ["mid-tone saturation"], flags
+
+
+@case("--colour: a hue turned green-yellow, a greyed coat and a darker coat are each flagged")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        subject = coat(folder, "subject.png", *GOLD)
+        box = {"coat": [60, 40, 181, 161]}
+        lime = coat(folder, "lime.png", (226, 243, 165), (160, 196, 72), (120, 147, 63))
+        grey = coat(folder, "grey.png", (225, 220, 205), (165, 150, 135), (125, 118, 105))
+        dark = coat(folder, "dark.png", *[tuple(int(c * 0.7) for c in step) for step in GOLD])
+        assert "hue" in check.colour_match(lime, subject, box, (59, 77, 34))[0][3]
+        assert "saturation" in check.colour_match(grey, subject, box, (59, 77, 34))[0][3]
+        assert "value" in check.colour_match(dark, subject, box, (59, 77, 34))[0][3]
+
+
+@case("--colour on the command line: a box or parts.json, exit 1 only when a part is flagged")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        coat(folder, "subject.png", *GOLD)
+        coat(folder, "same.png", *GOLD)
+        coat(folder, "beige.png", GOLD[0], (184, 160, 120), GOLD[2])
+        with open(f"{folder}/palette.json", "w") as handle:
+            json.dump({"background": "#3b4d22"}, handle)
+        with open(f"{folder}/parts.json", "w") as handle:
+            json.dump({"coat": {"shape": "a gold coat", "box": [20, 20, 260, 200]},
+                       "coat/ground": {"shape": "an overlap, not read", "box": [0, 0, 9, 9]}}, handle)
+        code, said = tool(f"{HERE}/check.py", "same.png", "--ref", "subject.png",
+                          "--colour", "20,20,260,200", cwd=folder)
+        assert code == 0 and "<<" not in said.split("\n\n<<")[0], said
+        code, said = tool(f"{HERE}/check.py", "beige.png", "--ref", "subject.png",
+                          "--colour", "parts.json", cwd=folder)
+        assert code == 1 and "mid-tone saturation" in said and "coat/ground" not in said, said
+
+
 sys.exit(1 if failed else 0)

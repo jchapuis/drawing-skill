@@ -2135,6 +2135,108 @@ def ranking(drawing, subject, inventory):
     return sorted(rows, key=lambda row: -abs(row[4] - row[5]))
 
 
+HUE_OFF = 15.0           # degrees
+SATURATION_LOST = 1 / 3  # median saturation a third or more lower
+MID_LOST = 1 / 5         # saturated end of the mid-tones a fifth or more lower (a starting figure)
+VALUE_OFF = 0.15         # on HSV value, 0..1
+
+
+def _lab_ab(rgb):
+    """The a*b* plane of CIELAB for an array of RGB pixels."""
+    lab = cv2.cvtColor(np.asarray(rgb, dtype=np.uint8).reshape(-1, 1, 3), cv2.COLOR_RGB2LAB)
+    return lab.reshape(-1, 3)[:, 1:].astype(float) - 128
+
+
+def _own_pixels(pixels, ground, ink=60, rounds=6):
+    """The object's own pixels in a box: neither ground nor dark line.
+
+    Line is any pixel darker than `ink` (grey level). Ground is any pixel whose
+    colour, in the a*b* plane, sits nearer the ground colour than the object's
+    own. The object's colour starts from the half of the pixels furthest from
+    the ground and is re-estimated a few times. A box with no ground in it keeps
+    every pixel, since nothing in it is nearer the ground than the object.
+    """
+    pixels = pixels.reshape(-1, 3)
+    grey = pixels @ np.array([0.299, 0.587, 0.114])
+    pixels = pixels[grey >= ink]
+    if not len(pixels):
+        return pixels
+    ab = _lab_ab(pixels)
+    seed = _lab_ab([ground])[0]
+    away = np.hypot(*(ab - seed).T)
+    centre = np.median(ab[away >= np.median(away)], axis=0)
+    own = np.ones(len(pixels), bool)
+    for _ in range(rounds):
+        own = np.hypot(*(ab - centre).T) <= away
+        if not own.any():
+            break
+        centre = np.median(ab[own], axis=0)
+    return pixels[own]
+
+
+def _hsv(pixels):
+    """Hue in degrees, saturation and value in 0..1, one row per pixel."""
+    hsv = cv2.cvtColor(np.asarray(pixels, dtype=np.uint8).reshape(-1, 1, 3),
+                       cv2.COLOR_RGB2HSV_FULL).reshape(-1, 3).astype(float)
+    return hsv[:, 0] * 360 / 256, hsv[:, 1] / 255, hsv[:, 2] / 255
+
+
+def _circular_median(hue):
+    turn = np.radians(hue)
+    mean = math.degrees(math.atan2(np.sin(turn).mean(), np.cos(turn).mean()))
+    return float((mean + np.median((hue - mean + 180) % 360 - 180)) % 360)
+
+
+def colour_match(drawing, subject, boxes, ground, ink=60, least=200):
+    """Per box, the object's colour in the subject and in the drawing.
+
+    Both are read at the subject's size, on the object's own pixels only (see
+    `_own_pixels`), so a box that holds some ground or some outline still
+    compares the object. Each reading is (hue, saturation, value, mid): the
+    medians, plus `mid`, the saturation of the most saturated tenth of the
+    mid-tones. The mid-tones are the pixels whose value lies between the
+    subject's own 25th and 75th percentile in that box, the same band on both.
+    A median hides a palette that lost its saturated step: the shadow and the
+    light still match, and the gold in between has gone beige. `mid` sees it.
+
+    Returns rows of (name, subject reading, drawing reading, flags); a reading
+    is None where fewer than `least` pixels are left. Flags: `hue` (more than
+    HUE_OFF degrees apart, read only where the subject's saturation is above
+    0.1), `saturation` (the drawing's median a third or more lower),
+    `mid-tone saturation` (a fifth or more lower) and `value` (more than
+    VALUE_OFF apart).
+    """
+    drawing = drawing.convert("RGB").resize(subject.size, Image.LANCZOS)
+    planes = [np.asarray(image.convert("RGB")) for image in (subject, drawing)]
+    rows = []
+    for name, (x, y, width, height) in boxes.items():
+        x, y = max(0, x), max(0, y)
+        width, height = min(subject.width - x, width), min(subject.height - y, height)
+        own = [_own_pixels(plane[y:y + height, x:x + width], ground, ink) for plane in planes]
+        if min(len(pixels) for pixels in own) < least:
+            rows.append((name, *[None] * 2, ["too few pixels"]))
+            continue
+        hsv = [_hsv(pixels) for pixels in own]
+        low, high = np.percentile(hsv[0][2], (25, 75))
+        read = []
+        for hue, sat, val in hsv:
+            band = sat[(val >= low) & (val <= high)]
+            read.append((_circular_median(hue), float(np.median(sat)), float(np.median(val)),
+                         float(np.percentile(band, 90)) if len(band) else 0.0))
+        (hue, sat, val, mid), (hue2, sat2, val2, mid2) = read
+        flags = []
+        if sat > 0.1 and abs((hue2 - hue + 180) % 360 - 180) > HUE_OFF:
+            flags.append("hue")
+        if sat2 < sat * (1 - SATURATION_LOST):
+            flags.append("saturation")
+        if mid2 < mid * (1 - MID_LOST):
+            flags.append("mid-tone saturation")
+        if abs(val2 - val) > VALUE_OFF:
+            flags.append("value")
+        rows.append((name, read[0], read[1], flags))
+    return rows
+
+
 def main():
     parse = argparse.ArgumentParser()
     parse.add_argument("render", nargs="?", default="",
@@ -2201,6 +2303,11 @@ def main():
     parse.add_argument("--parts", default="",
                        help="a JSON file of {name: [x,y,w,h]}: every named part of "
                             "the picture, subject above and drawing below")
+    parse.add_argument("--colour", default="",
+                       help="parts.json, or x,y,w,h: per box, the object's median hue, saturation "
+                            "and value, subject (--ref) against drawing, ground and line left out")
+    parse.add_argument("--ink", type=int, default=60,
+                       help="--colour: grey level under which a pixel is line, not colour")
     parse.add_argument("--ranking", default="",
                        help="parts.json: what leads the eye, the drawing's order "
                             "against the subject's")
@@ -2230,7 +2337,7 @@ def main():
     parse.add_argument("--paper", default="#FAF1D2",
                        help="the render's paper, #rrggbb or R,G,B")
     parse.add_argument("--ground", default="",
-                       help="--unfilled: the subject's ground, if not palette.json's background")
+                       help="--unfilled, --colour: the subject's ground, if not palette.json's background")
     parse.add_argument("--space", default="",
                        help="x0,y0,x1,y1 the render covers, so faults are reported "
                             "in the drawing's own coordinates")
@@ -2503,6 +2610,40 @@ def main():
               "(droplets, pebbles,\nteeth with dark gaps). Exit 1 is a FAIL, 2 is "
               "UNCHECKED rows. Neither is a pass.")
         sys.exit(1 if wrong else 2 if unchecked else 0)
+
+    if args.colour:
+        if not args.ref:
+            sys.exit("--colour needs --ref")
+        subject = Image.open(args.ref).convert("RGB")
+        if os.path.exists(args.colour):
+            boxes = {name: entry["box"] for name, entry in read_inventory(args.colour).items()
+                     if "/" not in name}
+        else:
+            try:
+                boxes = {"box": [int(part) for part in args.colour.split(",")]}
+            except ValueError:
+                sys.exit(f"--colour: {args.colour!r} is neither a file nor x,y,w,h")
+            if len(boxes["box"]) != 4:
+                sys.exit("--colour: a box is x,y,w,h")
+        ground = colour(args.ground) if args.ground else ground_of(colour(args.paper))
+        rows = colour_match(drawing, subject, boxes, ground, args.ink)
+        print("the object's own pixels, ground and line left out: median hue (deg), "
+              "saturation, value,\nand mid, the saturation of the most saturated tenth of "
+              "the mid-tones\n")
+        print(f"  {'part':24s} {'subject  h    s    v  mid':>25s}   {'drawing  h    s    v  mid':>25s}")
+        flagged = 0
+        for name, theirs, ours, flags in rows:
+            cells = [f"{read[0]:5.0f} {read[1]:4.2f} {read[2]:4.2f} {read[3]:4.2f}" if read
+                     else "-" for read in (theirs, ours)]
+            flagged += bool(flags)
+            print(f"  {name[:24]:24s} {cells[0]:>25s}   {cells[1]:>25s}"
+                  + ("  << " + ", ".join(flags) if flags else ""))
+        print(f"\n<< is hue more than {HUE_OFF:.0f} degrees off, median saturation a third or "
+              f"more lower, mid a fifth\nor more lower, or value more than {VALUE_OFF:.2f} off. "
+              "A colour that goes greyer or browner\nthan the subject reads as another material "
+              "with every shape right. A low mid is a\npalette with no saturated mid-tone step: "
+              "re-sample it (Stage 0 step 1) before\nrecolouring flats one by one.")
+        sys.exit(1 if flagged else 0)
 
     if args.ranking:
         if not args.ref:

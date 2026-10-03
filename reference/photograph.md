@@ -44,14 +44,40 @@ boundary as a straight facet.
    Squint at the result beside the photograph. It should still read as the
    subject. If a form you need has merged into its ground, move a level, and do
    not add more groups to that object.
-2. Build `palette.json` from that simplified copy, one name per group plus the
-   few accents the picture needs (an eye, a nose, a collar).
+2. Build `palette.json` with one name per group plus the few accents the
+   picture needs (an eye, a nose, a collar). The simplified copy says **where**
+   each group lies; it does not give its colour. A k-means centre or a
+   posterised level is an average of the group's pixels, including the
+   highlights, the shadow edge and the ground's spill, and it comes out greyer
+   than the surface (see "Sample colour at the saturated mid-tones" below).
 3. Trace with `trace.py --smooth PX`, PX near the size of the grain. Check that
    the unmatched-colour figure falls and that the region count drops to tens,
    not hundreds. If it does not, the values are not simple enough yet.
 
 The simplified copy is a measuring aid, like a crop. The masses and flats are
 still typed into `draw.py` by you, from points you read off it.
+
+## Sample colour at the saturated mid-tones
+
+A photographed surface shows its own colour most strongly in the mid-tones of
+the lit side and in the core of its shadow. The highlight is washed towards
+the light's colour and towards white, the shadow edge mixes with what is
+around it, and on fur or grass the ground's colour spills into the edge. An
+average over the whole object takes all of that in.
+
+- For each value step of an object, find the patch inside the form where that
+  step is most saturated (away from edges, highlights and specular spots), and
+  sample its median there, over a patch a few grain sizes wide so one hair
+  does not decide it. Write the patch's coordinates beside the name in
+  `reading.md`.
+- Keep the ramp you read: shadow steps darker and, on fur, skin and most warm
+  materials, warmer or more saturated than the lit step, not greyer. Read it
+  off the subject; do not assume it.
+- Check the palette's chroma against the subject's: put each step's saturation
+  beside the saturation of the subject's most saturated tenth of the object's
+  pixels at that value. A step well below it is still an average.
+- After the first flats, run `check.py drawing.png --ref subject.png --colour
+  parts.json`. A `<<` on `mid` with the medians in agreement is this fault.
 
 ## Typed shapes from a photograph
 

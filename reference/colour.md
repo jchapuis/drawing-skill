@@ -191,6 +191,12 @@ studio's default worth trying first, not a standard. It moves saturation *up*,
 against the usual "less saturated" advice, because the flat it starts from is
 already a muted comic flat and not a pure hue.
 
+When there is a subject to copy, read the shadow's colour off it rather than
+from either rule. Warm and translucent materials (fur, skin, wood, fruit) often
+get warmer and more saturated toward the shadow core, and a shadow sampled as
+an average of the shade, its edges and the ground's spill comes out greyer than
+the subject (SKILL.md § Stage 0, step 1).
+
 The common shortcut is a multiply layer in the flat's own colour. It is taught
 as working because "even if you set your colour to the same one you used for
 flats, the multiply layer will make it darker." That is also its weakness: it

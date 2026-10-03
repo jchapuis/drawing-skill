@@ -404,6 +404,25 @@ and after the last.
    trace and read the unmatched-colour line that `trace.py` prints: a flat the
    palette lacks comes back as a clumped patch of pixels far from every entry.
 
+   - **Sample each value step of an object at its most saturated representative
+     patch**: inside the form, away from its edges, its highlights and any
+     colour the ground reflects into it, and on a patch large enough to be the
+     step rather than one hair or one speck. Never take a step's colour from an
+     average: a k-means centre, a blur over the whole object, or a posterised
+     copy mixes the step with its highlight, its shadow and the ground's spill,
+     and the mix is greyer than any patch on the subject. A gold coat sampled
+     that way comes back beige in the light and brown in the shade.
+   - **Keep the hue ramp.** Read it off the subject from light to shadow: each
+     step is darker, and on most warm or translucent materials (fur, skin, wood,
+     fruit) also warmer or more saturated, not greyer. A palette whose shadow
+     steps are greyer than the subject's has lost the ramp.
+   - **Compare the palette's chroma with the subject's** before drawing: for each
+     of an object's steps, put the palette entry's saturation beside the
+     saturation of the subject's most saturated tenth of pixels at that value.
+     An entry well below it is an average; sample it again. Once there is a
+     drawing, `check.py drawing.png --ref subject.png --colour parts.json`
+     compares each part (§ Judges).
+
    - A flat within about ten levels of the ground (an eye's white, teeth) cannot
      be separated from it by colour, and the tracer hands it bare ground. Draw
      it from measured extents inside its ink, and trace with `--exclude NAME`,
@@ -859,6 +878,7 @@ form it names is often real on the form next to it.
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each shape note is printed over its crop. It answers whether the part is there, never whether it is recognisable. Only a describer on the assembled picture answers that. At S2 every feature whose marks wait for S3 reads MISSING?, which is the staging and not a fault |
 | `--checklist parts.json` | a sub-form that a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it. Warns when no reference object matched any key, which makes its PASS empty |
 | `--counts parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts; exit 1 is FAIL, exit 2 is UNCHECKED rows |
+| `--colour parts.json` or `--colour x,y,w,h` (needs `--ref`) | a part whose colour has drifted: per box, at the subject's size, the median hue, saturation and value of the object's own pixels (ground and line left out: `--ground`, default palette.json's `background`; `--ink`, default 60), and `mid`, the saturation of the most saturated tenth of its mid-tones. `<<` on hue more than 15° off, median saturation a third or more lower, `mid` a fifth or more lower (a starting figure), or value more than 0.15 off. A low `mid` with matching medians is a palette sampled as an average: the light and the shadow match and the saturated step between them has gone beige. Small or mostly dark boxes (an eye, a nose, a tag) give noisy rows; read the large ones. Run it on `drawing.png`; a `style.json` finish lowers saturation again in `final.png`. Exit 1 when a row is flagged |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` (named when it outranks the whole focus tier), and two forms merged into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two lines that cross in an X, or meet in a V or a T, at 5° or more (crossing spokes, a chain over a spoke) are not listed. Two lines that run side by side (two bands, parallel cables) are, and so is a contact between two objects' edges, so look before you merge |
 | `--joins ops.json [--parts parts.json]` | a line that stops just short of the mark it runs at, in the same object (the tag up to its first `.`): a gap of one to eight line widths, edge to edge, which reads as neither a join nor a separation. A chain short of its sprocket, a spoke short of its rim, a ring left open. Ends that some mark touches pass, and so does a styled hand's 1–4px fall-short. Marks beside the end (a hatch group's next line), a hairline under half the end's width, and marks with the end's own tag are not join targets. A pair meant to stop short goes in parts.json's `"_gaps": ["tagA/tagB", ...]`, matched by tag prefix. Exit 1 when anything is listed |
