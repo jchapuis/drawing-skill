@@ -268,7 +268,7 @@ that stage and the ones before it), pass its gate, and only then write the next.
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | 0 | **Read** | `palette.json`, `regions.json`, `subject.describe.md`, `reading.md`, `parts.json` | every tier-1/2 part has a shape note; the acceptance list exists and quotes the describer's answers 3–5; `reading.md` records the line character, and every hatched region you will draw has a `hatch` entry measured with `--hatch` |
-| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the action does not read here, no later stage puts it in. There are two exceptions. One is an action carried by value rather than silhouette (a hand that reads only as pale fingers against a dark glove): record the describer runs that show it and gate the action at stage 5. The other is an action carried by a small feature that no loop can state (an open beak, a tilted head, a glance): record the runs and gate the action at the stage that draws that feature |
+| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop. A built or faceted mass (a building, a box, a machine, a rock) is a loop with `smooth=False`: smoothed, a building's blocks render as ovals and the describer names jars or pots. An organic mass keeps the default smoothing | `describe.sh gesture.png` answers 2 and 3 the way `subject.describe.md` does. If the action does not read here, no later stage puts it in. There are two exceptions. One is an action carried by value rather than silhouette (a hand that reads only as pale fingers against a dark glove): record the describer runs that show it and gate the action at stage 5. The other is an action carried by a small feature that no loop can state (an open beak, a tilted head, a glance): record the runs and gate the action at the stage that draws that feature |
 | 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1/2 region as its `blockin` straights from `regions.json`, junctions as points shared by name | `check.py blockin.png --ref subject.png --overlay`: the straights sit on the subject's edges |
 | 4 | **Construction** | `stage="construction"`: for each volume, its turn written down, its centre line where the turn puts it | a written turn for every tier-1 form |
 | 5 | **Masses** | `stage="fill"`, `tool="flat"`: one region per surface, drawn past where the ink will go (see the trapping notes below). Written in depth order, each form's fill directly before that form's ink, so a nearer form's flat covers the ink of the one behind it. Never `back("fill")`: it sends every flat behind every line, and the object can then no longer occlude itself | `check.py drawing.png --ref subject.png --masses`: the two read as the same shape, said in words. Stages 5–8 interleave per form, so on a subject with heavy line, judge it once each form's ink is in. Its flats alone never match a subject whose line carries mass |
@@ -353,7 +353,7 @@ only.
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | S0 | **Read as a tone field** | everything stage 0 produces, plus the items listed below under S0, in `reading.md` | a thumbnail of the tone plan reads as a design with one dominant value and the strongest contrast at the centre of interest; every overlap has a depth decision; the part list and the acceptance list agree |
-| S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops. The object stages' "3–10 strokes" is a single object's budget and does not apply here. A scene needs one stroke per mass plus the ground and eye lines, which runs to fifteen or twenty. With too few, the describer reads one object's parts as another's | `describe.sh gesture.png`: the action and the big shape read. See the note on S1 below |
+| S1 | **Armature** | `stage="gesture"`: eye level, ground plane, the main lines, the line of action, the major masses as loops (`smooth=False` for a built or faceted mass, as at stage 1). The object stages' "3–10 strokes" is a single object's budget and does not apply here. A scene needs one stroke per mass plus the ground and eye lines, which runs to fifteen or twenty. With too few, the describer reads one object's parts as another's | `describe.sh gesture.png`: the action and the big shape read. See the note on S1 below |
 | S2 | **Masses** | `stage="blockin"` straights for the masses, then their flats `stage="fill"`: the middle tone over the whole, then lights, then darks, honouring sharp and lost edges. Every object's mass goes in here, part or mass. The part/mass split decides whether an object gets marks, never whether its value exists. A part left out is a hole in the tone plan, and when a whole value group lives inside parts (the darks usually do) the gate cannot pass until they are in. A flat is not ink, so this costs nothing at the gate. No object's marks yet | `--masses` against the subject at thumbnail size; no object has an ink contour (`--stages` shows ink 0) |
 | S3 | **Every object, in place** | run stages 2 to 9 of the object stages on each object. Block-in straights first, in the one `draw.py`, in whole-picture coordinates, writing from the furthest object forward. This is write order, not work order: work the centre of interest first if the budget says so, and insert it at its depth. Its brief from S0: which of its edges are lost, what is in front of it, its emphasis. **Refine the object's S2 mass into its stage-5 fill.** They are the same line of `draw.py`: edit its points in place from the object's own trace and never stack a second fill over it, so there is no stand-in to remove and no fringe. A simple manufactured form is written from its traced contour nearly point for point and is cheap. A figure is built from its three masses and every joint, and is not cheap | `--zoom` on the object, beside the subject, before you leave it. This is not optional. Then its own stage gates, `--faces` and `--unfilled` |
 | S4 | **Junctions** | nothing to assemble. Every object was drawn where it belongs, with its neighbours already on the page, so the overlaps table was satisfied as you went. Walk it once and confirm each row: the accent where forms touch, the joint line that breaks at the leg in front of it, the lost edge still lost | `--doubled`; `--depth ops.json parts.json` clean, with no UNRESOLVED row; every row of the overlaps table has a recorded decision and a look |
@@ -451,6 +451,13 @@ and after the last.
      ink, with a `median` far from their entry. That is not a missing flat.
    - A subject with more than 13 flats merges the two closest now, in writing,
      not partway through the drawing.
+   - A repurposed name no longer says its colour (`light-blue` holding a shaded
+     plaster), so it is easy to type the wrong one. Name each use once at the
+     top of `draw.py` (`PLASTER_SHADE = "light-blue"`, `BRANCH = "light-violet"`)
+     and write marks with those names. After the first full render, probe one
+     point on each object in subject and drawing (`look.py probe`, § Reading
+     coordinates): a bare tree drawn in a pale blue-grey name next to a warm grey
+     subject shows there as hue 215 against 39.
    - A nested part may discover a flat the full picture could not resolve: a
      tooth, a tongue, anything smaller than the picture's own sampling. That is
      not a stage 0 failure and it cannot be prevented there. Either repoint a
@@ -610,6 +617,37 @@ and after the last.
   "rock.face": {"shape": "short horizontal dashes along the front face, densest under the overhang", "box": [400, 3330, 1600, 150], "hatch": {"angle": 2, "spacing": 33, "length": 39}}
 }
 ```
+
+## Reading coordinates
+
+Every point in `draw.py` is read off the subject. `look.py` is the tool for it.
+It measures and writes no mark. Coordinates are the working space's; `--scale 4`
+reads `subject_1x.png` in the 4x space, and a render is read at the first
+image's size, so `drawing.png` from `--scale 0.5` lines up with `subject.png`.
+
+```bash
+python3 look.py grid subject.png drawing.png --box 400,1500,600,500 --out look.png
+python3 look.py probe subject.png drawing.png --at 640,1850 1000,600
+python3 look.py edge subject.png drawing.png --ray 700,100,0,1 --ray 640,1850,1,0
+```
+
+- `grid` crops the box from each image, magnifies it to about 1000px and rules
+  it every `--step` (about ten lines by default), each line labelled in picture
+  coordinates and every fifth one stronger. **Use it to place points.** On a
+  photograph with hundreds of points it is often the only practical way.
+- `probe` prints, per point and per image, the median colour of a small patch,
+  its hue, saturation, value and grey, and the nearest `palette.json` name.
+- `edge` walks a ray from `x,y` along `dx,dy` and prints where the colour first
+  changes sharply (`--contrast`, Lab units), with the colour and palette name
+  on either side, then the next few edges. From a point inside a form, four
+  rays give its extents.
+
+**The grid places; a probe or an edge confirms.** A position read by eye off a
+grid or a zoom's ticks is a placement, and a fault is never judged by one
+(§ The correction cycle). Before you move a mark for a fault, or trust a point
+your shape depends on (a corner, a contact, an eye), check it with `probe`,
+`edge` or `check.py --scan`. For an outline row by row, `--scan` is still the
+instrument; for a silhouette, `segment.py --silhouette`.
 
 ## Marks
 
@@ -788,7 +826,8 @@ write("ops.json", ops)   # color= takes a palette name; --palette repoints it to
   cuff, a heel: smoothed through the right points, a glove lost its cuff and was
   named "the hood"), and every stroke of a faceted form such as a rock, crystal
   or folded paper (rendered smooth, a rock field became river stones and every
-  gate passed). `closed=True` must not repeat its first point. Smoothing is per
+  gate passed), including its gesture loop. `closed=True` must not repeat its
+  first point. Smoothing is per
   call, not per point list: a quad's list reused from its `smooth=False` fill
   for its ink, without restating it, came back as an ellipse. A small closed form
   takes `tool="pen"`. A flat takes `tool="flat"` with `size` and `scale` pinned,
@@ -922,7 +961,7 @@ form it names is often real on the form next to it.
 | `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each shape note is printed over its crop. `form` is the share of the box off its own median grey, `off-ground` the share unlike every colour round the box (a fence on a road beside a field stands on two grounds, both read off the picture); MISSING? needs both low. It answers whether the part is there, never whether it is recognisable. Only a describer on the assembled picture answers that. At S2 every feature whose marks wait for S3 reads MISSING?, which is the staging and not a fault |
 | `--checklist parts.json` | a sub-form that a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it. Warns when no reference object matched any key, which makes its PASS empty |
 | `--counts parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts; exit 1 is FAIL, exit 2 is UNCHECKED rows |
-| `--colour parts.json` or `--colour x,y,w,h` (needs `--ref`) | a part whose colour has drifted: per box, at the subject's size, the median hue, saturation and value of the object's own pixels (line left out with `--ink`, default 60; in the drawing, the ground is `--ground`, default palette.json's `background`; in the subject, the object is the colour clusters nearer, in hue and chroma, the drawn object's colours than that ground, so the shade and grass round a photographed part are left out), and `mid`, the saturation of the most saturated tenth of its mid-tones. `<<` on hue more than 15° off, median saturation a third or more lower, `mid` a fifth or more lower (a starting figure), or value more than 0.15 off. A low `mid` with matching medians is a palette sampled as an average: the light and the shadow match and the saturated step between them has gone beige. Small or mostly dark boxes (an eye, a nose, a tag) give noisy rows; read the large ones. **The stage 0 sample wins over a value flag.** The subject's median takes in the dark between hairs or leaves and the side in shade, while an entry is sampled at the saturated mid-tone patch, so on fur or foliage the subject reads darker than a correctly sampled flat. Answer a value flag with the ramp's darker step (a shade flat, strands, hatching) where the subject is darker; re-sample an entry only when the flagged box holds the patch it was sampled from. A row saying no subject colour is nearer the drawn object's than the ground is a flat drawn in a colour the subject does not have there. A box with too few colour pixels (line on bare ground) is shown and not counted. Run it on `drawing.png`; a `style.json` finish lowers saturation again in `final.png`. Exit 1 when a row is flagged |
+| `--colour parts.json` or `--colour x,y,w,h` (needs `--ref`) | a part whose colour has drifted: per box, at the subject's size, the median hue, saturation and value of the object's own pixels (line left out: a run darker than `--ink`, default 60, and no wider than `--line`, default the subject's longer side / 200 and at least 6, so a dark flat such as a roof, a timber band or a black coat is read as colour however dark; `INK=` and `LINE=` set both for `gates.sh`; in the drawing, the ground is `--ground`, default palette.json's `background`; in the subject, the object is the colour clusters nearer, in hue and chroma, the drawn object's colours than that ground, so the shade and grass round a photographed part are left out), and `mid`, the saturation of the most saturated tenth of its mid-tones. `<<` on hue more than 15° off, median saturation a third or more lower, `mid` a fifth or more lower (a starting figure), or value more than 0.15 off. A low `mid` with matching medians is a palette sampled as an average: the light and the shadow match and the saturated step between them has gone beige. Small or mostly dark boxes (an eye, a nose, a tag) give noisy rows; read the large ones. **The stage 0 sample wins over a value flag.** The subject's median takes in the dark between hairs or leaves and the side in shade, while an entry is sampled at the saturated mid-tone patch, so on fur or foliage the subject reads darker than a correctly sampled flat. Answer a value flag with the ramp's darker step (a shade flat, strands, hatching) where the subject is darker; re-sample an entry only when the flagged box holds the patch it was sampled from. A row saying no subject colour is nearer the drawn object's than the ground is a flat drawn in a colour the subject does not have there. A box with too few colour pixels (line on bare ground) is shown and not counted. Run it on `drawing.png`; a `style.json` finish lowers saturation again in `final.png`. Exit 1 when a row is flagged |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` (named when it outranks the whole focus tier), and two forms merged into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two lines that cross in an X, or meet in a V or a T, at 5° or more (crossing spokes, a chain over a spoke) are not listed. Two lines that run side by side (two bands, parallel cables) are, and so is a contact between two objects' edges, so look before you merge |
 | `--joins ops.json [--parts parts.json]` | a line that stops just short of the mark it runs at, in the same object (the tag up to its first `.`): a gap of one to eight line widths, edge to edge, which reads as neither a join nor a separation. A chain short of its sprocket, a spoke short of its rim, a ring left open. Ends that some mark touches pass, and so does a styled hand's 1–4px fall-short. Marks beside the end (a hatch group's next line), a hairline under half the end's width, and marks with the end's own tag are not join targets. A pair meant to stop short goes in parts.json's `"_gaps": ["tagA/tagB", ...]`, matched by tag prefix. Exit 1 when anything is listed |
@@ -931,7 +970,7 @@ form it names is often real on the form next to it.
 | `--faces ops.json` | a flat simpler than the traced region it overlaps: a shade drawn as a quad on a form of twenty-five corners reads as a patch stuck on. Pass the object's own trace as `--regions`. On an upscaled or generated subject, also pass `--grain` of three times the upscale factor, or the serration reads as corners (in one case 150 false rows, and 4 with it). A deliberately straight form cut by intruding objects still fails it, and so does a silhouette flat whose region is punched by holes (vents written over a shell). More corners would be the wrong fix in both cases |
 | `--unfilled --paper C` (needs `--ref`) | bare paper where the subject carries the object: a flat short of its own ink, most often along an open edge that `--registration` cannot see. The object is read off the subject's ground (`palette.json`) and bareness off `--paper`. Render a check copy with `background` repointed to a colour nothing uses, and pass that |
 | `--registration` | colour and line disagreeing. Not usable on a full-bleed picture, where every band that runs off the frame reports as a spill |
-| `--zoom x,y,w,h` | whether the marks are any good, at 4x, ticked in whole-picture coordinates. **The primary gate on any object**: three versions of one object passed every numeric gate and ranged from a beetle to something a blind viewer named at once, and only the magnified pair told them apart. Ticks orient you; they are not a coordinate |
+| `--zoom x,y,w,h` | whether the marks are any good, at 4x, ticked in whole-picture coordinates. **The primary gate on any object**: three versions of one object passed every numeric gate and ranged from a beetle to something a blind viewer named at once, and only the magnified pair told them apart. Ticks orient you; they are not a coordinate (`look.py grid` places a point, `look.py probe` and `edge` confirm it) |
 | a blind viewer on a part's crop | what the part is. The only gate that fails a blob. A detector, not a meter |
 | `--weights rows` | the line hierarchy against the subject's, each run as `width@centre` |
 | `subject.png --hatch x,y,w,h [--ref drawing.png]` | the line marks in a box, flats left out: coverage, and per group of parallel marks its angle, spacing, length and width. With `--ref`, the drawing's box beside it, `<<` on a group missing, an angle more than 20° off, spacing off by more than half, or coverage under half; FAIL (exit 1) on a group whose marks are over 1.6× the subject's width, or over 1.6× its share of the outline's weight (outline = 95th-percentile line over the picture). Widths are read at half each mark's darkness, in the subject's pixels whatever the render's size. `--light` reads pale lines on a dark. **WARN grain** when the marks are short (median under 3 × `--line`) and fade under a light blur: photo grain, fur or a dot screen, not hatching. Numbers only: where the hatching is, never strokes |
@@ -1008,10 +1047,11 @@ drawing before any mark, exactly like a critic's.
 To judge a fault, never read a coordinate off a zoom's tick labels or a resized
 grid crop. Both produced faults that did not exist (a small opening read as 50px
 high, two thin lines read as 20–40px off) and a probe of the render refuted
-them. Probe or scan the pixels. Placing marks is different: on a subject with
-hundreds of points, reading them off a magnified grid crop is often the only
-practical way, and it is allowed, provided the placed points are then checked
-by probing or scanning the pixels of subject and render. A number has a
+them. Probe or scan the pixels (`look.py probe`, `look.py edge`, `--scan`).
+Placing marks is different: on a subject with hundreds of points, reading them
+off `look.py grid` is often the only practical way, and it is allowed, provided
+the placed points are then checked by probing or scanning the pixels of subject
+and render (§ Reading coordinates). A number has a
 converse too: a row run through a dark form misreads
 wherever a nearer pale form sits inside it, so check by eye what the run crossed.
 

@@ -10,6 +10,7 @@ without needing a real drawing.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -940,6 +941,97 @@ def _():
     red = lambda image: int(np.all(np.asarray(image)[..., :3] == (225, 40, 40), axis=-1).sum())
     assert red(check.inks(blockin, subject, [0, 0, 200, 200])) == 0
     assert red(check.inks(blockin, subject, [0, 0, 200, 200], drawn_dark=200)) > 0
+
+
+def roofed(roof, outline=(10, 8, 6)):
+    """A pale wall under a dark roof flat (luma under 60), both outlined 6px
+    in near-black, with a thin dark line alone on the wall."""
+    image = Image.new("RGB", (300, 240), (233, 232, 224))
+    pen = ImageDraw.Draw(image)
+    pen.rectangle([40, 30, 260, 130], fill=roof, outline=outline, width=6)
+    pen.line([(40, 190), (260, 190)], fill=outline, width=5)
+    return image
+
+
+@case("--colour reads a dark flat as colour, not line: the same roof passes, a dark roof in another colour is flagged")
+def _():
+    roof = (0x55, 0x30, 0x2a)
+    subject, box = roofed(roof), {"roof": [30, 20, 240, 120]}
+    (_, theirs, ours, flags), = check.colour_match(roofed(roof), subject, box, (233, 232, 224))
+    assert theirs and ours and flags == [], (theirs, ours, flags)
+    (_, _, _, flags), = check.colour_match(roofed((0x2a, 0x30, 0x55)), subject, box, (233, 232, 224))
+    assert flags and flags != ["too few pixels"], flags   # read and flagged, not left out as line
+
+
+@case("--colour still leaves a thin dark line out, and --ink 0 keeps every pixel")
+def _():
+    subject = roofed((0x55, 0x30, 0x2a))
+    kept = check._unlined(np.asarray(subject)[180:200, 40:260], ink=60, line=6)
+    assert (kept @ np.array([0.299, 0.587, 0.114]) < 60).sum() == 0, "the line was read as colour"
+    assert len(check._unlined(np.asarray(subject)[180:200, 40:260], ink=0)) == 20 * 220
+
+
+@case("gates.sh passes INK and LINE to --colour, and the gate prints the line it used")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        roofed((0x55, 0x30, 0x2a)).save(f"{folder}/subject.png")
+        roofed((0x55, 0x30, 0x2a)).save(f"{folder}/drawing.png")
+        json.dump({"background": "#e9e8e0"}, open(f"{folder}/palette.json", "w"))
+        json.dump({"roof": {"shape": "a dark roof", "box": [30, 20, 240, 120]}},
+                  open(f"{folder}/parts.json", "w"))
+        shutil.copy(f"{HERE}/gates.sh", folder)
+        for extra, want in (({}, "--ink 60 and no wider than --line 6px"),
+                            ({"INK": "20", "LINE": "9"}, "--ink 20 and no wider than --line 9px")):
+            done = subprocess.run(["bash", "gates.sh"], cwd=folder, capture_output=True, text=True,
+                                  env=dict(os.environ, SKILL=HERE, **extra))
+            said = open(f"{folder}/gates/colour.txt").read()
+            assert want in said, said
+            assert "PASS       colour" in done.stdout, done.stdout
+
+
+def measured(folder):
+    """A grey ground with a red block from x 100 to 199, y 50 to 149."""
+    image = Image.new("RGB", (300, 200), (128, 128, 128))
+    ImageDraw.Draw(image).rectangle([100, 50, 199, 149], fill=(200, 30, 30))
+    image.save(f"{folder}/subject.png")
+    image.resize((150, 100), Image.NEAREST).save(f"{folder}/small.png")
+    json.dump({"background": "#808080", "red": "#c81e1e"}, open(f"{folder}/palette.json", "w"))
+
+
+@case("look.py probe names the palette entry under a point, in the subject and a half-size render")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        measured(folder)
+        code, said = tool(f"{HERE}/look.py", "probe", "subject.png", "small.png",
+                          "--at", "150,100", "20,20", cwd=folder)
+        assert code == 0, said
+        first, second = said.split("(20,20)")
+        assert first.count("~red (0)") == 2 and second.count("~background (0)") == 2, said
+
+
+@case("look.py edge finds a block's sides from a point inside it, in working coordinates with --scale")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        measured(folder)
+        for image, scale, at in (("subject.png", "1", "150,100"), ("small.png", "2", "150,100")):
+            code, said = tool(f"{HERE}/look.py", "edge", image, "--scale", scale,
+                              "--ray", f"{at},1,0", "--ray", f"{at},0,-1", cwd=folder)
+            assert code == 0, said
+            found = [tuple(map(int, hit)) for hit in re.findall(r"edge at \((\d+),(\d+)\)", said)]
+            assert len(found) == 2, said
+            (x, y), (x2, y2) = found
+            assert abs(x - 200) <= int(scale) and y == 100 and x2 == 150 and abs(y2 - 49) <= int(scale), said
+
+
+@case("look.py grid writes a magnified crop and refuses a malformed box")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        measured(folder)
+        code, said = tool(f"{HERE}/look.py", "grid", "subject.png", "--box", "80,30,140,140",
+                          "--out", "g.png", cwd=folder)
+        assert code == 0 and max(Image.open(f"{folder}/g.png").size) >= 1000, said
+        code, said = tool(f"{HERE}/look.py", "grid", "subject.png", "--box", "80,30", cwd=folder)
+        assert code != 0 and "4 comma-separated" in said, said
 
 
 sys.exit(1 if failed else 0)

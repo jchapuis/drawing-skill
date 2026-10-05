@@ -170,7 +170,10 @@ room's horizon, the chair is tilted or your horizon is wrong.
 ## Build order
 
 1. **Find the horizon and the vanishing points** on the subject, and write them
-   down as coordinates, even off the canvas.
+   down as coordinates, even off the canvas. The gesture comes first as usual,
+   and every loop of a block, roof or tower in it is written `smooth=False`.
+   Smoothed, a tall block with a pitched roof renders as an oval and the
+   describer reads a row of jars or pots, not a building.
 2. **The main box or the room box**, as straights from measured corners, checked
    against those points.
 3. **The roof, or the floor and ceiling planes**, hung on that box.

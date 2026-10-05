@@ -3,6 +3,9 @@
 # gate. Copy this next to the drawing and set SKILL, like build.sh.
 #
 #   ./gates.sh            # after ./build.sh --scale 0.5
+#   INK=40 LINE=10 ./gates.sh   # --colour's line: runs darker than INK (default
+#                               # 60) and no wider than LINE px (default the
+#                               # subject's longer side / 200, at least 6)
 #
 # It reads drawing.png, subject.png, parts.json, ops.json and palette.json from
 # this directory and runs a gate only when the files it needs are there. Each
@@ -73,7 +76,8 @@ else
   gate joins   ops.json -- drawing.png --joins ops.json
 fi
 gate depth     ops.json parts.json -- drawing.png --depth ops.json parts.json
-gate colour    drawing.png subject.png parts.json -- drawing.png --ref subject.png --colour parts.json
+# unquoted on purpose: each expands to two words (flag, value) or to nothing
+gate colour    drawing.png subject.png parts.json -- drawing.png --ref subject.png --colour parts.json ${INK:+--ink "$INK"} ${LINE:+--line "$LINE"}
 gate linework  drawing.png subject.png parts.json -- drawing.png --ref subject.png --linework parts.json
 gate counts    drawing.png subject.png parts.json palette.json -- drawing.png --ref subject.png --counts parts.json
 gate ranking   drawing.png subject.png parts.json -- drawing.png --ref subject.png --ranking parts.json

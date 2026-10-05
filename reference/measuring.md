@@ -127,9 +127,11 @@ a 4x picture, they ranked cleanly:
   a fault.
 - **A scan across the subject** (`check.py --scan x,y,w,h --side S`, or a column
   or row of its dark runs) fixed every one of those, and is the source for a
-  landmark typed into `draw.py`. An outline of hundreds of points may be read
-  off a magnified grid crop to place it, but only as a draft: probe or scan the
-  placed points against the subject afterwards and move the ones that are off.
+  landmark typed into `draw.py`. `look.py edge` gives the same kind of number
+  along any ray, and `look.py probe` the colour and palette name at a point. An
+  outline of hundreds of points may be read off a magnified grid crop
+  (`look.py grid`) to place it, but only as a draft: probe or scan the placed
+  points against the subject afterwards and move the ones that are off.
 - **Judging proportion from a side-by-side misled in both directions.** A drawn
   head looked 10% large with its chin 70px low. Measured on the same image, the
   chin was 6px off and the helmet 3% wide. A jersey band looked broken where the

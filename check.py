@@ -798,8 +798,8 @@ def _step(span, target=8):
 def ruled(image, box, scale):
     """A crop with its picture coordinates ticked along the top and left margin,
     so what you see can be named. Ticks orient and do not measure: points read
-    off a ticked crop by eye came out 30-60px off at 4x, and `--scan` is what
-    gives a coordinate."""
+    off a ticked crop by eye came out 30-60px off at 4x, and `--scan`,
+    `look.py probe` and `look.py edge` are what give a coordinate."""
     left, top = 46, 16
     out = Image.new("RGB", (image.width + left, image.height + top), (250, 250, 248))
     out.paste(image, (left, top))
@@ -2235,11 +2235,31 @@ def _lab_ab(rgb):
     return _lab(rgb)[:, 1:] - 128
 
 
-def _own_pixels(pixels, ground, ink=60, rounds=6):
-    """The object's own pixels in a box: neither ground nor dark line.
+def _unlined(crop, ink=60, line=6):
+    """A crop's pixels with its line left out, as one row per pixel.
 
-    Line is any pixel darker than `ink` (grey level). Ground is any pixel whose
-    colour, in the a*b* plane, sits nearer the ground colour than the object's
+    Line is a dark mark that is thin: a pixel darker than `ink` (grey level) in
+    a run no wider than `line`, which an opening by a disc `line` + 1 across
+    removes. A dark flat (a roof, a black coat, a timber band) is wider than
+    the disc, so it stays and is read as colour like any other flat, however
+    dark it is. A line drawn over a dark flat merges with it and is read as
+    part of it. `ink` 0 keeps every pixel."""
+    crop = np.asarray(crop)
+    pixels = crop.reshape(-1, 3)
+    if ink <= 0:
+        return pixels
+    dark = (crop.astype(float) @ np.array([0.299, 0.587, 0.114])) < ink
+    size = line + 1
+    disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+    wide = cv2.morphologyEx(dark.astype(np.uint8), cv2.MORPH_OPEN, disc).astype(bool)
+    return pixels[(~dark | wide).reshape(-1)]
+
+
+def _own_pixels(pixels, ground, rounds=6):
+    """The object's own pixels in a box: not the ground. Line is already out
+    (`_unlined`).
+
+    Ground is any pixel whose colour, in the a*b* plane, sits nearer the ground colour than the object's
     own. The object's colour starts from the half of the pixels furthest from
     the ground, among those that are not the ground's own colour (so a box
     that is mostly ground still starts from the object), and is re-estimated a
@@ -2249,8 +2269,6 @@ def _own_pixels(pixels, ground, ink=60, rounds=6):
     cannot split.
     """
     pixels = pixels.reshape(-1, 3)
-    grey = pixels @ np.array([0.299, 0.587, 0.114])
-    pixels = pixels[grey >= ink]
     if not len(pixels):
         return pixels
     ab = _lab_ab(pixels)
@@ -2269,12 +2287,12 @@ def _own_pixels(pixels, ground, ink=60, rounds=6):
     return pixels[own]
 
 
-def _matching(pixels, drawn, ground, ink=60, count=5, least=0.1):
+def _matching(pixels, drawn, ground, count=5, least=0.1):
     """The subject's pixels that stand for the drawing's object in one box.
 
     `drawn` is the drawing's own pixels in the box (`_own_pixels`), and the
     object's colours are those covering at least `least` of them. The
-    subject's box, line left out, is split into `count` colour clusters, and a
+    subject's box, line left out (`_unlined`), is split into `count` colour clusters, and a
     cluster is the object's when, in hue and chroma (a*b*), it sits nearer one
     of the object's colours than the ground. On a photograph that leaves out
     the grass and the shade on it round a part, which a median over the whole
@@ -2284,7 +2302,6 @@ def _matching(pixels, drawn, ground, ink=60, count=5, least=0.1):
     returned: the subject has no colour like the one the object was drawn in.
     """
     pixels = pixels.reshape(-1, 3)
-    pixels = pixels[pixels @ np.array([0.299, 0.587, 0.114]) >= ink]
     if not len(pixels) or not len(drawn):
         return pixels[:0]
     centres, labels = _clusters(_lab(pixels), count)
@@ -2310,7 +2327,7 @@ def _circular_median(hue):
     return float((mean + np.median((hue - mean + 180) % 360 - 180)) % 360)
 
 
-def colour_match(drawing, subject, boxes, ground, ink=60, least=200):
+def colour_match(drawing, subject, boxes, ground, ink=60, least=200, line=None):
     """Per box, the object's colour in the subject and in the drawing.
 
     Both are read at the subject's size, on the object's own pixels only, so a
@@ -2330,7 +2347,12 @@ def colour_match(drawing, subject, boxes, ground, ink=60, least=200):
     0.1), `saturation` (the drawing's median a third or more lower),
     `mid-tone saturation` (a fifth or more lower) and `value` (more than
     VALUE_OFF apart).
+
+    Line is a dark run no wider than `line` (default the subject's longer side
+    / 200, at least 6, as for --hatch), darker than `ink` (`_unlined`), so a
+    dark flat is compared like any other.
     """
+    line = line or max(6, round(max(subject.size) / 200))
     drawing = drawing.convert("RGB").resize(subject.size, Image.LANCZOS)
     planes = [np.asarray(image.convert("RGB")) for image in (subject, drawing)]
     rows = []
@@ -2338,8 +2360,8 @@ def colour_match(drawing, subject, boxes, ground, ink=60, least=200):
         x, y = max(0, x), max(0, y)
         width, height = min(subject.width - x, width), min(subject.height - y, height)
         theirs, drawn = (plane[y:y + height, x:x + width] for plane in planes)
-        ours = _own_pixels(drawn, ground, ink)
-        own = [_matching(theirs, ours, ground, ink), ours]
+        ours = _own_pixels(_unlined(drawn, ink, line), ground)
+        own = [_matching(_unlined(theirs, ink, line), ours, ground), ours]
         if len(own[1]) >= least and len(own[0]) < least:
             rows.append((name, None, None, ["no subject colour is nearer the drawn object's "
                                             "than the ground"]))
@@ -2412,8 +2434,8 @@ def main():
                             "outline's weight, and where the drawing's line weight span is "
                             "under half the subject's")
     parse.add_argument("--line", type=int, default=0,
-                       help="--hatch, --linework: the widest mark read as a line; wider is a "
-                            "flat. Default: the image's longer side / 200, at least 6")
+                       help="--hatch, --linework, --colour: the widest mark read as a line; wider "
+                            "is a flat. Default: the image's longer side / 200, at least 6")
     parse.add_argument("--light", action="store_true",
                        help="--hatch: read pale lines on a dark ground (a white line cut into a black)")
     parse.add_argument("--masses", action="store_true",
@@ -2443,7 +2465,9 @@ def main():
                             "and value, subject (--ref) against drawing, ground and line left out; "
                             "in the subject, only the colours nearest the drawn object's")
     parse.add_argument("--ink", type=int, default=60,
-                       help="--colour: grey level under which a pixel is line, not colour")
+                       help="--colour: grey level under which a pixel in a run no wider than "
+                            "--line is line, not colour. A dark flat wider than that is colour "
+                            "however dark. 0 reads every pixel as colour")
     parse.add_argument("--ranking", default="",
                        help="parts.json: what leads the eye, the drawing's order "
                             "against the subject's")
@@ -2768,10 +2792,13 @@ def main():
             if len(boxes["box"]) != 4:
                 sys.exit("--colour: a box is x,y,w,h")
         ground = colour(args.ground) if args.ground else ground_of(colour(args.paper))
-        rows = colour_match(drawing, subject, boxes, ground, args.ink)
+        line = args.line or max(6, round(max(subject.size) / 200))
+        rows = colour_match(drawing, subject, boxes, ground, args.ink, line=line)
         print("the object's own pixels, ground and line left out: median hue (deg), "
               "saturation, value,\nand mid, the saturation of the most saturated tenth of "
-              "the mid-tones\n")
+              "the mid-tones")
+        print(f"line: runs darker than --ink {args.ink} and no wider than --line {line}px; "
+              "a wider dark flat is read as colour\n")
         print(f"  {'part':24s} {'subject  h    s    v  mid':>25s}   {'drawing  h    s    v  mid':>25s}")
         flagged = 0
         for name, theirs, ours, flags in rows:
