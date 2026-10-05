@@ -8,12 +8,15 @@ were built for subjects made of flats and ink, and a photograph has neither:
   you make at stage 0 and write in `reading.md`, not a measurement.
 - **Continuous tone.** A surface is a gradient, not a flat. Sampled pixel by
   pixel, a palette of a dozen names still leaves a large share of the picture
-  unmatched, and the trace returns hundreds of small regions of noise.
+  unmatched, and `trace.py` returns hundreds of small regions of noise.
 - **Grain.** Sensor noise, fur, grass and foliage break into short fragments at
   every threshold. The tools read those fragments as marks.
 
 So the work at stage 0 is to turn the photograph into something with flats and
-edges first, and to choose which of its edges the drawing will state.
+edges first, and to choose which of its edges the drawing will state. The
+measuring tool for that is `segment.py`, not `trace.py`. The same holds for a
+painted subject: brushwork and soft shading break up under `trace.py` the way
+grain does.
 
 ## Write the pose and the acceptance list first
 
@@ -29,7 +32,7 @@ Before any trace, write two things in `reading.md`:
   mouth). Write it before drawing, and check the drawing against it, not
   against whatever the describer happens to say.
 
-## Simplify the values before tracing
+## Simplify the values with segment.py
 
 Reduce the picture to **3 to 5 value groups per object**, not for the picture as
 a whole, in order to find the masses. A drawing has few values, and a trace of a
@@ -39,23 +42,31 @@ and redder, not brown. Then draw **each mass as the groups you see inside it**,
 with at least 3 steps on the head, and soften the boundaries: never type a group
 boundary as a straight facet.
 
-1. Blur or posterise a copy of `subject_1x.png`: a median filter a few pixels
-   wide, then k-means or a fixed set of levels down to the groups you chose.
-   Squint at the result beside the photograph. It should still read as the
-   subject. If a form you need has merged into its ground, move a level, and do
-   not add more groups to that object.
-2. Build `palette.json` with one name per group plus the few accents the
-   picture needs (an eye, a nose, a collar). The simplified copy says **where**
-   each group lies; it does not give its colour. A k-means centre or a
-   posterised level is an average of the group's pixels, including the
-   highlights, the shadow edge and the ground's spill, and it comes out greyer
-   than the surface (see "Sample colour at the saturated mid-tones" below).
-3. Trace with `trace.py --smooth PX`, PX near the size of the grain. Check that
-   the unmatched-colour figure falls and that the region count drops to tens,
-   not hundreds. If it does not, the values are not simple enough yet.
+1. Segment the whole picture: `python3 segment.py subject_1x.png --palette
+   palette.json --png regions.png`. It smooths grain finer than `--detail`
+   with an edge-preserving filter, then merges like neighbours until about
+   `--regions` (default 40) remain. Look at `regions.png`: the subject with
+   every boundary and number on the left, the regions in their median colours
+   on the right. The right half is the simplified copy. Squint at it beside the
+   photograph; it should still read as the subject, and you should be able to
+   name most regions (the head's lit plane, the ear, the chest, the paw, the
+   ground). If a form you need has merged into its neighbour, raise
+   `--regions`. If the ground breaks into many pieces, lower it.
+2. Segment each object on its own box: `--box x,y,w,h` from `parts.json`, or a
+   `crop.py` crop of `subject.png`. The detail scales to the box, so a head's
+   eye, nose and muzzle come back as their own regions where the whole picture
+   had them as one. Name each region as the lit step, the shade step, a cast
+   shadow or an accent, as for any trace.
+3. Build `palette.json` with one name per group plus the few accents the
+   picture needs (an eye, a nose, a collar). The regions say **where** each
+   group lies; they do not give its colour. A region's `median` is an average
+   of its pixels, including the highlights, the shadow edge and the ground's
+   spill, and it comes out greyer than the surface (see "Sample colour at the
+   saturated mid-tones" below). The `colour` each region carries is only the
+   nearest name to that median.
 
-The simplified copy is a measuring aid, like a crop. The masses and flats are
-still typed into `draw.py` by you, from points you read off it.
+The regions are a measuring aid, like a crop. The masses and flats are still
+typed into `draw.py` by you, from points you read off them.
 
 ## Sample colour at the saturated mid-tones
 
@@ -91,24 +102,32 @@ starting spacing, adjust it to the size of the object) and is drawn with
 `smooth=False`. After the fills, look at 1x: if any outline shows a straight
 segment longer than about 8% of the object (also a starting figure), add points.
 
-## Find the silhouette by value or hue
+## Find the silhouette
 
 A photographed object often shares its value with its ground somewhere (a pale
-head against pale straw, a dark leg in shadowed grass). Find its silhouette from
-whatever separates it from the ground there:
+head against pale straw, a dark leg in shadowed grass). Measure its silhouette
+with `segment.py --silhouette x,y --box x,y,w,h`: the seed is a point inside
+the object, in its own mid-tone, away from a highlight or an accent, and the
+box is the part's box from `parts.json` (see "A region-growing measurement
+needs a bound" in SKILL.md). The object's colours are learnt around the seed
+and the ground's from just outside the box, so the outline follows whatever
+separates them: value where the object is lighter or darker than what is
+behind it, hue where the values match but the colours do not (a tan coat
+against green grass).
 
-- by **value**, where it is lighter or darker than what is behind it;
-- by **hue**, where the values match but the colours do not (a tan coat against
-  green grass: red minus green separates them when brightness does not);
-- by both, combined into one mask, then closed and opened with a small kernel
-  so grain does not fray its edge, and bounded by the part's box from
-  `parts.json` (see "A region-growing measurement needs a bound" in SKILL.md).
+It prints the points where the outline turns, numbered in perimeter order,
+writes the full contour to `--out`, and names each side of the box the outline
+ran into. On those sides the box stopped it, not the subject. Look at `--png`
+before using it. A dark accent inside the object (a nose, a collar) can come
+back cut out of it, and a box that holds a neighbour of the object's colours
+(a white sleeve beside a cat with white eyes) lets the outline take part of
+it. Tighten the box and run it again.
 
-A script that prints the mask's outline is measuring. You then type the points
-where the silhouette turns, and more between them so no run is left straight
-(see "Typed shapes from a photograph"), as for any traced contour. Where nothing separates
-object from ground (a body lost in tall grass), the edge is your decision:
-write it down in `reading.md` as one.
+You then type the points where the silhouette turns, and more between them so
+no run is left straight (see "Typed shapes from a photograph"), as for any
+traced contour. Copying every printed point in order is pasting. Where nothing
+separates object from ground (a body lost in tall grass), the edge is your
+decision: write it down in `reading.md` as one.
 
 ## Choose which edges to keep
 

@@ -138,7 +138,7 @@ S8  correct from a distance   misnamed on its own crop
 ```
 source image --4x BILINEAR-->  subject.png (working) + subject_1x.png
      |
-     |  trace.py / crop.py      measuring only -- never a mark
+     |  trace.py / segment.py / crop.py   measuring only -- never a mark
      v
 palette.json  regions.json  meas/NAME.json
      |
@@ -285,6 +285,9 @@ pen.py            stroke()/frame()/write(): the hand, plus the
                     authorship audit write() runs before saving
 trace.py          measures a flat-cel subject's regions once; never
                     writes a mark
+segment.py        measures a photograph's or a painting's regions
+                    (tens, following its forms) and one object's
+                    silhouette in a box; never writes a mark
 crop.py           one object's measuring crop at 1:1, corner of the
                     whole image stored in the PNG
 describe.sh       the blind describer: five fixed questions, no script

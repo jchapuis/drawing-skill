@@ -199,6 +199,45 @@ def outline(contour, tolerance, dx, dy):
     return [[int(x) + dx, int(y) + dy] for [[x, y]] in simplified]
 
 
+def region_entry(ids, number, where, image_rgb, min_area):
+    """Region `number` of the label map `ids` (its slice `where`) as an entry:
+    area, box, centre, inside, median, blockin, contour and holes, in the
+    label map's own coordinates. None when it is under `min_area`."""
+    if where is None:
+        return None
+    mask = ids[where] == number
+    area = int(mask.sum())
+    if area < min_area:
+        return None
+    top, left = where[0].start, where[1].start
+    padded = np.pad(mask, 1).astype(np.uint8)
+    found, tree = cv2.findContours(padded, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    outer = max((k for k in range(len(found)) if tree[0][k][3] < 0), key=lambda k: len(found[k]))
+    holes = [found[k] for k in range(len(found))
+             if tree[0][k][3] == outer and cv2.contourArea(found[k]) >= min_area]
+    ys, xs = np.nonzero(mask)
+    # `centre` is a centroid, which can fall outside the region: on a
+    # crescent, ring or bent form it lands in a neighbour. Probing there
+    # reports the neighbour's colour and looks like proof that the region
+    # is an anti-aliasing artefact, so real flats get culled.
+    # `inside` is the deepest point of the region itself; probe that.
+    deep = cv2.distanceTransform(padded, cv2.DIST_L2, 3)
+    iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
+    median = np.median(image_rgb[where][mask], axis=0)
+    dx, dy = left - 1, top - 1
+    return {
+        "area": area,
+        "box": [int(xs.min()) + left, int(ys.min()) + top,
+                int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
+        "centre": [round(float(xs.mean()) + left, 1), round(float(ys.mean()) + top, 1)],
+        "inside": [int(ix) + dx, int(iy) + dy],
+        "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
+        "blockin": outline(found[outer], 6.0, dx, dy),
+        "contour": outline(found[outer], 1.5, dx, dy),
+        "holes": [outline(hole, 1.5, dx, dy) for hole in holes],
+    }
+
+
 def trace(image, palette, ink, line, min_area, fringe=0.0):
     image_rgb = np.asarray(image.convert("RGB"))
     names, labels, miss = classify(image, palette)
@@ -213,39 +252,9 @@ def trace(image, palette, ink, line, min_area, fringe=0.0):
     ids, colour_of = separate(labels, ink_ids, line)
     regions = []
     for number, where in enumerate(ndimage.find_objects(ids), 1):
-        if where is None:
-            continue
-        mask = ids[where] == number
-        area = int(mask.sum())
-        if area < min_area:
-            continue
-        top, left = where[0].start, where[1].start
-        padded = np.pad(mask, 1).astype(np.uint8)
-        found, tree = cv2.findContours(padded, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-        outer = max((k for k in range(len(found)) if tree[0][k][3] < 0), key=lambda k: len(found[k]))
-        holes = [found[k] for k in range(len(found))
-                 if tree[0][k][3] == outer and cv2.contourArea(found[k]) >= min_area]
-        ys, xs = np.nonzero(mask)
-        # `centre` is a centroid, which can fall outside the region: on a
-        # crescent, ring or bent form it lands in a neighbour. Probing there
-        # reports the neighbour's colour and looks like proof that the region
-        # is an anti-aliasing artefact, so real flats get culled.
-        # `inside` is the deepest point of the region itself; probe that.
-        deep = cv2.distanceTransform(padded, cv2.DIST_L2, 3)
-        iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
-        median = np.median(image_rgb[where][mask], axis=0)
-        dx, dy = left - 1, top - 1
-        regions.append({
-            "colour": names[colour_of[number]], "area": area,
-            "box": [int(xs.min()) + left, int(ys.min()) + top,
-                    int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
-            "centre": [round(float(xs.mean()) + left, 1), round(float(ys.mean()) + top, 1)],
-            "inside": [int(ix) + dx, int(iy) + dy],
-            "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
-            "blockin": outline(found[outer], 6.0, dx, dy),
-            "contour": outline(found[outer], 1.5, dx, dy),
-            "holes": [outline(hole, 1.5, dx, dy) for hole in holes],
-        })
+        entry = region_entry(ids, number, where, image_rgb, min_area)
+        if entry:
+            regions.append(dict(colour=names[colour_of[number]], **entry))
     regions.sort(key=lambda region: -region["area"])
     for number, region in enumerate(regions):
         region["id"] = number
@@ -279,6 +288,19 @@ def sheet(image, regions):
         pen.text((region["centre"][0] - 4, region["centre"][1] - 6),
                  str(region["id"]), fill=(20, 60, 220))
     return out
+
+
+def corner(stored, offset, local, subject):
+    """The offset to add to every coordinate: the corner crop.py stored in the
+    PNG, unless `local`. An --offset that disagrees with a stored corner is
+    refused, since a box corner passed there is off by the crop's margin."""
+    if not stored or local:
+        return offset
+    if offset and [float(part) for part in offset.split(",")] != [float(part) for part in stored.split(",")]:
+        raise SystemExit(f"--offset {offset} disagrees with the corner crop.py stored in "
+                         f"{subject} ({stored}). The crop's corner is the box's corner "
+                         f"less its margin. Drop --offset to use the stored one")
+    return stored
 
 
 def main():
@@ -334,13 +356,7 @@ def main():
         print("  " + "  ".join(f"p{q} {np.percentile(widths, q):.0f}" for q in (50, 75, 90, 95)))
         print("pass the p90 as --line")
         return
-    if stored and not args.local:
-        corner = [float(part) for part in stored.split(",")]
-        if args.offset and [float(part) for part in args.offset.split(",")] != corner:
-            raise SystemExit(f"--offset {args.offset} disagrees with the corner crop.py stored in "
-                             f"{args.subject} ({stored}). The crop's corner is the box's corner "
-                             f"less its margin. Drop --offset to use the stored one")
-        args.offset = stored
+    args.offset = corner(stored, args.offset, args.local, args.subject)
     palette = {name: value for name, value in palette.items()
                if name not in args.exclude.split(",")}
     regions, miss = trace(image, palette, args.ink.split(","), args.line, args.min_area, args.fringe)

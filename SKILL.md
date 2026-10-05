@@ -161,7 +161,8 @@ the difference between an object a viewer names and a shapeless blob. The
 symptom to watch for is forms with three to nine points each.
 
 **Masses are the one thing measured on the whole picture.** Trace
-`subject_1x.png` and read their outlines off that. They carry no ink, so its
+`subject_1x.png` (segment it, for a photograph or a painted subject) and read
+their outlines off that. They carry no ink, so its
 lattice of 1px at delivered size costs nothing. There are five to twelve of
 them, and you type them into `draw.py` like every other mark, from the trace,
 with as many points as their silhouettes need. A mass layer of hundreds of
@@ -457,15 +458,28 @@ and after the last.
      picture, furthest from the centre of interest), or, when every name is a
      real flat, draw the unmatched colour from measured extents in the nearest
      name's colour. Record either choice in `reading.md` beside the palette.
-2. **Trace.** `python3 trace.py subject.png palette.json --png regions.png`,
-   and look at `regions.png`. On a scene, use `subject_1x.png` for the reading
-   and the masses, and each part's own crop when you reach it. A region is a
-   flat, not an object; naming the regions is the reading. A printed or
-   textured subject (halftone dots, lithograph grain, paper texture in a scan)
-   traces as a tangle of specks. Trace it with `--smooth PX`, which smooths the
-   texture out before classifying; take PX near the size of the texture's
-   repeat and check that the unmatched-colour figure falls. A photograph has
-   no flats and no ink: read `reference/photograph.md` before tracing it.
+2. **Trace.** Choose the tool by the subject. Both write `regions.json` in the
+   same form, and both read the corner `crop.py` stores in a crop.
+   - **A flat-cel or printed subject** (flats and ink):
+     `python3 trace.py subject.png palette.json --png regions.png`. It
+     classifies every pixel to its nearest palette entry. A printed or textured
+     subject (halftone dots, lithograph grain, paper texture in a scan) traces
+     as a tangle of specks. Trace it with `--smooth PX`, which smooths the
+     texture out before classifying; take PX near the size of the texture's
+     repeat and check that the unmatched-colour figure falls.
+   - **A photograph or a painted subject** (continuous tone, brushwork, fur,
+     foliage, no ink to bound the flats): `python3 segment.py subject.png
+     --palette palette.json --png regions.png`. Classifying each pixel there
+     returns hundreds of regions of noise, even with `--smooth`. `segment.py`
+     smooths the texture with an edge-preserving filter and merges like
+     neighbours into about `--regions` (default 40) regions that follow the
+     forms. `--box x,y,w,h` measures one part at a finer scale; `--silhouette
+     x,y --box ...` prints one object's outline. Read
+     `reference/photograph.md` before measuring a photograph.
+
+   Look at `regions.png`. On a scene, use `subject_1x.png` for the reading and
+   the masses, and each part's own crop when you reach it. A region is a flat
+   or a patch of like colour, not an object; naming the regions is the reading.
 3. **Describe the subject.** Run `describe.sh subject.png A` and again with `B`
    (the run name keeps both files; on a scene, describe `subject_1x.png`). Its
    answers 3 (what each figure is doing), 4 (what touches what) and 5
@@ -720,7 +734,7 @@ write("ops.json", ops)   # color= takes a palette name; --palette repoints it to
   silhouette on a palette name runs it into every other object carrying that
   flat. A garment seeded on its two colours once swallowed a nearby object that
   shared one of them. The object's box is already written down in the inventory;
-  pass it as the bound.
+  pass it as the bound. `segment.py --silhouette` will not run without one.
 - **A traced contour measures a silhouette; it does not measure a slot.** The
   tracer stops at the colour transition. For a vent, an eyelet, a gap between
   fingers or any other dark opening, it therefore returns the opening's pale
