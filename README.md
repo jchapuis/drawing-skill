@@ -11,14 +11,21 @@ at any point.
 
 ## Gallery
 
-![A rooster: the subject, a first drawing, a second drawing after the linework gate, and the watercolour-and-ink finish](docs/rooster.jpg)
+![A rooster: the subject, the first drawing, the latest drawing, and its watercolour-and-ink finish](docs/rooster.jpg)
 
-A rooster from a hand-coloured print, drawn twice. Left to right: the subject;
-the first drawing, which had the shapes right but no hatching and one even
-outline; the second, after the skill learned to measure the subject's
-hatching and line weights (`--hatch`, `--linework`); and that drawing finished
-as watercolour and ink on cold-press paper (`style.json`). Subject: Randolph
-Caldecott, public domain.
+A rooster from a hand-coloured print. Left to right: the subject; the first
+drawing, with the shapes right but no hatching and one even outline; the
+latest, after the skill learned to measure hatching and line weights
+(`--hatch`, `--linework`), to build small figures in full, and never to drop
+a named object; and that drawing finished as watercolour and ink on
+cold-press paper (`style.json`). Subject: Randolph Caldecott, public domain.
+
+![A golden retriever: the photo, the drawing, and a coloured-pencil sketch finish](docs/retriever.jpg)
+
+A photograph: the subject, the drawing, and a coloured-pencil sketch finish
+with the construction left faint. Colour is sampled from the coat's richest
+mid-tones and the head's landmark ratios are measured before drawing.
+Subject: David Whelan, CC0.
 
 ![A road bicycle: the subject, the drawing, and an ink-pen finish](docs/bicycle.jpg)
 
