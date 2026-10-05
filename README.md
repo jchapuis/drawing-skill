@@ -27,6 +27,22 @@ with the construction left faint. Colour is sampled from the coat's richest
 mid-tones and the head's landmark ratios are measured before drawing.
 Subject: David Whelan, CC0.
 
+![A portrait: the painted subject, the drawing, and a brush-pen finish](docs/portrait.jpg)
+
+A portrait from a painted illustration: the subject, the drawing, and the
+brush-pen finish. The face's landmarks are measured before any mark, and the
+cat entering the frame is drawn, not dropped. Subject: "Pepper and Carrot in
+traditional clothing of Bergen" by David Revoy (peppercarrot.com),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); cropped and redrawn.
+
+![A half-timbered house: the photo, the drawing, and a watercolour sketch finish](docs/building.jpg)
+
+A photograph of a building: the subject, the drawing, and a watercolour-and-ink
+sketch finish with the construction lines left faint. The timber pattern and
+the window count are measured and checked. Subject: photo by Ralf Roletschek
+(Strasbourg, 2014), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/);
+cropped and redrawn.
+
 ![A road bicycle: the subject, the drawing, and an ink-pen finish](docs/bicycle.jpg)
 
 A flat vector bicycle with no outline: the subject, the drawing, and the
