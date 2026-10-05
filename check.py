@@ -840,7 +840,7 @@ def _named(pixels, value):
     return np.isin(named, wanted).reshape(pixels.shape[:2])
 
 
-def inks(drawing, subject, box, dark=90, width=1500, value=None):
+def inks(drawing, subject, box, dark=90, width=1500, value=None, drawn_dark=None):
     """The two sets of lines over one box, in one image: the subject's ink in
     blue, the drawing's in red, black where they coincide, over the subject in
     pale grey.
@@ -852,7 +852,11 @@ def inks(drawing, subject, box, dark=90, width=1500, value=None):
     from brow to nostril in the subject and near-vertically down the far edge in
     the drawing. An outline scan cannot see an interior line. This can. It gives
     no number: for each blue line you decide which red line is meant to be it,
-    and a distance between the two inks would shrink as more ink is added."""
+    and a distance between the two inks would shrink as more ink is added.
+
+    `drawn_dark` is the drawing's own line threshold, when it is not `dark`: a
+    stage render (blockin.png) draws its lines in a pale stock colour that
+    never falls under 90, and would show no red at all."""
     drawing = drawing.resize(subject.size, Image.LANCZOS)
     x, y, w, h = box
     grey = [np.asarray(image.crop((x, y, x + w, y + h)).convert("L"), dtype=float)
@@ -865,7 +869,7 @@ def inks(drawing, subject, box, dark=90, width=1500, value=None):
         theirs, ours = (_named(np.asarray(image.crop((x, y, x + w, y + h)).convert("RGB"),
                                           dtype=float), value) for image in (subject, drawing))
     else:
-        theirs, ours = grey[0] < dark, grey[1] < dark
+        theirs, ours = grey[0] < dark, grey[1] < (drawn_dark or dark)
     out[theirs & ~ours] = (40, 90, 235)
     out[ours & ~theirs] = (225, 40, 40)
     out[theirs & ours] = (30, 10, 30)
@@ -1848,13 +1852,23 @@ def checklist(inventory_path, references=None):
     its plural, so a car's window does not stand in for a house's. Alternatives
     are joined by |. A block may hold several `object:` lines, each followed by
     its `sub-forms:` line. `_absent` in parts.json is one string,
-    "name: reason; ..."."""
+    "name: reason; ...". A name is the bare sub-form ("hole"), which excuses it
+    for every object, or a dotted path ending in it ("tree.hole"), which excuses
+    it only for the object the path names."""
     raw = load_parts(inventory_path)
     sides = _key_sides(raw)
-    excused = {item.split(":")[0].strip() for item in str(raw.get("_absent", "")).split(";")
-               if ":" in item}
+    excused = [item.split(":")[0].strip().split(".")
+               for item in str(raw.get("_absent", "")).split(";") if ":" in item]
     words_of = lambda alternatives: alternatives.split("|")
     hit = lambda word, parts: word in parts or word + "s" in parts
+
+    def excuses(objects, alternatives):
+        for path in excused:
+            *owner, name = path
+            if (any(name in (word, word + "s") for word in words_of(alternatives))
+                    and (not owner or set(owner) & set(words_of(objects)))):
+                return True
+        return False
 
     def under(objects):
         """The segments that follow the object's own segment, in every key naming it."""
@@ -1868,7 +1882,7 @@ def checklist(inventory_path, references=None):
             continue
         gone = [alternatives for alternatives in subforms.split()
                 if not any(hit(word, tail) for tail in tails for word in words_of(alternatives))
-                and not set(words_of(alternatives)) & excused]
+                and not excuses(objects, alternatives)]
         if gone:
             missing.append((objects, source, gone))
     return missing
@@ -1962,6 +1976,72 @@ def count_forms(drawing, subject, inventory_path, palette_path, min_area):
     return rows
 
 
+def _lab(rgb):
+    """CIELAB on OpenCV's 8-bit scale (L 0..255), one row per pixel."""
+    return cv2.cvtColor(np.ascontiguousarray(rgb, dtype=np.uint8).reshape(-1, 1, 3),
+                        cv2.COLOR_RGB2LAB).reshape(-1, 3).astype(float)
+
+
+GROUND_SHARE = 0.15    # a colour covering this much of the ring round a box is a ground
+OFF_GROUND = 24.0      # CIELAB distance (L on 0..255) a pixel must sit from every ground
+
+
+def _clusters(pixels, count):
+    """A seeded k-means of `pixels` (CIELAB rows): (centres, label per pixel)."""
+    count = min(count, len(pixels))
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
+    cv2.setRNGSeed(7)
+    _, labels, centres = cv2.kmeans(np.float32(pixels), count, None, criteria, 2,
+                                    cv2.KMEANS_PP_CENTERS)
+    return centres.astype(float), labels.ravel()
+
+
+def _grounds(pixels, count=4, share=GROUND_SHARE):
+    """The colours covering at least `share` of `pixels` (CIELAB rows), from a
+    k-means of `count` clusters, each with its reach: how far its own pixels
+    spread from it (90th percentile, never under OFF_GROUND). A thin form
+    crossing the ring (a fence rail, a neighbour's outline) covers less and is
+    not taken for ground, and the reach keeps a textured ground (a lawn in a
+    photograph, a wash) a ground."""
+    if len(pixels) < count:
+        return np.empty((0, 3)), np.empty(0)
+    centres, labels = _clusters(pixels, count)
+    kept, reach = [], []
+    for index, centre in enumerate(centres):
+        members = pixels[labels == index]
+        if len(members) >= share * len(pixels):
+            kept.append(centre)
+            reach.append(max(OFF_GROUND, float(np.percentile(
+                np.linalg.norm(members - centre, axis=1), 90))))
+    return np.asarray(kept).reshape(-1, 3), np.asarray(reach)
+
+
+def off_ground(image, tight, padded, smooth=2.0):
+    """The share of the tight box, in percent, unlike every ground round it.
+
+    The grounds are read off the picture, in the ring between the padded and
+    the tight box: each colour covering a good share of the ring. A fence on a
+    road beside a field stands on two grounds, and both are found, whatever
+    grey each has and whatever the palette's `background` is. The picture is
+    smoothed first, so paper grain is not counted as form. With no ring (a box
+    that fills the picture), the box's own median colour is the ground.
+    """
+    x0, y0, x1, y1 = padded
+    crop = image.crop(padded).filter(ImageFilter.GaussianBlur(smooth))
+    lab = _lab(np.asarray(crop.convert("RGB"))).reshape(y1 - y0, x1 - x0, 3)
+    inner = np.zeros(lab.shape[:2], bool)
+    left, top = max(tight[0], x0) - x0, max(tight[1], y0) - y0
+    inner[top:max(top, tight[3] - y0), left:max(left, tight[2] - x0)] = True
+    box = lab[inner]
+    if not len(box):
+        return 0.0
+    grounds, reach = _grounds(lab[~inner])
+    if not len(grounds):
+        grounds, reach = np.median(box, axis=0)[None], np.array([OFF_GROUND])
+    away = np.linalg.norm(box[:, None, :] - grounds[None], axis=2) > reach[None]
+    return 100.0 * float(away.all(axis=1).mean())
+
+
 def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
           ground=12.0):
     """Every named part of the picture, subject above and drawing below.
@@ -2030,7 +2110,7 @@ def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
         column, row = index % across, index // across
         left = gap + column * (cell + gap)
         top = gap + row * (cell * 2 + head + label + gap)
-        share, body = [], []
+        share, body, beside = [], [], []
         for half, source in enumerate((subject, drawing)):
             crop = source.crop((x, y, x + width, y + height))
             grey = np.asarray(crop.convert("L")).astype(float)
@@ -2051,6 +2131,14 @@ def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
             # tight.
             near = np.asarray(source.crop(tight).convert("L")).astype(float)
             body.append(100.0 * float((np.abs(near - np.median(near)) > ground).mean()))
+            # The median is one ground, and in grey. A box over two grounds (a
+            # road beside a field) counts the second ground as form in a
+            # subject where the two greys differ, and nothing in a drawing
+            # whose road and field share a grey, so a fence standing on both
+            # reads as gone. So a second reading takes its grounds in colour
+            # from the ring round the box, and a part is called missing only
+            # when both readings agree.
+            beside.append(off_ground(source, tight, (x, y, x + width, y + height)))
             fit = min(cell / max(width, 1), cell / max(height, 1))
             crop = crop.resize((max(1, round(width * fit)), max(1, round(height * fit))),
                                Image.LANCZOS)
@@ -2074,9 +2162,10 @@ def parts(drawing, subject, inventory, cell=210, across=4, ink=110, pad=0.2,
         # is whether a part is behind the drawing it belongs to: if the picture
         # as a whole is at 30% of the subject, a part at 30% is on schedule and
         # one at 3% is not there.
-        want = body[0] * pace
-        gone = body[0] > 4.0 and body[1] < want / 4.0
+        lost = lambda reading: reading[0] > 4.0 and reading[1] < reading[0] * pace / 4.0
+        gone = lost(body) and lost(beside)
         numbers = (f"ink {share[0]:.0f}%->{share[1]:.0f}%  form {body[0]:.0f}%->{body[1]:.0f}%"
+                   f"  off-ground {beside[0]:.0f}%->{beside[1]:.0f}%"
                    + ("   MISSING?" if gone else ""))
         pen.text((left, top + head + cell * 2 + 1), numbers,
                  fill=(200, 30, 30) if gone else (90, 90, 90))
@@ -2143,8 +2232,7 @@ VALUE_OFF = 0.15         # on HSV value, 0..1
 
 def _lab_ab(rgb):
     """The a*b* plane of CIELAB for an array of RGB pixels."""
-    lab = cv2.cvtColor(np.asarray(rgb, dtype=np.uint8).reshape(-1, 1, 3), cv2.COLOR_RGB2LAB)
-    return lab.reshape(-1, 3)[:, 1:].astype(float) - 128
+    return _lab(rgb)[:, 1:] - 128
 
 
 def _own_pixels(pixels, ground, ink=60, rounds=6):
@@ -2153,8 +2241,12 @@ def _own_pixels(pixels, ground, ink=60, rounds=6):
     Line is any pixel darker than `ink` (grey level). Ground is any pixel whose
     colour, in the a*b* plane, sits nearer the ground colour than the object's
     own. The object's colour starts from the half of the pixels furthest from
-    the ground and is re-estimated a few times. A box with no ground in it keeps
-    every pixel, since nothing in it is nearer the ground than the object.
+    the ground, among those that are not the ground's own colour (so a box
+    that is mostly ground still starts from the object), and is re-estimated a
+    few times. A box with no ground in it keeps every pixel, since nothing in
+    it is nearer the ground than the object, and so does a box whose colours
+    all share the ground's hue and chroma (grey parts on white), which a*b*
+    cannot split.
     """
     pixels = pixels.reshape(-1, 3)
     grey = pixels @ np.array([0.299, 0.587, 0.114])
@@ -2164,7 +2256,10 @@ def _own_pixels(pixels, ground, ink=60, rounds=6):
     ab = _lab_ab(pixels)
     seed = _lab_ab([ground])[0]
     away = np.hypot(*(ab - seed).T)
-    centre = np.median(ab[away >= np.median(away)], axis=0)
+    off = away[away > 3.0]
+    if not len(off):   # every colour shares the ground's hue: a*b* cannot split them
+        return pixels
+    centre = np.median(ab[away >= max(np.median(off), 3.0)], axis=0)
     own = np.ones(len(pixels), bool)
     for _ in range(rounds):
         own = np.hypot(*(ab - centre).T) <= away
@@ -2172,6 +2267,34 @@ def _own_pixels(pixels, ground, ink=60, rounds=6):
             break
         centre = np.median(ab[own], axis=0)
     return pixels[own]
+
+
+def _matching(pixels, drawn, ground, ink=60, count=5, least=0.1):
+    """The subject's pixels that stand for the drawing's object in one box.
+
+    `drawn` is the drawing's own pixels in the box (`_own_pixels`), and the
+    object's colours are those covering at least `least` of them. The
+    subject's box, line left out, is split into `count` colour clusters, and a
+    cluster is the object's when, in hue and chroma (a*b*), it sits nearer one
+    of the object's colours than the ground. On a photograph that leaves out
+    the grass and the shade on it round a part, which a median over the whole
+    box mixes in. Matching on a*b* only keeps the choice blind to value, so a
+    flat drawn too dark is still compared with the subject's own step. Where no
+    cluster is nearer the object's colours than the ground, nothing is
+    returned: the subject has no colour like the one the object was drawn in.
+    """
+    pixels = pixels.reshape(-1, 3)
+    pixels = pixels[pixels @ np.array([0.299, 0.587, 0.114]) >= ink]
+    if not len(pixels) or not len(drawn):
+        return pixels[:0]
+    centres, labels = _clusters(_lab(pixels), count)
+    flats, which = _clusters(_lab(drawn), 3)
+    flats = flats[np.bincount(which, minlength=len(flats)) >= least * len(drawn)]
+    if np.all(np.linalg.norm(flats[:, 1:] - _lab([ground])[0, 1:], axis=1) <= 6.0):
+        return pixels   # the object shares the ground's hue (grey on white): a*b* cannot split them
+    marks = np.vstack([flats, _lab([ground])])
+    nearest = np.argmin(np.linalg.norm(centres[:, None, 1:] - marks[None, :, 1:], axis=2), axis=1)
+    return pixels[np.isin(labels, np.flatnonzero(nearest < len(flats)))]
 
 
 def _hsv(pixels):
@@ -2190,9 +2313,11 @@ def _circular_median(hue):
 def colour_match(drawing, subject, boxes, ground, ink=60, least=200):
     """Per box, the object's colour in the subject and in the drawing.
 
-    Both are read at the subject's size, on the object's own pixels only (see
-    `_own_pixels`), so a box that holds some ground or some outline still
-    compares the object. Each reading is (hue, saturation, value, mid): the
+    Both are read at the subject's size, on the object's own pixels only, so a
+    box that holds some ground or some outline still compares the object. In
+    the drawing they are the box less its ground and line (`_own_pixels`); in
+    the subject, the colour clusters nearest the drawing's own colours
+    (`_matching`), so shade and grass round a photographed part are left out. Each reading is (hue, saturation, value, mid): the
     medians, plus `mid`, the saturation of the most saturated tenth of the
     mid-tones. The mid-tones are the pixels whose value lies between the
     subject's own 25th and 75th percentile in that box, the same band on both.
@@ -2212,7 +2337,13 @@ def colour_match(drawing, subject, boxes, ground, ink=60, least=200):
     for name, (x, y, width, height) in boxes.items():
         x, y = max(0, x), max(0, y)
         width, height = min(subject.width - x, width), min(subject.height - y, height)
-        own = [_own_pixels(plane[y:y + height, x:x + width], ground, ink) for plane in planes]
+        theirs, drawn = (plane[y:y + height, x:x + width] for plane in planes)
+        ours = _own_pixels(drawn, ground, ink)
+        own = [_matching(theirs, ours, ground, ink), ours]
+        if len(own[1]) >= least and len(own[0]) < least:
+            rows.append((name, None, None, ["no subject colour is nearer the drawn object's "
+                                            "than the ground"]))
+            continue
         if min(len(pixels) for pixels in own) < least:
             rows.append((name, *[None] * 2, ["too few pixels"]))
             continue
@@ -2298,6 +2429,10 @@ def main():
                        help="--scan, --overlay --box: comma-separated palette.json names read as "
                             "line instead of everything dark")
     parse.add_argument("--step", type=int, default=0, help="--scan: rows between readings")
+    parse.add_argument("--dark", type=int, default=0,
+                       help="--overlay --box: grey level under which the drawing's pixel is line "
+                            "(default 90, the subject's); raise it (e.g. 200) to read the pale "
+                            "lines of blockin.png")
     parse.add_argument("--colours", type=int, default=3,
                        help="--masses: value levels, line removed first (default 3)")
     parse.add_argument("--parts", default="",
@@ -2305,7 +2440,8 @@ def main():
                             "the picture, subject above and drawing below")
     parse.add_argument("--colour", default="",
                        help="parts.json, or x,y,w,h: per box, the object's median hue, saturation "
-                            "and value, subject (--ref) against drawing, ground and line left out")
+                            "and value, subject (--ref) against drawing, ground and line left out; "
+                            "in the subject, only the colours nearest the drawn object's")
     parse.add_argument("--ink", type=int, default=60,
                        help="--colour: grey level under which a pixel is line, not colour")
     parse.add_argument("--ranking", default="",
@@ -2337,7 +2473,8 @@ def main():
     parse.add_argument("--paper", default="#FAF1D2",
                        help="the render's paper, #rrggbb or R,G,B")
     parse.add_argument("--ground", default="",
-                       help="--unfilled, --colour: the subject's ground, if not palette.json's background")
+                       help="--unfilled: the subject's ground; --colour: the ground a drawn object is told "
+                            "apart from, in both pictures. Default palette.json's background")
     parse.add_argument("--space", default="",
                        help="x0,y0,x1,y1 the render covers, so faults are reported "
                             "in the drawing's own coordinates")
@@ -2349,8 +2486,10 @@ def main():
         for thing, source, gone in missing:
             print(f"  FAIL {thing} ({source}): no entry for {', '.join(gone)}")
         if missing:
-            print("\nadd an entry for each, or write it into parts.json's \"_absent\" as "
-                  "\"name: reason; ...\".\nA sub-form left out without a reason was never "
+            print("\nadd an entry for each, or write it into parts.json's \"_absent\", one "
+                  "string of\n\"name: reason; name: reason\", where a name is the sub-form as "
+                  "listed above\n(\"hole: ...\", every object) or a dotted path ending in it "
+                  "(\"tree.hole: ...\", that\nobject only).\nA sub-form left out without a reason was never "
                   "looked for, and every gate below\nchecks only what the inventory names.")
             sys.exit(1)
         unmatched = checklist_unmatched(args.checklist)
@@ -2420,8 +2559,9 @@ def main():
         for key, why in unresolved:
             print(f"  UNRESOLVED {key}: {why}")
         for key in backwards_keys(inventory):
-            print(f"  WARN {key}: key written near/far, since in_front names its first half. "
-                  "The key is far/near; in_front decides, so check it is the one in front")
+            print(f"  WARN {key}: in_front names the key's first side, so the key is written "
+                  "near/far. Write it far/near, the side in front second; in_front decides "
+                  "the check, so first make sure it names the one in front")
         if not hits and not unresolved and count:
             print(f"  PASSES — the {count} listed occlusions are delivered by the write order")
         if not count:
@@ -2559,7 +2699,9 @@ def main():
             parts(drawing, subject, dict(page)).save(where)
             print(f"wrote {where} — {len(page)} parts")
         print(f"{len(inventory)} parts, subject above, drawing below, boxes padded "
-              "a fifth.\nthe percentages are dark-pixel share. On one part they only "
+              "a fifth.\nink is the dark-pixel share, form the share off the box's own median "
+              "grey, off-ground\nthe share unlike every colour round the box; MISSING? "
+              "needs form and off-ground\nboth low. On one part they only "
               "say whether it is\nthere. Across all of them, a consistent offset in "
               "one direction is a real\nfinding: a whole range of weights used too freely, "
               "which nothing else here can see.\nWhether a part that is present is "
@@ -2635,14 +2777,20 @@ def main():
         for name, theirs, ours, flags in rows:
             cells = [f"{read[0]:5.0f} {read[1]:4.2f} {read[2]:4.2f} {read[3]:4.2f}" if read
                      else "-" for read in (theirs, ours)]
-            flagged += bool(flags)
+            unread = flags == ["too few pixels"]   # nothing to compare is not a fault
+            flagged += bool(flags) and not unread
             print(f"  {name[:24]:24s} {cells[0]:>25s}   {cells[1]:>25s}"
-                  + ("  << " + ", ".join(flags) if flags else ""))
+                  + ("  (too few pixels to read: no colour, only line and ground)" if unread else
+                     "  << " + ", ".join(flags) if flags else ""))
         print(f"\n<< is hue more than {HUE_OFF:.0f} degrees off, median saturation a third or "
               f"more lower, mid a fifth\nor more lower, or value more than {VALUE_OFF:.2f} off. "
               "A colour that goes greyer or browner\nthan the subject reads as another material "
               "with every shape right. A low mid is a\npalette with no saturated mid-tone step: "
-              "re-sample it (Stage 0 step 1) before\nrecolouring flats one by one.")
+              "re-sample it (Stage 0 step 1) before\nrecolouring flats one by one. A value flag "
+              "does not overrule the stage 0 sample: the\nsubject's median takes in the dark "
+              "between hairs or leaves and the side in shade.\nAnswer it with the ramp's darker "
+              "step (a shade flat, strands) where the subject is\ndarker, and re-sample an entry "
+              "only when the flagged box holds the patch it came from.")
         sys.exit(1 if flagged else 0)
 
     if args.ranking:
@@ -2727,7 +2875,7 @@ def main():
             sys.exit("--overlay needs --ref")
         inks(drawing, Image.open(args.ref).convert("RGB"),
              [int(part) for part in args.box.split(",")],
-             value=palette_value(args.value)).save(args.out)
+             value=palette_value(args.value), drawn_dark=args.dark or None).save(args.out)
         print(f"wrote {args.out}: blue is the subject's line the drawing lacks there, red "
               "the drawing's\nline where the subject has none, black both. For every blue "
               "line inside the form,\nsay which red line is meant to be it and how far and "

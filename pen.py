@@ -632,7 +632,9 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
       21.5px, and shrinking the polygon changed nothing because the polygon was
       never what rendered. Pin `size`/`scale` on every flat.
     - Flats need `tool="flat"`. At any translucency every overlap shows as a
-      seam.
+      seam. Only `flat` fills: every other tool draws a closed path as its
+      outline, so a closed `stage="fill"` mark with another tool is refused
+      unless it passes `fill=` itself (`fill="none"` for an outline on purpose).
 
     The style (see `style`) changes only how these points land. A flat
     (`tool="flat"`) has no drift and no run-on: it lands on its points. `hand`
@@ -686,6 +688,14 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
     look.setdefault("dash", kit["dash"])
     if tool == "flat":
         look.setdefault("fill", "fill")   # a flat with no fill is an outline
+    elif stage == "fill" and closed and "fill" not in look:
+        # Only `flat` fills by itself. Any other tool lays the path's outline and
+        # leaves the inside bare, so a closed fill-stage mark meant as a solid
+        # shape (an eye, a patch) would render as a ring.
+        raise ValueError(
+            f"stroke: a closed stage='fill' mark with tool={tool!r} renders as an outline, "
+            "not a filled shape. Only tool='flat' fills. Use tool='flat' for a region of "
+            "colour, or pass fill='none' to say the outline is meant")
     if kit["alpha"] < 1.0:
         look.setdefault("opacity", kit["alpha"])
 

@@ -396,7 +396,7 @@ def _():
                 "ops.append(stroke([(10, 10), (200, 150)], stage='gesture'))\n"
                 "ops.append(stroke([(10, 10), (200, 150)], stage='blockin', smooth=False))\n"
                 "ops.append(stroke([(20, 10), (200, 150)], stage='construction', smooth=False))\n"
-                "ops.append(stroke([(10, 10), (200, 150), (10, 150)], stage='fill', closed=True))\n"
+                "ops.append(stroke([(10, 10), (200, 150), (10, 150)], stage='fill', tool='flat', closed=True))\n"
                 "ops.append(stroke([(10, 10), (200, 150)], stage='contour'))\n"
                 "ops.append(stroke([(10, 10), (200, 150)], stage='ink'))\n"
                 "write('ops.json', ops)\n")
@@ -814,6 +814,132 @@ def _():
         code, said = tool(f"{HERE}/check.py", "beige.png", "--ref", "subject.png",
                           "--colour", "parts.json", cwd=folder)
         assert code == 1 and "mid-tone saturation" in said and "coat/ground" not in said, said
+
+
+def fenced(road, field, fence=True):
+    """A road over a field on the left, a thin fence standing across both; to
+    the right, dark bands the same in every picture, so the picture as a whole
+    is as far along as the subject."""
+    image = Image.new("RGB", (2400, 300), road)
+    pen = ImageDraw.Draw(image)
+    pen.rectangle([0, 170, 400, 300], fill=field)
+    for x in range(440, 2400, 60):
+        pen.rectangle([x, 0, x + 29, 300], fill=(20, 20, 20))
+    if fence:
+        pen.line([(20, 150), (380, 170)], fill=(40, 30, 20), width=4)
+        for x in range(40, 380, 80):
+            pen.line([(x, 110), (x, 200)], fill=(40, 30, 20), width=4)
+    return image
+
+
+@case("--parts: a fence on a road beside a field is present when the drawing's two grounds share a grey; gone, it is MISSING?")
+def _():
+    import contextlib
+    import io
+    subject = fenced((200, 180, 140), (120, 150, 90))
+    inventory = {"fence": {"box": [20, 90, 360, 120], "shape": "a fence", "rel": "", "tier": 3}}
+    for drawn, flagged in ((fenced((200, 170, 140), (150, 190, 120)), False),
+                           (fenced((200, 170, 140), (150, 190, 120), fence=False), True)):
+        said = io.StringIO()
+        with contextlib.redirect_stdout(said):
+            check.parts(drawn, subject, inventory)
+        assert ("MISSING?" in said.getvalue()) == flagged, said.getvalue()
+
+
+@case("--checklist _absent takes a dotted path for one object's sub-form; a path naming another object excuses nothing")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/ref.md", "w") as handle:
+            handle.write("```checklist\nobject: tree\nsub-forms: trunk hole\n"
+                         "object: house\nsub-forms: door hole\n```\n")
+        parts = {"tree.trunk": {"box": [0, 0, 1, 1]}, "house.door": {"box": [0, 0, 1, 1]}}
+        for absent, left in (("tree.hole: hidden by the plant", [("house", ["hole"])]),
+                             ("scene.tree.holes: hidden", [("house", ["hole"])]),
+                             ("barn.hole: no barn", [("tree", ["hole"]), ("house", ["hole"])]),
+                             ("hole: neither shows one", [])):
+            parts["_absent"] = absent
+            json.dump(parts, open(f"{folder}/parts.json", "w"))
+            missing = check.checklist(f"{folder}/parts.json", [f"{folder}/ref.md"])
+            assert [(name, gone) for name, _, gone in missing] == left, (absent, missing)
+        parts["_absent"] = ""
+        json.dump(parts, open(f"{folder}/parts.json", "w"))
+        code, said = tool(f"{HERE}/check.py", "--checklist", "parts.json", cwd=folder)
+        assert code == 1 and "tree.hole" in said and "dotted path" in said, said
+
+
+def lawn(part, photo=True):
+    """A part on a lawn. As a photograph, the box round the part is mostly
+    grass and a dark shade the part casts; as a drawing, one flat on the ground."""
+    rng = np.random.default_rng(3)
+    pixels = np.empty((240, 300, 3))
+    pixels[:] = (59, 77, 34)
+    if photo:
+        pixels[:, 150:] = (70, 78, 60)   # shade on the grass: darker and greyer, not line
+        pixels += rng.normal(0, 6, pixels.shape)
+    pixels[90:150, 100:200] = part
+    if photo:
+        pixels[90:150, 100:200] += rng.normal(0, 6, (60, 100, 3))
+    return Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8))
+
+
+@case("--colour on a photo-like box: shade and grass round the part are left out; a flat too dark is still flagged")
+def _():
+    gold = (214, 160, 80)
+    subject, box = lawn(gold), {"part": [40, 40, 220, 160]}
+    (_, theirs, ours, flags), = check.colour_match(lawn(gold, photo=False), subject, box, (59, 77, 34))
+    assert flags == [], (theirs, ours, flags)
+    dark = tuple(int(c * 0.6) for c in gold)
+    (_, theirs, ours, flags), = check.colour_match(lawn(dark, photo=False), subject, box, (59, 77, 34))
+    assert "value" in flags, (theirs, ours, flags)
+
+
+@case("gates.sh runs every gate whose files are there, one verdict line each; a doubled edge FAILs and exits 1")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        image = panel(folder)
+        image.save(f"{folder}/drawing.png")
+        shutil.copy(f"{HERE}/gates.sh", folder)   # gates.sh runs where it sits, like build.sh
+        env = dict(os.environ, SKILL=HERE)
+        run = lambda: subprocess.run(["bash", "gates.sh"], cwd=folder, env=env,
+                                     capture_output=True, text=True)
+        done = run()
+        verdicts = {line.split()[1]: line.split()[0] for line in done.stdout.splitlines()[1:]}
+        assert verdicts["stages"] == "SKIP" and verdicts["masses"] == "LOOK", done.stdout
+        base = ("from pen import stroke, frame, write\nops = [frame(0, 0, 400, 300)]\n"
+                "ops.append(stroke([(120, 80), (280, 80)], stage='gesture'))\n"
+                "ops.append(stroke([(120, 80), (280, 80)], stage='blockin', smooth=False))\n"
+                "ops.append(stroke([(120, 80), (280, 80)], stage='contour'))\n"
+                "ops.append(stroke([(120, 80), (280, 80)], stage='ink', tag='block.top'))\n")
+        json.dump({"block": {"shape": "an orange block", "box": [120, 80, 160, 140]}},
+                  open(f"{folder}/parts.json", "w"))
+        for extra, doubled, code in (("", "PASS", 0),
+                                     ("ops.append(stroke([(120, 82), (280, 82)], stage='ink', tag='lid.edge'))\n",
+                                      "FAIL", 1)):
+            with open(f"{folder}/draw.py", "w") as handle:
+                handle.write(base + extra + "write('ops.json', ops)\n")
+            made = subprocess.run([sys.executable, "draw.py"], cwd=folder, capture_output=True, text=True,
+                                  env=dict(os.environ, PYTHONPATH=HERE))
+            assert made.returncode == 0, made.stderr
+            done = run()
+            lines = done.stdout.splitlines()[1:]
+            verdicts = {line.split()[1]: line.split()[0] for line in lines}
+            assert len(lines) == len(verdicts) == 11, done.stdout
+            assert verdicts["stages"] == "PASS" and verdicts["doubled"] == doubled, done.stdout
+            assert verdicts["counts"] == "SKIP" and verdicts["parts"] == "LOOK", done.stdout
+            assert (done.returncode == 1) == (code == 1 or "FAIL" in verdicts.values()), done.stdout
+            assert os.path.exists(f"{folder}/gates/doubled.txt"), os.listdir(folder)
+        assert done.returncode == 1 and "lid.edge" in done.stdout, done.stdout
+
+
+@case("--overlay --box shows a block-in's pale lines in red only when --dark is raised above them")
+def _():
+    subject = Image.new("RGB", (200, 200), "white")
+    ImageDraw.Draw(subject).line([(20, 100), (180, 100)], fill=(10, 10, 10), width=6)
+    blockin = Image.new("RGB", (200, 200), "white")
+    ImageDraw.Draw(blockin).line([(20, 60), (180, 60)], fill=(120, 130, 150), width=6)
+    red = lambda image: int(np.all(np.asarray(image)[..., :3] == (225, 40, 40), axis=-1).sum())
+    assert red(check.inks(blockin, subject, [0, 0, 200, 200])) == 0
+    assert red(check.inks(blockin, subject, [0, 0, 200, 200], drawn_dark=200)) > 0
 
 
 sys.exit(1 if failed else 0)

@@ -291,4 +291,30 @@ def _():
             pen._SEED, pen._SEED_GIVEN = kept
 
 
+@case("a closed fill-stage mark that would render as a ring is refused; a flat, or fill= given, passes")
+def _():
+    eye = [(100, 100), (140, 96), (150, 130), (104, 136)]
+    for tool in ("pen", "brush", None):
+        try:
+            pen.stroke(eye, stage="fill", tool=tool, closed=True, color="black")
+        except ValueError as error:
+            assert "outline" in str(error) and "tool='flat'" in str(error), str(error)
+        else:
+            raise AssertionError(f"tool={tool!r} closed at stage fill was not refused")
+    pen.style({"medium": "pencil"})   # the medium picks a tool that does not fill
+    try:
+        pen.stroke(eye, stage="fill", closed=True, color="black")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a medium's tool closed at stage fill was not refused")
+    pen.style(None)
+    assert pen.stroke(eye, stage="fill", tool="flat", closed=True, color="black",
+                      size="s", scale=0.5)["fill"] == "fill"
+    assert pen.stroke(eye, stage="fill", tool="pen", closed=True, fill="none")["fill"] == "none"
+    assert pen.stroke(eye, stage="fill", tool="pen", closed=True, fill="solid")["fill"] == "solid"
+    assert "fill" not in pen.stroke(eye, stage="ink", tool="pen", closed=True)   # a ring in ink is a line
+    assert "fill" not in pen.stroke(eye, stage="fill", tool="pen")                # an open mark has no inside
+
+
 sys.exit(1 if failed else 0)

@@ -78,6 +78,10 @@ average over the whole object takes all of that in.
   pixels at that value. A step well below it is still an average.
 - After the first flats, run `check.py drawing.png --ref subject.png --colour
   parts.json`. A `<<` on `mid` with the medians in agreement is this fault.
+  A `value` flag alone does not overrule the sample: the subject's median
+  includes the dark between hairs and the side in shade. Add the darker step
+  where the subject is darker, and re-sample only when the flagged box holds
+  the patch the entry came from (SKILL.md § Judges, `--colour`).
 
 ## Typed shapes from a photograph
 

@@ -100,7 +100,20 @@ the `claude` CLI. One directory per drawing holds `subject.png` and everything
 below; nothing goes in `/tmp`. Copy `build.sh` into it and point it at this
 directory with `export SKILL=…`, or write the path into its `SKILL=` line (a
 copy cannot find the skill on its own, and says so). Your script is `draw.py`;
-it writes `ops.json`.
+it writes `ops.json`. Copy `gates.sh` in beside it the same way: `./gates.sh`
+runs every gate whose files are there (`--checklist`, `--stages`, `--doubled`,
+`--joins`, `--depth`, `--colour`, `--linework`, `--counts`, `--ranking`,
+`--parts`, `--masses`), prints one verdict line per gate (PASS, FAIL,
+UNCHECKED, LOOK for a sheet or ranking you read yourself, SKIP), keeps each
+gate's full output in `gates/`, and exits 1 on any FAIL. A LOOK line still
+needs looking at; `--zoom`, `--hatch`, `--unfilled` and the describer are run
+by hand.
+
+**The shell may be zsh** (the macOS default). zsh does not split a variable
+into words, so a flag and its argument held in one variable (`G="--stages
+ops.json"; python3 check.py drawing.png $G`) reach `check.py` as one argument
+and it stops with its usage text. Write each flag out, or use an array
+(`G=(--stages ops.json); python3 check.py drawing.png "${G[@]}"`).
 
 **A scene's working space is the delivered size times four.** A single object
 gets the same 4x space when its smallest feature needs it (under about 40px at
@@ -289,8 +302,9 @@ parts.json` is its only gate. That gate works only if stroke tags and inventory
 names use one vocabulary:
 
 - The key of an overlap is written `far/near` in tag names
-  (`mug.body/table.top`, not `body.mug/top.table`). The order is easy to get
-  backwards; `--depth` warns on a key whose first side is the one `in_front`
+  (`mug.body/table.top`, not `body.mug/top.table`): the side behind first, so
+  `in_front` names the second side (`"mug.handle.top/hand.near"` with
+  `"in_front": "hand.near"`). The order is easy to get backwards; `--depth` warns on a key whose first side is the one `in_front`
   names. `in_front` still decides the check, so fix the key to match it.
 - `in_front` sits only on overlap entries.
 - A part with no ink makes its rows UNRESOLVED, which is as serious as FAIL.
@@ -497,7 +511,9 @@ and after the last.
    - **A reference's ```checklist block is enforced.** `build.sh` runs `check.py
      --checklist parts.json` and will not build until each sub-form the
      checklist lists for an object in the inventory has an entry, or a reason in
-     `"_absent": "name: reason; ..."`. A sub-form listed only in prose gets read
+     `"_absent": "name: reason; ..."`. A name is the sub-form as the checklist
+     lists it (`"hole: ..."` excuses it for every object) or a dotted path
+     ending in it (`"tree.hole: ..."`, that object only). A sub-form listed only in prose gets read
      and then skipped: an inventory can still stop at the first level.
      A checklist applies only when a key names one of its `object:` words.
      When none does, `--checklist` warns that no reference object matched, and
@@ -596,6 +612,15 @@ ops.append(stroke([(430, 600), (470, 598), (468, 880), (440, 882)], stage="fill"
                   closed=True, color="blue", size="s", scale=0.5, tag="figure.leg.near"))
 write("ops.json", ops)   # color= takes a palette name; --palette repoints it to the subject's hex
 ```
+
+- **Only `tool="flat"` fills.** Every other tool (`brush`, `pen`, `marker`,
+  `crayon`, `gouache`, `pencil`) draws a closed path as its outline, so a solid
+  eye drawn with `tool="pen"` comes out as a ring. `stroke` refuses a closed
+  `stage="fill"` mark with any other tool unless it passes `fill=` itself
+  (`fill="none"` when the outline is meant).
+- **Keep `stage` out of a dict of shared settings.** `stroke(..., stage="ink",
+  **C)` where `C` also holds `stage` stops with a duplicate-keyword error. Share
+  `color`, `size`, `scale` and `tool` in the dict and write `stage=` on each call.
 
 - **Every mark goes on its own line with its own numbers.** No function that
   makes a shape, no loop that stamps one, no `ellipse()`: a tool may not supply
@@ -879,11 +904,11 @@ form it names is often real on the form next to it.
 |---|---|
 | `--masses` | the wrong shape: line closed away (dark runs thinner than the subject's line), both cut on the subject's value levels, `--colours` 3 by default. **A design gate, not a proportion gate**: a head half again too wide is still a pale blob above a dark torso at thumbnail size, and passes |
 | `--scan x,y,w,h --side S` (needs `--ref`) | per row, subject beside drawing (`--value NAMES` scans runs of those palette names instead of dark ones): the first non-ground pixel from that side, and the dark runs inward from it. The instrument for a coordinate and for a proportion. `<<` marks an edge off by over 2% of the box, and `runs a|b` marks a row whose line count differs: a thick line drawn as two, or an interior line drawn somewhere else |
-| `--overlay` | the drawing blended over the subject. With `--box x,y,w,h`, the two inks over that box (`--value black` reads only the line; without it every dark flat, such as a glove or bar tape, shows as ink): the subject's blue, the drawing's red, black where they coincide. The only view of interior lines (see above). It gives no number, on purpose |
-| `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each shape note is printed over its crop. It answers whether the part is there, never whether it is recognisable. Only a describer on the assembled picture answers that. At S2 every feature whose marks wait for S3 reads MISSING?, which is the staging and not a fault |
+| `--overlay` | the drawing blended over the subject. With `--box x,y,w,h`, the two inks over that box (`--value black` reads only the line; without it every dark flat, such as a glove or bar tape, shows as ink): the subject's blue, the drawing's red, black where they coincide. On `blockin.png`, whose stock lines are too pale to read as line, pass `--dark 200`. The only view of interior lines (see above). It gives no number, on purpose |
+| `--parts parts.json` (needs `--ref`) | a part that is absent, or drifted out of its box; each shape note is printed over its crop. `form` is the share of the box off its own median grey, `off-ground` the share unlike every colour round the box (a fence on a road beside a field stands on two grounds, both read off the picture); MISSING? needs both low. It answers whether the part is there, never whether it is recognisable. Only a describer on the assembled picture answers that. At S2 every feature whose marks wait for S3 reads MISSING?, which is the staging and not a fault |
 | `--checklist parts.json` | a sub-form that a reference's checklist names for an object in the inventory, with no entry and no reason in `_absent`. Run by `build.sh`, and blocks it. Warns when no reference object matched any key, which makes its PASS empty |
 | `--counts parts.json` (needs `--ref`) | a group of repeated forms culled, merged or added, where the subject itself counts; exit 1 is FAIL, exit 2 is UNCHECKED rows |
-| `--colour parts.json` or `--colour x,y,w,h` (needs `--ref`) | a part whose colour has drifted: per box, at the subject's size, the median hue, saturation and value of the object's own pixels (ground and line left out: `--ground`, default palette.json's `background`; `--ink`, default 60), and `mid`, the saturation of the most saturated tenth of its mid-tones. `<<` on hue more than 15° off, median saturation a third or more lower, `mid` a fifth or more lower (a starting figure), or value more than 0.15 off. A low `mid` with matching medians is a palette sampled as an average: the light and the shadow match and the saturated step between them has gone beige. Small or mostly dark boxes (an eye, a nose, a tag) give noisy rows; read the large ones. Run it on `drawing.png`; a `style.json` finish lowers saturation again in `final.png`. Exit 1 when a row is flagged |
+| `--colour parts.json` or `--colour x,y,w,h` (needs `--ref`) | a part whose colour has drifted: per box, at the subject's size, the median hue, saturation and value of the object's own pixels (line left out with `--ink`, default 60; in the drawing, the ground is `--ground`, default palette.json's `background`; in the subject, the object is the colour clusters nearer, in hue and chroma, the drawn object's colours than that ground, so the shade and grass round a photographed part are left out), and `mid`, the saturation of the most saturated tenth of its mid-tones. `<<` on hue more than 15° off, median saturation a third or more lower, `mid` a fifth or more lower (a starting figure), or value more than 0.15 off. A low `mid` with matching medians is a palette sampled as an average: the light and the shadow match and the saturated step between them has gone beige. Small or mostly dark boxes (an eye, a nose, a tag) give noisy rows; read the large ones. **The stage 0 sample wins over a value flag.** The subject's median takes in the dark between hairs or leaves and the side in shade, while an entry is sampled at the saturated mid-tone patch, so on fur or foliage the subject reads darker than a correctly sampled flat. Answer a value flag with the ramp's darker step (a shade flat, strands, hatching) where the subject is darker; re-sample an entry only when the flagged box holds the patch it was sampled from. A row saying no subject colour is nearer the drawn object's than the ground is a flat drawn in a colour the subject does not have there. A box with too few colour pixels (line on bare ground) is shown and not counted. Run it on `drawing.png`; a `style.json` finish lowers saturation again in `final.png`. Exit 1 when a row is flagged |
 | `--ranking parts.json` (needs `--ref`) | a part shouting above its `tier` (named when it outranks the whole focus tier), and two forms merged into one value. Zero-sum: the only way to lift a part is to put another down |
 | `--doubled ops.json` | one edge stated twice on the page. Write order, `erase` and `back` are replayed, and an edge a later flat buries is not listed. Two lines that cross in an X, or meet in a V or a T, at 5° or more (crossing spokes, a chain over a spoke) are not listed. Two lines that run side by side (two bands, parallel cables) are, and so is a contact between two objects' edges, so look before you merge |
 | `--joins ops.json [--parts parts.json]` | a line that stops just short of the mark it runs at, in the same object (the tag up to its first `.`): a gap of one to eight line widths, edge to edge, which reads as neither a join nor a separation. A chain short of its sprocket, a spoke short of its rim, a ring left open. Ends that some mark touches pass, and so does a styled hand's 1–4px fall-short. Marks beside the end (a hatch group's next line), a hairline under half the end's width, and marks with the end's own tag are not join targets. A pair meant to stop short goes in parts.json's `"_gaps": ["tagA/tagB", ...]`, matched by tag prefix. Exit 1 when anything is listed |

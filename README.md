@@ -216,7 +216,8 @@ Python needs `numpy`, `scipy`, `pillow` and `opencv-python`. `describe.sh`
 needs the `claude` CLI on PATH. A drawing lives in its own directory holding
 `subject.png`. Copy `build.sh` in beside it and point it at the skill with
 `export SKILL=~/.claude/skills/drawing` (or edit the `SKILL=` line directly).
-A copied `build.sh` cannot find the skill on its own, and says so.
+A copied `build.sh` cannot find the skill on its own, and says so. Copy
+`gates.sh` the same way to run every gate at once.
 
 ## Cost
 
@@ -277,6 +278,7 @@ check.py          the gates -- masses, overlay, scan, zoom, weights,
 finish.py         turns drawing.png into final.png: medium, paper,
                     sketch construction, scan look (style.json)
 build.sh          runs draw.py, audits the stages, renders every stage
+gates.sh          runs every gate that applies, one verdict line each
 harness/          the tldraw canvas, driven from the command line
 docs/             the images in this README
 test_*.py         gates checked against known-good and known-bad cases
