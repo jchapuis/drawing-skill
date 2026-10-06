@@ -168,6 +168,15 @@ upper and lower lids mirror-symmetric, when in fact **the upper lid's peak sits
 toward the nose and the lower lid's toward the ear**; iris a perfect circle at
 any angle instead of a perspective ellipse; sclera flat white with no gradient.
 
+**Measure every face's eyes, not only the main one.** A character's expression
+lives in the eye's outline (its height over its width) and in where the pupil
+sits inside it (centred, low, looking aside). That holds for a secondary face, an
+animal, a cartoon character: a cat drawn with round eyes and pupils pushed to the
+side reads as startled or comic, whatever its subject's expression. For each face
+in the inventory, write the eye's height-to-width ratio and the pupil's position
+as a fraction of the eye's width and height, measured on the subject with
+`look.py grid` or `probe`, and check both on the drawing before leaving the part.
+
 ### Nose
 A wedge with **four planes** (top, two sides, bottom) carrying a **ball**
 (two cartilage halves hooking under at the septum) and two **wings** curling
