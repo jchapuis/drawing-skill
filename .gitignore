@@ -2,3 +2,7 @@
 harness/node_modules/
 harness/dist/
 __pycache__/
+# a link to a built harness elsewhere is not a source either
+harness/node_modules
+harness/dist
+scratch/

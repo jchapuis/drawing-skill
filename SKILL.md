@@ -1110,9 +1110,11 @@ rendered. It never adds a mark. Without the file nothing changes.
 | `handedness` | `right`, `left` | the direction each stroke is drawn in, so tapers and hooks fall where that hand puts them. The points do not move |
 | `paper` | `none`, `smooth`, `cold-press`, `newsprint`, `sketchbook` | paper tint and grain, multiplied into everything |
 | `scan` | `true`, `false` | a slight tilt, uneven light, sensor noise and a JPEG save |
+| `renderer` | `tldraw` (default), `brush` | `brush`: `brush.py` lays the marks of `ops.json` again as the medium would, with dabs along your points (weight from pressure, edges the paper gives, dry brush on a fast tail, brush passes inside each flat's own outline), into `brush.png`, and `finish.py` works on that. It adds no mark and keeps your stacking order |
 
 `build.sh` then also writes `final.png`, with the colour layer shifted a pixel
-or two off the line as hand-coloured prints are. **Gates and the describer
+or two off the line as hand-coloured prints are (and `brush.png` first, with
+`"renderer": "brush"`). **Gates and the describer
 always read `drawing.png`, never `final.png`.**
 
 Some of a human look is in what you draw, and no renderer supplies it. Decide
