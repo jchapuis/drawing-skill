@@ -45,6 +45,9 @@ MEDIA = ("ink-pen", "brush-pen", "pencil", "marker", "watercolour+ink", "gouache
 PAPERS = ("none", "smooth", "cold-press", "newsprint", "sketchbook")
 FINISHES = ("clean", "sketch")
 HANDS = ("right", "left")
+# who drew the marks finish.py is given: tldraw's vector render (drawing.png),
+# or brush.py's dabs (brush.png), which already lay them as the medium does
+RENDERERS = ("tldraw", "brush")
 
 # How each paper looks, in render pixels (a render is two pixels per page unit).
 #   tint      -- the paper's own colour, multiplied in
@@ -81,7 +84,8 @@ def read_style(path):
         fail(f"cannot read {path}: {error}")
     if not isinstance(style, dict):
         fail(f"{path} must hold one JSON object")
-    known = {"medium", "hand", "finish", "handedness", "paper", "scan", "seed", "sophistication"}
+    known = {"medium", "hand", "finish", "handedness", "paper", "scan", "seed", "sophistication",
+             "renderer"}
     unknown = sorted(set(style) - known)
     if unknown:
         fail(f"{path}: unknown key(s) {unknown}; the keys are {sorted(known)}")
@@ -91,6 +95,8 @@ def read_style(path):
     for key, allowed in (("medium", MEDIA), ("finish", FINISHES), ("paper", PAPERS)):
         if style[key] not in allowed:
             fail(f"{path}: {key} is {style[key]!r}; it must be one of {', '.join(allowed)}")
+    if "renderer" in style and style["renderer"] not in RENDERERS:
+        fail(f"{path}: renderer is {style['renderer']!r}; it must be one of {', '.join(RENDERERS)}")
     if "handedness" in style and style["handedness"] not in HANDS:
         fail(f"{path}: handedness is {style['handedness']!r}; it must be right or left")
     if not isinstance(style["scan"], bool):
@@ -396,8 +402,14 @@ def finish(style, drawing, construction=None):
     shape = drawing.shape[:2]
     ground = ground_colour(drawing)
     sheet, tooth = make_paper(rng, shape, style["paper"])
-    image, covered = treat_medium(rng, drawing, ground, style["medium"], tooth,
-                                  style.get("handedness", "right"))
+    if style.get("renderer", "tldraw") == "brush":
+        # brush.py already laid the marks as the medium lays them; treating them
+        # again would put a second, flat texture over the brush's own
+        image = drawing
+        covered = np.clip(np.abs(drawing - ground).max(axis=2) / 0.08, 0, 1)
+    else:
+        image, covered = treat_medium(rng, drawing, ground, style["medium"], tooth,
+                                      style.get("handedness", "right"))
     if style["finish"] == "sketch":
         image = image * sketch_layer(construction, style["medium"], covered, tooth, opacity=0.55)
     if style["medium"] == "gouache":
