@@ -30,6 +30,9 @@ light can only take the ground down a few percent.
 Everything random comes from the style's `seed`, so the same inputs give the
 same file. It uses numpy, scipy and PIL only; nothing is downloaded.
 
+With `"renderer": "brush"` the picture it is given is brush.png, whose marks
+brush.py already laid as the medium lays them, so step 1 is skipped.
+
 The gates never look at final.png. They judge the tldraw renders.
 """
 import argparse

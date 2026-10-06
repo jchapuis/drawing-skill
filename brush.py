@@ -219,6 +219,7 @@ class Paper:
         self.reach = math.sqrt(ratio / RATIO)
         # an edge wanders slowly (the hand, the ink's spread) and catches a
         # little on the paper's grain; the first moves it far more than the second
+        self.sway = finish.noise(rng, shape, 9.0 * ratio)
         self.wander = finish.noise(rng, shape, 2.5 * ratio)
         self.grain = finish.noise(rng, shape, max(0.45 * ratio, 0.5))
         self.fibres = finish.fibre_field(rng, shape, 900, length=(5, 14))
@@ -412,7 +413,8 @@ def lay_line(canvas, paper, op, colour, instrument, offset, rng, ratio, streamli
     thin = paper.reach * np.clip(fields["radius"] / (1.5 * ratio + 1.5), 0.25, 1.0)
     length = max(float(arc[-1]), 1.0)
     along = fields["arc"] / length
-    wobble = thin * (slow_edge * paper.wander[y0:y1, x0:x1] + grain_edge * paper.grain[y0:y1, x0:x1])
+    wobble = thin * (slow_edge * (0.85 * paper.sway[y0:y1, x0:x1] + 0.35 * paper.wander[y0:y1, x0:x1])
+                     + grain_edge * paper.grain[y0:y1, x0:x1])
     alpha = None
     if spec["dry"]:
         # dry brush: a fast tail runs out of ink first, and so does a long

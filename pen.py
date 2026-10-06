@@ -82,8 +82,9 @@ STYLE_CHOICES = {
     "finish": ("clean", "sketch"),
     "handedness": ("right", "left"),
     "paper": ("none", "smooth", "cold-press", "newsprint", "sketchbook"),
+    "renderer": ("tldraw", "brush"),
 }
-STYLE_KEYS = ("medium", "hand", "finish", "handedness", "paper", "scan", "seed")
+STYLE_KEYS = ("medium", "hand", "finish", "handedness", "paper", "scan", "seed", "renderer")
 
 # What each medium draws with when the stroke does not name a tool. The second
 # entry adjusts that instrument for the medium. A marker has no taper because

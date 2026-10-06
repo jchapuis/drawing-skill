@@ -68,7 +68,7 @@ else stale contour.png; fi
 # drawing.png never shows the scaffolding. The stages do not say to erase
 # construction or contour, and left-over gesture loops would read as mass
 if [ "$REACH" -lt 5 ]; then
-  stale drawing.png colour-offset.png construction.png final.png
+  stale drawing.png colour-offset.png brush.png construction.png final.png
   exit 0
 fi
 render ops.json drawing.png --hide gesture,construction,blockin,contour --palette palette.json "$@"
@@ -77,7 +77,9 @@ render ops.json drawing.png --hide gesture,construction,blockin,contour --palett
 # on paper, scanned. It is for looking at, never for a gate. The renders above
 # are untouched by it. Two more renders feed it: the colour put a hand's slip
 # off the line (`--offset`), and, for a sketch finish, the construction alone,
-# which finish.py lays under the picture as faint graphite
+# which finish.py lays under the picture as faint graphite. With
+# `"renderer": "brush"`, brush.py lays the marks itself from ops.json (same
+# slip, same smoothing) into brush.png, and finish.py works on that instead
 if [ -f style.json ]; then
   # read with python, because jq may be missing; finish.read_style stops on a bad value
   SETTINGS=$(python3 - <<'PY'
@@ -89,17 +91,28 @@ pick = random.Random(style["seed"])
 # a 1-3px slip, larger for a looser hand, in a direction fixed by the seed
 dx, dy = (pick.choice((-1, 1)) * round(1 + 2 * hand * pick.uniform(0.5, 1), 1) for _ in range(2))
 # a looser hand keeps more of the stroke's small movements
-print(dx, dy, round(0.62 - 0.4 * hand, 2), int(style["finish"] == "sketch"))
+print(dx, dy, round(0.62 - 0.4 * hand, 2), int(style["finish"] == "sketch"), style.get("renderer", "tldraw"))
 PY
 )
-  read -r DX DY STREAMLINE SKETCH <<< "$SETTINGS"
-  render ops.json colour-offset.png --hide gesture,construction,blockin,contour --palette palette.json \
-    --offset "fill:$DX,$DY" --streamline "$STREAMLINE" "$@"
+  read -r DX DY STREAMLINE SKETCH RENDERER <<< "$SETTINGS"
+  MARKS=colour-offset.png
+  if [ "$RENDERER" = brush ]; then
+    rm -f colour-offset.png
+    PALETTE=()
+    [ ! -f palette.json ] || PALETTE=(--palette palette.json)
+    python3 "$SKILL/brush.py" --ops ops.json --style style.json "${PALETTE[@]}" --like drawing.png \
+      --offset "fill:$DX,$DY" --streamline "$STREAMLINE" --out brush.png
+    MARKS=brush.png
+  else
+    rm -f brush.png
+    render ops.json colour-offset.png --hide gesture,construction,blockin,contour --palette palette.json \
+      --offset "fill:$DX,$DY" --streamline "$STREAMLINE" "$@"
+  fi
   CONSTRUCTION=()
   if [ "$SKETCH" = 1 ]; then
     render stages.json construction.png --only gesture,blockin,construction,contour,frame \
       --palette palette.json --streamline "$STREAMLINE" "$@"
     CONSTRUCTION=(--construction construction.png)
   fi
-  python3 "$SKILL/finish.py" --style style.json --drawing colour-offset.png "${CONSTRUCTION[@]}" --out final.png
+  python3 "$SKILL/finish.py" --style style.json --drawing "$MARKS" "${CONSTRUCTION[@]}" --out final.png
 fi
