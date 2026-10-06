@@ -243,6 +243,15 @@ At stage 4 and at the final gate, measure them again on the render and match
 them; a describer run on the head crop says whether the pose now reads. A pose
 clause that fails is an angle to measure, not a shape to redraw.
 
+On that same crowing cock, what moved the reading from "in profile, looking
+left" to "head raised, looking up, as if crowing" was not the head's angles but
+three features on it: the eye (a narrowed almond tilted along the beak, about
+−57°, where the drawing had a round upright eye at −88° that read as alert), the
+wattle (thrown forward and out by the raised head, its fold at +30°, where the
+drawing's hung straight down), and the open lower beak (two pointed spikes, not
+a blunt box). The expression of the features carries the effort of the pose:
+measure each one's long axis with `look.py axis` before redrawing anything.
+
 ```checklist
 object: bird|rooster|cockerel|hen|chicken|pheasant|turkey|duck|goose|swan|owl|eagle|hawk|falcon|parrot|pigeon|dove|gull|heron|sparrow|finch|robin|crow|raven|magpie|songbird
 sub-forms: beak|bill eye head body wing primaries|primary tail leg foot|feet
