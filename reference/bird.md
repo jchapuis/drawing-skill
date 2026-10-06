@@ -25,7 +25,7 @@ marks a claim taken from the named book.
 | **The wing is a leaf pasted on**, outlined all round | `check.py --overlay --box` on the wing: the subject's front edge of the folded wing is lost under the breast and flank feathers; the drawing has an unbroken contour there |
 | **The wingtip stops in the wrong place** against the tail | Measure where the tip of the primaries falls as a fraction of the visible tail length, on both. This is one of the most informative numbers on a perched bird |
 | **Legs as sticks from the belly**, with the joint bending the wrong way or the bird floating over its perch | `check.py --zoom` on the feet: count the toes in front of the perch and behind it, and measure the gap between belly and perch |
-| **A head thrown back reads as a head turned sideways** | Measure the beak axis and the nape line as angles on the subject and the drawing; a few degrees decide it (see § Chickens and other galliform birds) |
+| **A head thrown back reads as a head turned sideways** | `look.py axis` on the beak axis, the nape line and the throat line, subject and drawing; a few degrees decide it (see § Chickens and other galliform birds) |
 | **Feathers drawn one by one everywhere**, so the body reads as scales | `check.py --masses`: the subject reads as a few large values, the drawing as noise. Pattern belongs where the subject has it (wing bars, scapulars) and nowhere else |
 
 Most of these come from drawing what a bird is known to have (a neck, a knee,
@@ -215,13 +215,33 @@ in poultry handbooks [read: Damerow, *The Chicken Encyclopedia*]:
 A hen has a smaller comb and wattles, short hackles and saddle, and no sickles.
 
 **The crowing pose.** A crowing cock stands upright, stretches the neck, throws
-the head back and opens the beak with the beak pointing up. What makes "head
-thrown back" read is two angles: the nape line (the back of the neck from crown
-to shoulders) leaning back, and the beak's axis well above horizontal. A lift a
-few degrees short of the subject's on either reads as a head turned sideways
-with the beak open, and no numeric gate sees the difference. Measure the beak axis and the nape line as
-angles on the subject and on the drawing, and match them; a describer run on
-the head crop is what says whether the pose reads.
+the head back and opens the beak with the beak pointing up. "Head thrown back"
+is carried by a few angles, each two points typed into `look.py axis`
+(`--seg NAME:subject/render`):
+
+1. **The beak axis against horizontal**: the upper edge (culmen) from the
+   forehead to the tip, and the lower mandible from the gape's corner to its
+   tip. Their difference is how wide the beak is open.
+2. **The nape**, in two pieces, since it curves: the back of the skull to the
+   top of the hackles, then down the hackles to the shoulders. The lower piece's
+   lean from vertical says how far the neck is stretched back.
+3. **The throat line**, from under the lower mandible down the front of the
+   neck to the breast.
+4. **The beak against the nape** (`--pair beak,nape`): the head's angle on the
+   neck, the number that says "thrown back" rather than "looking ahead".
+
+A lift a few degrees short of the subject's on any of these reads as a head
+turned sideways with the beak open, and no other numeric gate sees the
+difference. As an example, on a printed crowing cock and a drawing of it
+described as "in profile, looking left", these angles all came within about 7°
+of the subject's (beak against nape 98° on the subject, 105° on the drawing;
+the beak's upper edge 2° below horizontal against 3° above). Match them to a
+couple of degrees. When they already match and the clause still fails, measure
+the angles of what sits on the head next: the comb's lean, the wattle's swing,
+the eye's long axis. At stage 0, write the angles in `reading.md`, measured.
+At stage 4 and at the final gate, measure them again on the render and match
+them; a describer run on the head crop says whether the pose now reads. A pose
+clause that fails is an angle to measure, not a shape to redraw.
 
 ```checklist
 object: bird|rooster|cockerel|hen|chicken|pheasant|turkey|duck|goose|swan|owl|eagle|hawk|falcon|parrot|pigeon|dove|gull|heron|sparrow|finch|robin|crow|raven|magpie|songbird
@@ -257,7 +277,8 @@ write order against it.
 2. **The head**, measured against the body, placed where the subject puts it,
    with no neck unless the subject shows one.
 3. **The beak axis and the eye**, off the gape line, at the same stage as the
-   head.
+   head. A head that is tilted or thrown back gets its angles (§ Chickens and
+   other galliform birds) measured with `look.py axis` here.
 4. **The folded wing as one mass on the body**, with the wingtip placed by its
    measured position on the tail. In flight, the shoulder, wrist and tip of
    each wing first.

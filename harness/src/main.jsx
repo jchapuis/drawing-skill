@@ -46,22 +46,116 @@ const STAGE_LOOK = {
   frame: { color: 'grey', size: 's', dash: 'solid', opacity: 0.03 },
 }
 
-// tldraw ships 13 fixed colours. The palette object is a plain mutable export,
-// so a drawing with its own palette repoints the names it needs at real values
-// rather than settling for the nearest stock hue.
-function repaint(palette) {
+// tldraw 3.x has 13 fixed colour names, and its schema refuses any other value
+// in a shape's `color`. A palette is not limited to them. Two kinds of name:
+//
+// - A stock name (`black`, `light-blue`, ...) is repointed in place: the theme
+//   object is a plain mutable export, so its slot takes the palette's value.
+//   That is how every palette worked before named colours, and it still does.
+// - Any other name (`coat.lit`, `roof`, `sky`) is a paint. Its mark keeps a
+//   valid stock `color` (the stock hue nearest the paint, so the document still
+//   opens and edits in plain tldraw, in an approximate hue) and carries the
+//   paint's name and value in `meta.paint` / `meta.hex`. The draw shape is
+//   rendered with a theme slot registered under `paint:<name>`, so here it
+//   comes out at the paint's exact value.
+//
+// `background` is the ground, never a mark colour.
+const THEME = DefaultColorThemePalette.lightMode
+const STOCK = ['black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow',
+  'orange', 'green', 'light-green', 'light-red', 'red', 'white']
+// the stock values as shipped, before any repaint: what a paint's stand-in
+// `color` is chosen against, so it does not depend on the palette
+const STOCK_RGB = Object.fromEntries(STOCK.map((name) => [name, rgb(THEME[name].solid)]))
+const PAINTS = {}
+
+function rgb(hex) {
+  const digits = hex.replace('#', '')
+  return [0, 2, 4].map((at) => parseInt(digits.slice(at, at + 2), 16))
+}
+
+function nearestStock(hex) {
+  const want = rgb(hex)
+  let best = null
+  let far = Infinity
+  for (const name of STOCK) {
+    const apart = STOCK_RGB[name].reduce((sum, value, at) => sum + (value - want[at]) ** 2, 0)
+    if (apart < far) {
+      far = apart
+      best = name
+    }
+  }
+  return best
+}
+
+function slot(value) {
+  return {
+    ...THEME.black,
+    solid: value,
+    fill: value,
+    semi: value,
+    pattern: value,
+    note: { ...(THEME.black.note ?? {}), fill: value },
+  }
+}
+
+function paintKey(name) {
+  return `paint:${name}`
+}
+
+// `stock` keeps the stock colours and ground and defines only the paints: the
+// stage looks render in their own stock hues, and their stock names may be
+// repointed to anything by an older palette
+function repaint(palette, stock = false) {
   for (const [name, value] of Object.entries(palette ?? {})) {
     if (name === 'background') {
-      DefaultColorThemePalette.lightMode.background = value
-      continue
+      if (!stock) THEME.background = value
+    } else if (STOCK.includes(name)) {
+      if (stock) continue
+      const held = THEME[name]
+      held.solid = value
+      held.fill = value
+      held.semi = value
+      held.pattern = value
+      held.note = { ...(held.note ?? {}), fill: value }
+    } else {
+      PAINTS[name] = value
+      THEME[paintKey(name)] = slot(value)
     }
-    const slot = DefaultColorThemePalette.lightMode[name]
-    if (!slot) continue
-    slot.solid = value
-    slot.fill = value
-    slot.semi = value
-    slot.pattern = value
-    slot.note = { ...(slot.note ?? {}), fill: value }
+  }
+}
+
+// a mark's `color` as the store takes it, plus the paint it stands in for
+function colour(name) {
+  if (name === 'background') {
+    throw new Error("color 'background': the ground is not a mark colour. Give the paper's colour a name of its own in the palette")
+  }
+  if (STOCK.includes(name)) return { color: name }
+  if (name in PAINTS) return { color: nearestStock(PAINTS[name]), paint: name, hex: PAINTS[name] }
+  const names = Object.keys(PAINTS)
+  throw new Error(`color '${name}' is not in the palette. ` +
+    (names.length ? `Its names are: ${names.join(', ')}` : 'No --palette names any paint') +
+    `; the 13 stock names (${STOCK.join(', ')}) also work`)
+}
+
+// the shape as it renders: a painted mark reads its colour from its own slot
+function painted(shape) {
+  const name = shape.meta?.paint
+  if (!name) return shape
+  const key = paintKey(name)
+  if (!THEME[key]) {
+    if (!shape.meta.hex) throw new Error(`mark ${shape.id} names paint '${name}' with no value`)
+    THEME[key] = slot(shape.meta.hex)
+  }
+  return { ...shape, props: { ...shape.props, color: key } }
+}
+
+class PaintedDrawShapeUtil extends DrawShapeUtil {
+  component(shape) {
+    return super.component(painted(shape))
+  }
+
+  toSvg(shape, ctx) {
+    return super.toSvg(painted(shape), ctx)
   }
 }
 
@@ -136,6 +230,7 @@ function stroke(editor, op) {
   const originX = Math.min(...points.map((point) => point.x))
   const originY = Math.min(...points.map((point) => point.y))
   const id = createShapeId()
+  const { color, paint, hex } = colour(op.color ?? look.color)
 
   editor.createShape({
     id,
@@ -143,9 +238,14 @@ function stroke(editor, op) {
     x: originX,
     y: originY,
     opacity: op.opacity ?? look.opacity,
-    meta: { stage: op.stage ?? 'ink', tag: op.tag ?? '', note: op.note ?? '' },
+    meta: {
+      stage: op.stage ?? 'ink',
+      tag: op.tag ?? '',
+      note: op.note ?? '',
+      ...(paint ? { paint, hex } : {}),
+    },
     props: {
-      color: op.color ?? look.color,
+      color,
       size: op.size ?? look.size,
       dash: op.dash ?? look.dash,
       fill: op.fill ?? 'none',
@@ -290,7 +390,7 @@ function LooseDrawSvg({ shape }) {
   )
 }
 
-class LooseDrawShapeUtil extends DrawShapeUtil {
+class LooseDrawShapeUtil extends PaintedDrawShapeUtil {
   getGeometry(shape) {
     const points = getPointsFromSegments(shape.props.segments)
     const width = strokeWidth(shape)
@@ -314,7 +414,7 @@ class LooseDrawShapeUtil extends DrawShapeUtil {
   component(shape) {
     return (
       <SVGContainer>
-        <LooseDrawSvg shape={shape} />
+        <LooseDrawSvg shape={painted(shape)} />
       </SVGContainer>
     )
   }
@@ -323,7 +423,7 @@ class LooseDrawShapeUtil extends DrawShapeUtil {
     ctx.addExportDef(getFillDefForExport(shape.props.fill))
     return (
       <g transform={`scale(${1 / shape.props.scale})`}>
-        <LooseDrawSvg shape={shape} />
+        <LooseDrawSvg shape={painted(shape)} />
       </g>
     )
   }
@@ -343,7 +443,7 @@ function offset(editor, shifts) {
   return () => editor.updateShapes(moved)
 }
 
-const SHAPE_UTILS = STREAMLINE === null ? [] : [LooseDrawShapeUtil]
+const SHAPE_UTILS = [STREAMLINE === null ? PaintedDrawShapeUtil : LooseDrawShapeUtil]
 
 function App() {
   return (

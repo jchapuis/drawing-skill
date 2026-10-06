@@ -53,11 +53,15 @@ PY
 stale() { rm -f "$@"; echo "build.sh: STAGE=$STAGE does not reach $*; removed" >&2; }
 render() { rm -f "$DOC"; node "$SKILL/harness/cli.mjs" "$DOC" --ops "$1" --png "$2" --padding 0 "${@:3}"; }
 # the stage looks are drawn from the ops with every erase/fade taken out, so
-# cleanup does not change them. They use stock colours, because a palette sampled
-# off the subject can map a stage's default colour to the ground and blank it
+# cleanup does not change them. They use stock colours (`--stock`), because an
+# older palette that repoints stock names can map a stage's default colour to
+# the ground and blank it. The palette is still read, for the names the later
+# stages' marks carry
 python3 -c "import json; json.dump([o for o in json.load(open('ops.json')) if o.get('op') not in ('erase', 'fade')], open('stages.json', 'w'))"
-render stages.json gesture.png --only gesture,frame "$@"
-if [ "$REACH" -ge 1 ]; then render stages.json blockin.png --only gesture,blockin,frame "$@"; else stale blockin.png; fi
+STOCK_LOOK=()
+[ ! -f palette.json ] || STOCK_LOOK=(--palette palette.json --stock)
+render stages.json gesture.png --only gesture,frame "${STOCK_LOOK[@]}" "$@"
+if [ "$REACH" -ge 1 ]; then render stages.json blockin.png --only gesture,blockin,frame "${STOCK_LOOK[@]}" "$@"; else stale blockin.png; fi
 if [ "$REACH" -ge 3 ]; then
   render stages.json contour.png --only blockin,contour,fill,frame --palette palette.json "$@"
 else stale contour.png; fi

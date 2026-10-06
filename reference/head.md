@@ -105,6 +105,29 @@ See `measuring.md`.
   tilted back, the nose base rises above the ear base; tilted forward, it drops
   below. The separation grows with the angle.
 
+### The head against the shoulders
+
+A head turned on the shoulders, rather than with them, is read off a few
+angles, not off the head's own shapes. A face drawn with every feature in place
+can still read as "head turned, torso facing forward" when the subject is
+looking back over its shoulder. Measure, with `look.py axis` (two points per
+line, subject then render):
+
+- **The eye line against the shoulder line**: the head's turn and tilt against
+  the torso's.
+- **The centre line** (between the eyes to the chin) against the torso's
+  centre-front line.
+- **The sternomastoid**, from behind the earlobe to the pit of the neck. It is
+  the cord that shows the head turning on the neck (§ Bony landmarks, mastoid).
+- **The chin line**, chin to the pit of the neck, against the near half of the
+  shoulder line. A chin over the near shoulder puts the two close to one line.
+
+How the turned torso itself shows (the foreshortened shoulder line, the far
+shoulder lower and narrower) is in `figure.md` § A turned torso. Write these
+angles in `reading.md` at stage 0 and check them at stage 4 and at the final
+gate. When the describer misses the pose, correct the angle that is off before
+redrawing any shape.
+
 ## Planes
 
 There are four broad planes: **front** (forehead, eyes, nose front, mouth,

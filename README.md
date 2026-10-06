@@ -256,10 +256,10 @@ parts is expensive, so budget for it.
   just run clean once.
 - **A new instrument.** Add a `tool` to `INSTRUMENTS` in `pen.py` (alongside
   `brush`, `pen`, `marker`, `crayon`, `flat`, `gouache`) or a nib in the
-  weight swatch (`gauge()`). The palette itself is fixed at 13 stock names
-  (`black grey light-violet violet blue light-blue yellow orange green
-  light-green light-red red white`, plus `background` for the ground), and
-  the harness repoints those names to real colours with `--palette`.
+  weight swatch (`gauge()`). The palette (`palette.json`) holds any
+  number of named colours, each `#rrggbb`, plus `background` for the ground;
+  `color=` takes those names and the harness renders each at its value with
+  `--palette` (a stock name an older palette repoints still works).
 - **The describer.** `describe.sh`'s five fixed questions are inline in the
   script's `PROMPT`; change them there.
 - **The canvas.** `harness/` is a tldraw document driven headless by

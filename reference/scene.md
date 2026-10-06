@@ -350,8 +350,8 @@ The procedure:
 3. **Merge.** Replace each section of the master `draw.py` with the part's own,
    after checking that every copy changed only its section. Merge `parts.json` by
    entry, not as text (an agent may rewrite the whole file's whitespace), and flag
-   a key two agents changed differently. A palette name one agent repointed is
-   merged only when no other section draws with it. A mark that a part's agent
+   a key two agents changed differently. A palette name one agent added is merged
+   as is; one an agent re-sampled is merged only when no other section draws with it. A mark that a part's agent
    found must sit in front of a later section (a hub nut in front of the fork)
    moves to a small section of its own after that one.
 4. **Judge each part again on the merged picture.** Every part's crop held

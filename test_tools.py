@@ -74,16 +74,55 @@ def _():
         assert code != 0 and "disagrees" in said, said
 
 
-@case("trace.py --measure-line reads a 6px line as 6, and refuses an unknown palette name")
+@case("trace.py --measure-line reads a 6px line as 6, and refuses a malformed palette entry")
 def _():
     with tempfile.TemporaryDirectory() as folder:
         panel(folder)
         code, said = tool(f"{HERE}/trace.py", "subject.png", "palette.json", "--measure-line", cwd=folder)
         assert code == 0 and "p90 6" in said, said
         with open(f"{folder}/bad.json", "w") as handle:
-            json.dump({"background": "#ffffff", "bleu": "#000000"}, handle)
+            json.dump({"background": "#ffffff", "coat,lit": "#000000", "roof": "brown"}, handle)
         code, said = tool(f"{HERE}/trace.py", "subject.png", "bad.json", cwd=folder)
-        assert code != 0 and "light-violet" in said, said
+        assert code != 0 and "coat,lit" in said and "roof" in said, said
+
+
+@case("trace.py takes a palette of the drawing's own names, and refuses an --ink it lacks")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        panel(folder)
+        named = {"background": PALETTE["background"], "outline": PALETTE["black"],
+                 "box.lit": PALETTE["orange"]}
+        with open(f"{folder}/named.json", "w") as handle:
+            json.dump(named, handle)
+        code, said = tool(f"{HERE}/trace.py", "subject.png", "named.json", "--ink", "outline",
+                          "--line", "8", cwd=folder)
+        assert code == 0, said
+        assert any(region["colour"] == "box.lit" for region in json.load(open(f"{folder}/regions.json")))
+        # the default --ink is black, which this palette does not name
+        code, said = tool(f"{HERE}/trace.py", "subject.png", "named.json", cwd=folder)
+        assert code != 0 and "box.lit" in said and "black" in said, said
+
+
+@case("pen.write takes a palette name, refuses one the palette lacks and refuses background")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/palette.json", "w") as handle:
+            json.dump({"background": "#f4efe4", "coat.lit": "#d1a35c", "sky": "#9fc2e8"}, handle)
+        flat = ("[(10, 10), (40, 10), (40, 40), (10, 40)], stage='fill', tool='flat', "
+                "closed=True, size='s', scale=0.5")
+        for colour, good in (("coat.lit", True), ("orange", True), ("coat.lt", False),
+                             ("background", False)):
+            with open(f"{folder}/draw.py", "w") as handle:
+                handle.write("from pen import stroke, write\n"
+                             f"write('ops.json', [stroke({flat}, color={colour!r})], swatch=True)\n")
+            done = subprocess.run([sys.executable, "draw.py"], cwd=folder, capture_output=True,
+                                  text=True, env={**os.environ, "PYTHONPATH": HERE})
+            said = done.stdout + done.stderr
+            if good:
+                assert done.returncode == 0, (colour, said)
+            else:
+                assert done.returncode != 0, colour
+                assert ("coat.lit, sky" in said) if colour == "coat.lt" else ("ground" in said), said
 
 
 @case("--weights runs without --ref and names each weight by its position")
@@ -1032,6 +1071,55 @@ def _():
         assert code == 0 and max(Image.open(f"{folder}/g.png").size) >= 1000, said
         code, said = tool(f"{HERE}/look.py", "grid", "subject.png", "--box", "80,30", cwd=folder)
         assert code != 0 and "4 comma-separated" in said, said
+
+
+
+def axis_rows(said):
+    """{name: [numbers on its row]} from look.py axis output."""
+    rows = {}
+    for line in said.splitlines():
+        found = re.findall(r"[+-]\d+\.\d", line)
+        if found:
+            key = line.split("  ")[0].strip()
+            rows[key] = [float(value) for value in found]
+    return rows
+
+
+@case("look.py axis gives each segment's angle, up positive, and the angle between pairs across the +-180 seam")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        code, said = tool(f"{HERE}/look.py", "axis",
+                          "--seg", "flat:0,100,100,100/0,100,100,0",      # 0 on the subject, 45 up on the render
+                          "--seg", "down:50,0,50,100/50,0,150,100",       # image y runs down: -90, then -45
+                          "--seg", "left:100,0,0,10/100,0,0,-10",         # just below and just above leftward
+                          "--pair", "flat,down", "--pair", "left,flat", cwd=folder)
+        assert code == 0, said
+        rows = axis_rows(said)
+        assert rows["flat"][:3] == [0.0, 45.0, 45.0], said
+        assert rows["down"][:3] == [-90.0, -45.0, 45.0], said
+        assert abs(rows["left"][0] + 174.3) < 0.1 and abs(rows["left"][1] - 174.3) < 0.1, said
+        assert abs(rows["left"][2] + 11.4) < 0.1, said                    # not +348.6
+        assert rows["flat -> down"][:3] == [-90.0, -90.0, 0.0], said
+        assert abs(rows["left -> flat"][0] - 174.3) < 0.1, said
+
+
+@case("look.py axis measures the subject alone, draws on the images, and refuses what it cannot measure")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        measured(folder)
+        code, said = tool(f"{HERE}/look.py", "axis", "subject.png", "--out", "a.png",
+                          "--seg", "a:0,0,10,10", "--seg", "b:0,0,10,0", cwd=folder)
+        assert code == 0 and "subject only" in said, said
+        assert axis_rows(said)["a -> b"][0] == 45.0, said              # every pair by default
+        assert Image.open(f"{folder}/a.png").size == Image.open(f"{folder}/subject.png").size, said
+        for bad, words in ((["--seg", "a:1,2,3"], "4 comma-separated"),
+                           (["--seg", "1,2,3,4"], "NAME:"),
+                           (["--seg", "a:5,5,5,5"], "same point"),
+                           (["--seg", "a:0,0,1,1", "--pair", "a,z"], "no segment named 'z'"),
+                           (["--seg", "a:0,0,1,1", "--seg", "a:0,0,2,1"], "share a name"),
+                           (["--seg", "a:0,0,1,1", "--out", "x.png"], "give the subject")):
+            code, said = tool(f"{HERE}/look.py", "axis", *bad, cwd=folder)
+            assert code != 0 and words in said, (bad, said)
 
 
 sys.exit(1 if failed else 0)

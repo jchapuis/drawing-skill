@@ -101,6 +101,55 @@ near the shoulder and closing to nothing at the wrist. **Zero ground between
 torso and arm is the mitten failure at figure scale**, diagnosed the way
 `hands-and-feet.md` diagnoses a fist merged with a bar.
 
+## A turned torso, and a look back over the shoulder [read: Bridgman, Goldfinger]
+
+A pose that lives in a turn is carried by a few angles, and the describer
+reads it off a few degrees. With every shape close, a figure that looks back
+over its shoulder can still be read as "torso facing forward, head turned".
+How a turned torso shows on the surface:
+
+- **The shoulder line foreshortens.** Turned away from you, the ribcage shows
+  its near side wide and its far side narrow, so the far half of the shoulder
+  line (pit of the neck to the far acromion) is shorter than the near half. On
+  most turns seen from about shoulder height the far shoulder also sits lower,
+  partly hidden behind the neck, the hair or the near shoulder.
+- **The centre-front line moves toward the far edge**, as the centre line of a
+  turned head does (`head.md` § The schema is a diagnostic): the pit of the neck,
+  the breastbone and a garment's front opening run close to the far contour.
+  A collar drawn symmetric about the neck says the torso faces you.
+- **The neck shows its sternomastoid.** The muscle runs from the knob behind
+  the ear (the mastoid) to the pit of the neck at the top of the breastbone;
+  when the head turns, the one on the side away from the turn stands out as a
+  diagonal cord. Bridgman and Goldfinger both draw it as the line that says the
+  head is turned on the neck rather than the whole figure turning.
+- **The chin comes over the near shoulder.** Turning the head toward a shoulder
+  carries the chin toward it, so in the picture the chin, the pit of the neck
+  and the near half of the shoulder line come close to one line.
+
+**What to measure: the angles that carry "looking back over the shoulder".**
+Type two points each with `look.py axis` (`--seg NAME:subject/render`):
+
+1. **The near half of the shoulder line**, pit of the neck to the near
+   shoulder's top, its angle and its length against the eye spacing.
+2. **The eye line against the shoulder line** (`--pair eyes,shoulder`): the
+   head's turn and tilt against the torso's.
+3. **The sternomastoid**, earlobe to the pit of the neck.
+4. **The chin line**, chin to the pit of the neck, against the near shoulder
+   line (`--pair chin,shoulder`): near 0° when the chin is over the shoulder.
+
+Add the torso's centre-front line (pit of the neck to the waist or a garment's
+front opening) when the turn is large. As an example: on a painted portrait of
+a woman looking back over her shoulder, the subject's chin line lay within 1° of
+the near shoulder line. A drawing with every shape close put the chin line 10°
+above it and drew the near half of the shoulder 1.52 eye spacings long against
+the subject's 1.35, and it was described as facing forward. Its eye line,
+sternomastoid and centre-front line were all within 2°.
+
+**When to measure.** At stage 0, write these angles in `reading.md`, measured on
+the subject. At stage 4 and at the final gate, run `look.py axis` again with the
+render's points after the slash, and match them. A pose clause the describer
+misses is an angle to measure and correct, not a shape to redraw.
+
 ## Where the thigh leaves the pelvis [read: Bridgman]
 
 The pelvis is a **bucket** with a rim, a front, a back and a closed bottom, and
@@ -334,7 +383,8 @@ bent to fit whatever the torso turns out to be.
    any other part. A joint that is not listed cannot be reported missing.
 2. **State the pose as three masses**: the ribcage's tilt, the pelvis's tilt, the
    head against both, as three angles measured separately and written down. Then
-   **the line of action**, one curve, exaggerated. In a cyclist it runs pelvis to
+   **the line of action**, one curve, exaggerated. A turn or a look over the
+   shoulder adds the angles in § A turned torso, measured with `look.py axis`. In a cyclist it runs pelvis to
    crown and is the only long curve in the picture.
 3. **The ribcage and the pelvis as two measured boxes**, with the changeable
    waist between them. Not one bag.

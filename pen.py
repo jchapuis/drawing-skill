@@ -31,6 +31,7 @@ import itertools
 import json
 import math
 import os
+import re
 import sys
 import zlib
 
@@ -620,11 +621,9 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
       cusp. A closed stroke carries no taper, because a loop has no ends, and
       its closing side is built like every other side, so three points render
       a triangle.
-    - `fill="solid"` is a pale tint and `fill="fill"` is saturated, until
-      `--palette` repoints that colour. `repaint()` writes one value into
-      `solid`, `fill`, `semi` and `pattern`, so on a repointed name the two are
-      identical. That holds for the stock palette and not for the palette
-      workflow this skill prescribes.
+    - `color=` is a palette name (see `write`). On a stock name the palette
+      does not repoint, `fill="solid"` is a pale tint and `fill="fill"` is
+      saturated. On any palette name the two are the same colour, its value.
     - A flat is its polygon plus a stroke of that path. `tool="flat"` fills and
       outlines, and with no `size`/`scale` the outline takes tldraw's default,
       roughly 5px each side. On a big flat that is free trapping and invisible.
@@ -820,6 +819,53 @@ def back(stage="fill"):
     return {"op": "back", "stage": stage}
 
 
+# --- colour -------------------------------------------------------------------
+#
+# A palette (palette.json) is any number of named colours, each #rrggbb, with
+# names you choose: `coat.lit`, `roof`, `sky`. `color=` takes one of them. The
+# 13 stock names below are always valid as well: a stage's default look uses
+# them, and an older palette repoints them. `background` is the ground and never
+# a mark's colour.
+
+STOCK = ("black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow",
+         "orange", "green", "light-green", "light-red", "red", "white")
+# no comma or plus: names travel through `--ink a,b`, `--value a,b` and parts.json's
+# `"value": "a+b"`
+_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+_HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
+
+
+def read_palette(path):
+    """palette.json as {name: "#rrggbb"}, in file order. Stops on a name the
+    tools cannot pass through a list, or a value that is not #rrggbb."""
+    with open(path) as handle:
+        palette = json.load(handle)
+    if not isinstance(palette, dict):
+        raise SystemExit(f"palette {path}: want a JSON object of name -> #rrggbb")
+    bad = [f"{name!r}: {value!r}" for name, value in palette.items()
+           if not _NAME.match(name) or not isinstance(value, str) or not _HEX.match(value)]
+    if bad:
+        raise SystemExit(f"palette {path}: {', '.join(bad)} -- a name is letters, digits, '.', '_' "
+                         "or '-' (starting with a letter or digit), and a value is #rrggbb")
+    return palette
+
+
+def unknown_colours(ops, palette):
+    """The failures among the ops' `color=` names: `background`, and any name
+    neither the palette nor the stock set holds."""
+    used = {op["color"] for op in ops if op.get("op") == "stroke" and "color" in op}
+    failures = []
+    if "background" in used:
+        failures.append("color='background': the ground is not a mark colour. Give the "
+                        "paper's colour a name of its own in palette.json")
+    missing = sorted(used - set(palette) - set(STOCK) - {"background"})
+    if missing:
+        names = [name for name in palette if name != "background"]
+        failures.append(f"color={', '.join(map(repr, missing))} not in palette.json. Its names are: "
+                        f"{', '.join(names) or '(none)'}; the 13 stock names also work")
+    return failures
+
+
 STAGES = ("gesture", "blockin", "contour", "ink")
 
 
@@ -990,11 +1036,13 @@ def write(path, ops, swatch=False):
     computed rather than written down (see `provenance`). `swatch=True` skips
     both, for a weight swatch or a calibration strip that is not a drawing.
 
-    There are 13 stock colours, but the palette is mutable: pass
-    `--palette colours.json` to the CLI to repoint any name at a real hex value.
-    `background` is repointable too, but it is the ground, not a fourteenth
-    colour. A mark may not use it, and a drawing that needs to paint in the
-    paper's own colour must spend one of the 13 on it.
+    `color=` takes a name from `palette.json` beside the script, which holds as
+    many named colours as the subject has flats; the CLI's `--palette` renders
+    each at its value. A name the palette does not hold is refused here, with
+    the palette's names. The 13 stock names stay valid (an older palette
+    repoints them). `background` is the ground, not a colour: a mark may not use
+    it, and a drawing that paints in the paper's own colour gives that colour a
+    name of its own.
 
     The ground has a right answer: measure it off the subject. Everything on the
     ground is judged by its contrast with it, so a wrong ground flattens every
@@ -1010,9 +1058,13 @@ def write(path, ops, swatch=False):
     counts, _, failures = audit(flat)
     if failures and not swatch:
         raise SystemExit("stages: " + "; ".join(failures) + f"  (stages on the page: {counts})")
+    main = getattr(sys.modules.get("__main__"), "__file__", None)
+    beside = os.path.dirname(os.path.abspath(main)) if main else None
+    found = os.path.join(beside or ".", "palette.json")
+    wrong = unknown_colours(flat, read_palette(found) if os.path.exists(found) else {})
+    if wrong:
+        raise SystemExit("colour: " + "; ".join(wrong))
     if not swatch:
-        main = getattr(sys.modules.get("__main__"), "__file__", None)
-        beside = os.path.dirname(os.path.abspath(main)) if main else None
         _, generated = provenance(flat, script_source(flat, beside))
         if generated:
             raise SystemExit("authored: " + "; ".join(generated))

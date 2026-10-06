@@ -93,9 +93,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
 
-
-STOCK = ("black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow",
-         "orange", "green", "light-green", "light-red", "red", "white")
+from pen import read_palette
 
 
 def classify(image, palette):
@@ -339,12 +337,12 @@ def main():
     opened = Image.open(args.subject)
     stored = (opened.info or {}).get("offset")
     image = smooth(opened.convert("RGB"), args.smooth)
-    with open(args.palette) as handle:
-        palette = json.load(handle)
-    unknown = [name for name in palette if name not in STOCK and name != "background"]
-    if unknown:
-        raise SystemExit(f"palette: {', '.join(unknown)} is not a stock name, and the canvas "
-                         f"ignores it. The names are: {', '.join(STOCK)}, plus background")
+    palette = read_palette(args.palette)
+    for option, given in (("--ink", args.ink), ("--exclude", args.exclude)):
+        missing = [name for name in given.split(",") if name and name not in palette]
+        if missing:
+            raise SystemExit(f"{option}: {', '.join(missing)} not in {args.palette}. "
+                             f"Its names are: {', '.join(palette)}")
     if args.measure_line:
         names, labels, _ = classify(image, palette)
         ink = np.isin(labels, [names.index(name) for name in args.ink.split(",") if name in names])

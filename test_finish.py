@@ -308,4 +308,124 @@ def _():
             raise AssertionError("--streamline 2 was accepted")
 
 
+# twenty named colours, more than tldraw's 13 stock names, some of them close
+# to one another and to stock hues, so a merge or a stock fallback shows
+PAINTS = {f"part{index}.{step}": value for index, (step, value) in enumerate(
+    [("lit", "#d1a35c"), ("shade", "#8a5a2b"), ("dark", "#3b2614"), ("lit", "#9fc2e8"),
+     ("shade", "#4f7aa8"), ("lit", "#e8e3d0"), ("shade", "#b7ae92"), ("lit", "#6f9e4a"),
+     ("shade", "#3d5e27"), ("dark", "#1e2e14"), ("lit", "#e05a47"), ("shade", "#9c2f22"),
+     ("lit", "#f2d14b"), ("shade", "#b8952a"), ("lit", "#c9a3d9"), ("shade", "#7d5b8c"),
+     ("lit", "#7fd1c4"), ("shade", "#3f8c80"), ("lit", "#ff9cb0"), ("shade", "#d1d3d6")])}
+SQUARE = 24
+
+
+def frame_mark(width, height):
+    return mark("frame", [[x, 0] for x in range(0, width, 10)] + [[width, y] for y in range(0, height, 10)]
+                + [[x, height] for x in range(width, 0, -10)] + [[0, y] for y in range(height, 0, -10)],
+                closed=True, color="grey", size="s", opacity=0.03, dash="solid")
+
+
+def squares(names):
+    """One flat per name, five to a row, each SQUARE units with a gap."""
+    ops = [frame_mark(200, 160)]
+    for at, name in enumerate(names):
+        x, y = 10 + (at % 5) * 38, 10 + (at // 5) * 38
+        ops.append(mark("fill", [[x, y], [x + SQUARE, y], [x + SQUARE, y + SQUARE], [x, y + SQUARE]],
+                        closed=True, fill="fill", color=name, size="s", dash="solid"))
+    return ops
+
+
+def near(found, want):
+    """Two #rrggbb within one level per channel: the export's colour
+    conversion rounds a few values by one, stock names and paints alike."""
+    return max(abs(int(found[at:at + 2], 16) - int(want[at:at + 2], 16)) for at in (1, 3, 5)) <= 1
+
+
+def probe(image, at, width=200):
+    """The render's colour at the middle of square `at`, as #rrggbb."""
+    ratio = image.shape[1] / width
+    x, y = 10 + (at % 5) * 38 + SQUARE / 2, 10 + (at // 5) * 38 + SQUARE / 2
+    pixel = np.round(image[int(y * ratio), int(x * ratio)] * 255).astype(int)
+    return "#" + "".join(f"{value:02x}" for value in pixel)
+
+
+@case("--palette with twenty named colours renders each name at its own value, saved editable")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/palette.json", "w") as handle:
+            json.dump({"background": "#f4efe4", **PAINTS}, handle)
+        names = list(PAINTS)
+        for flags in ((), ("--streamline", "0.3")):
+            image = harness(folder, squares(names), "--palette", f"{folder}/palette.json", *flags)
+            got = {name: probe(image, at) for at, name in enumerate(names)}
+            wrong = {name: (got[name], PAINTS[name]) for name in names if not near(got[name], PAINTS[name])}
+            assert not wrong, (flags, wrong)
+        # the document keeps a stock colour in the shape (plain tldraw opens it)
+        # and the paint's name and value in its meta
+        doc = json.load(open(f"{folder}/doc.json"))
+        shapes = [record for record in doc["document"]["store"].values()
+                  if record.get("typeName") == "shape" and record["meta"].get("stage") == "fill"]
+        stock = {"black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow",
+                 "orange", "green", "light-green", "light-red", "red", "white"}
+        assert len(shapes) == 20 and all(shape["props"]["color"] in stock for shape in shapes)
+        assert {shape["meta"]["paint"]: shape["meta"]["hex"] for shape in shapes} == PAINTS
+        # --stock keeps the stock ground but still resolves the paints
+        plain = harness(folder, squares(names[:1]), "--palette", f"{folder}/palette.json", "--stock")
+        assert near(probe(plain, 0), PAINTS[names[0]]), probe(plain, 0)
+        assert "#" + "".join(f"{round(v * 255):02x}" for v in plain[2, -3]) != "#f4efe4"
+
+
+@case("a color= the palette does not name is refused with the palette's names; so is background")
+def _():
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/palette.json", "w") as handle:
+            json.dump({"background": "#f4efe4", "coat.lit": "#d1a35c", "roof": "#8a5a2b"}, handle)
+        for name, said in (("coat.lt", "coat.lit, roof"), ("background", "ground")):
+            try:
+                harness(folder, squares([name]), "--palette", f"{folder}/palette.json")
+            except AssertionError as error:
+                assert said in str(error), str(error)
+            else:
+                raise AssertionError(f"color={name!r} was rendered")
+        # with no palette at all, a paint has no value and is refused too
+        try:
+            harness(folder, squares(["coat.lit"]))
+        except AssertionError as error:
+            assert "not in the palette" in str(error), str(error)
+        else:
+            raise AssertionError("a paint rendered with no --palette")
+        # a palette whose name or value the tools cannot read is refused up front
+        with open(f"{folder}/bad.json", "w") as handle:
+            json.dump({"coat,lit": "#d1a35c", "roof": "brown"}, handle)
+        try:
+            harness(folder, squares(["roof"]), "--palette", f"{folder}/bad.json")
+        except AssertionError as error:
+            assert "coat,lit" in str(error) and "roof" in str(error), str(error)
+        else:
+            raise AssertionError("a malformed palette was accepted")
+        # and a known name renders, so the refusals above are about the name
+        harness(folder, squares(["roof"]), "--palette", f"{folder}/palette.json")
+
+
+@case("an old palette of the 13 stock names still repoints them, and leaves the rest stock")
+def _():
+    stock = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow",
+             "orange", "green", "light-green", "light-red", "red", "white"]
+    old = {"background": "#f3efe6", **{name: value for name, value in
+                                       zip(stock[:12], list(PAINTS.values())[:12])}}
+    with tempfile.TemporaryDirectory() as folder:
+        with open(f"{folder}/palette.json", "w") as handle:
+            json.dump(old, handle)
+        image = harness(folder, squares(stock), "--palette", f"{folder}/palette.json")
+        for at, name in enumerate(stock[:12]):
+            assert near(probe(image, at), old[name]), (name, probe(image, at), old[name])
+        # white is not in this palette: it keeps tldraw's own hue, as before
+        bare = harness(folder, squares(stock))
+        assert probe(image, 12) == probe(bare, 12), (probe(image, 12), probe(bare, 12))
+        assert not near(probe(bare, 7), old["orange"])
+        # --stock leaves an old palette's stock names alone, as no palette did
+        assert np.array_equal(harness(folder, squares(stock), "--palette", f"{folder}/palette.json",
+                                      "--stock"), bare)
+
+
 sys.exit(1 if failed else 0)

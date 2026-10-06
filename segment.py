@@ -79,6 +79,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy import ndimage
 
+from pen import read_palette
 from trace import corner, move, region_entry
 
 WORKING_SIDE = 900
@@ -555,8 +556,7 @@ def main():
     regions = entries(ids, crop, 1)
     regions = move(regions, dx=box[0], dy=box[1])
     if args.palette:
-        with open(args.palette) as handle:
-            name_colours(regions, json.load(handle))
+        name_colours(regions, read_palette(args.palette))
     if args.png:
         sheet(crop, ids, regions, origin=(box[0], box[1])).save(args.png)
     if offset:

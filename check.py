@@ -29,6 +29,8 @@ from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage
 from scipy.spatial import cKDTree
 
+from pen import read_palette
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # a 4x working image is past PIL's decompression-bomb limit, and so is what
@@ -821,12 +823,12 @@ def palette_value(names_csv):
     """(palette colours, indices wanted) for --value, or None when not given."""
     if not names_csv:
         return None
-    with open("palette.json") as handle:
-        palette = json.load(handle)
+    palette = read_palette("palette.json")
     names = list(palette)
     unknown = [name for name in names_csv.split(",") if name not in names]
     if unknown:
-        sys.exit(f"--value: {', '.join(unknown)} is not in palette.json")
+        sys.exit(f"--value: {', '.join(unknown)} is not in palette.json. Its names are: "
+                 f"{', '.join(names)}")
     return (np.array([[int(palette[name][at:at + 2], 16) for at in (1, 3, 5)]
                       for name in names], dtype=float),
             [names.index(name) for name in names_csv.split(",")])
@@ -1942,8 +1944,7 @@ def count_forms(drawing, subject, inventory_path, palette_path, min_area):
     palette names its forms carry. Each box is classified to the palette on both
     images and the connected forms of those values are counted."""
     raw = load_parts(inventory_path)
-    with open(palette_path) as handle:
-        palette = json.load(handle)
+    palette = read_palette(palette_path)
     # the ground is classified too but never counted. If it were left out, it
     # would go to the nearest real name and a field of ground would count as one
     # of the forms
@@ -1961,8 +1962,13 @@ def count_forms(drawing, subject, inventory_path, palette_path, min_area):
         if not isinstance(entry, dict) or "count" not in entry:
             continue
         x, y, width, height = (int(round(value)) for value in entry["box"])
-        wanted = [names.index(name) for name in str(entry.get("value", "black")).split("+")
-                  if name in names and name != "background"]
+        given = str(entry.get("value", "black")).split("+")
+        missing = [name for name in given if name not in names or name == "background"]
+        if missing:
+            sys.exit(f"--counts: {key}'s value names {', '.join(missing)}, which is not a colour "
+                     f"in {palette_path}. Its names are: "
+                     f"{', '.join(name for name in names if name != 'background')}")
+        wanted = [names.index(name) for name in given]
         found = []
         for image in (subject, drawing):
             pixels = np.asarray(image.crop((x, y, x + width, y + height)), dtype=float)

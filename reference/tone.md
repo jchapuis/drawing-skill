@@ -55,24 +55,25 @@ Tone accumulates only where the instrument is translucent. With an opaque one
 you are not shading. You are drawing a shape whose colour happens to be grey, and
 a shape needs an outline, which brings back the stripe failure.
 
-## Value count is a hard constraint: thirteen
+## Choose the value steps before the first mark
 
-The palette has thirteen slots, and the ground is not one of them. On a subject
-with real continuous tone they run out fast. When they do, **the missing step
-becomes a spacing problem**. With no slot between a surface's own value and its
-highlight, the only way left to make a gradient is to change how densely the
-marks sit. That works, but badly: the falloff comes out shallower than the
-subject's.
+The palette holds as many named colours as you give it, so no step has to be
+merged away. But every step is a flat with an edge, and an opaque flat cannot
+blend into its neighbour. **A step left out becomes a spacing problem**: with no
+flat between a surface's own value and its highlight, the only way left to make
+a gradient is to change how densely the marks sit. That works, but badly: the
+falloff comes out shallower than the subject's. A step added that the subject
+does not have is a band no one can explain.
 
-So spend the slots deliberately, before the first mark:
+So decide the steps deliberately, before the first mark:
 
 1. Count the distinct values the *subject* needs. Squint at it. The count is
-   smaller than it looks, usually five or six.
-2. Give the **shadow family** at least two slots and the **light family** at
+   smaller than it looks, usually five or six per object.
+2. Give the **shadow family** at least two steps and the **light family** at
    least two. With one each, the picture goes flat when squinted.
-3. Reserve one slot for the **accent**: the single saturated or extreme value the
+3. Keep one step for the **accent**: the single saturated or extreme value the
    picture turns on, used on one small area that carries the action.
-4. Whatever is left goes to the transitions you cannot make by spacing.
+4. Add the transitions you cannot make by spacing, each as its own name.
 
 ## Texture cannot be cut into a path
 

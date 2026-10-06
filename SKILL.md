@@ -332,7 +332,8 @@ stage after the one you changed. The script re-renders in one call, which makes
 that cheap.
 
 `build.sh` draws `gesture.png` and `blockin.png` in stock stage colours on a
-stock ground, to check the action and the placement. The ground is judged on
+stock ground (`--palette palette.json --stock`), to check the action and the
+placement. The ground is judged on
 `contour.png` and `drawing.png`, which use the palette. `drawing.png` never
 shows gesture, construction, block-in or contour, so nothing needs erasing.
 
@@ -411,11 +412,13 @@ and after the last.
 ## Stage 0
 
 1. **Palette.** Sample every flat and the ground off the subject into
-   `palette.json`. Use the 13 stock names (`black grey light-violet violet blue
-   light-blue yellow orange green light-green light-red red white`) plus
-   `background`, which is the ground and not a fourteenth colour. A mark may not
-   use `background`, so where the ground shows through a hole in a form, spend a
-   name on the ground's colour. Write down where each colour was sampled. Then
+   `palette.json`: one entry per flat, as many as the subject has, each a name
+   you choose and a `#rrggbb` value (`"coat.lit": "#c8934a"`, `"roof"`,
+   `"sky"`; letters, digits, `.`, `_` and `-`), plus `background`, the ground.
+   Name a flat for what it is, so `color=` says which colour it paints. A mark
+   may not use `background`, so where the ground shows through a hole in a
+   form, give the ground's colour a name of its own. Write down where each
+   colour was sampled. Then
    trace and read the unmatched-colour line that `trace.py` prints: a flat the
    palette lacks comes back as a clumped patch of pixels far from every entry.
 
@@ -449,22 +452,15 @@ and after the last.
      interest.
    - Ramp classified as a real name comes back as long thin regions hugging the
      ink, with a `median` far from their entry. That is not a missing flat.
-   - A subject with more than 13 flats merges the two closest now, in writing,
-     not partway through the drawing.
-   - A repurposed name no longer says its colour (`light-blue` holding a shaded
-     plaster), so it is easy to type the wrong one. Name each use once at the
-     top of `draw.py` (`PLASTER_SHADE = "light-blue"`, `BRANCH = "light-violet"`)
-     and write marks with those names. After the first full render, probe one
-     point on each object in subject and drawing (`look.py probe`, § Reading
-     coordinates): a bare tree drawn in a pale blue-grey name next to a warm grey
-     subject shows there as hue 215 against 39.
    - A nested part may discover a flat the full picture could not resolve: a
      tooth, a tongue, anything smaller than the picture's own sampling. That is
-     not a stage 0 failure and it cannot be prevented there. Either repoint a
-     stock name whose own flat is expendable (the one covering least of the
-     picture, furthest from the centre of interest), or, when every name is a
-     real flat, draw the unmatched colour from measured extents in the nearest
-     name's colour. Record either choice in `reading.md` beside the palette.
+     not a stage 0 failure and it cannot be prevented there. Sample it and add
+     a name; record it in `reading.md` beside the palette.
+   - An older `palette.json` uses tldraw's 13 stock names (`black grey
+     light-violet violet blue light-blue yellow orange green light-green
+     light-red red white`) repointed to the subject's values. It still renders
+     unchanged. A new palette uses names of its own: a stock name says a hue
+     the flat does not have, and is easy to type for the wrong flat.
 2. **Trace.** Choose the tool by the subject. Both write `regions.json` in the
    same form, and both read the corner `crop.py` stores in a crop.
    - **A flat-cel or printed subject** (flats and ink):
@@ -496,6 +492,10 @@ and after the last.
    - what the picture is, in one sentence;
    - the big shape as one or two forms;
    - the line of action;
+   - when the action lives in a turn or a tilt (a look over the shoulder, a
+     head thrown back), the 3–4 angles that carry it, measured with `look.py
+     axis` (`reference/figure.md`, `head.md`, `bird.md`), and checked again at
+     stage 4 and at the final gate;
    - how this subject differs from the typical one, measured, because that
      difference is the likeness;
    - the light source, fixed now;
@@ -661,8 +661,8 @@ ops.append(stroke(P("hip", "knee", "ankle"), stage="blockin", smooth=False))
 ops.append(stroke(P("hip", "knee"), stage="ink", nib="medium", tag="figure.leg.near.thigh"))
 ops.append(stroke(P("knee", "ankle"), stage="ink", nib="medium", tag="figure.leg.near.shin"))
 ops.append(stroke([(430, 600), (470, 598), (468, 880), (440, 882)], stage="fill", tool="flat",
-                  closed=True, color="blue", size="s", scale=0.5, tag="figure.leg.near"))
-write("ops.json", ops)   # color= takes a palette name; --palette repoints it to the subject's hex
+                  closed=True, color="leg.shade", size="s", scale=0.5, tag="figure.leg.near"))
+write("ops.json", ops)   # color= takes a palette.json name; a name it lacks is refused
 ```
 
 - **Only `tool="flat"` fills.** Every other tool (`brush`, `pen`, `marker`,

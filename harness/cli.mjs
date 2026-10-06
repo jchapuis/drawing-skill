@@ -45,12 +45,20 @@
  *         a margin of bare paper the drawing never reaches. Use it with
  *         pen.frame() whenever working from a reference, so every render shares
  *         the subject's coordinate space and overlay is exact.
- * --palette  repoints any of the 13 stock colour names at a real hex value:
- *         black grey light-violet violet blue light-blue yellow orange green
- *         light-green light-red red white. Any other name is refused.
- *         `background` is repointable too, but it is the ground, not a
- *         fourteenth colour: a mark may not use it. Measure it off the subject.
- *         See pen.write's docstring for what a wrong ground costs.
+ * --palette  names the drawing's colours: a JSON object of name -> #rrggbb.
+ *         A name is the agent's own (`coat.lit`, `roof`, `sky`: letters,
+ *         digits, `.`, `_`, `-`), as many as the subject has flats, and a
+ *         mark's color= takes it. A color= the palette does not name is
+ *         refused, with the palette's names. The 13 stock names (black grey
+ *         light-violet violet blue light-blue yellow orange green light-green
+ *         light-red red white) are always valid: a palette may repoint them
+ *         (the older form, still read unchanged) and a stage look uses them.
+ *         `background` is the ground, not a colour: a mark may not use it.
+ *         Measure it off the subject. See pen.write's docstring for what a
+ *         wrong ground costs.
+ * --stock  with --palette: keep the stock colours and the stock ground, and
+ *         take only the palette's own names. For the stage looks, which an
+ *         older palette's repointed stock names would recolour.
  *
  * Two flags are for the finished look (finish.py), never for a gate render:
  *
@@ -68,8 +76,6 @@ import { extname, join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 
-const STOCK = ['black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow',
-  'orange', 'green', 'light-green', 'light-red', 'red', 'white']
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DIST = join(HERE, 'dist')
 
@@ -80,6 +86,26 @@ const TYPES = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.woff2': 'font/woff2',
+}
+
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const HEX = /^#[0-9a-fA-F]{6}$/
+
+// A palette is any number of named colours. A name that cannot pass through
+// the tools' comma and plus lists, or a value that is not #rrggbb, is refused
+// here rather than misread later
+function checkPalette(palette, path) {
+  if (palette === null || typeof palette !== 'object' || Array.isArray(palette)) {
+    throw new Error(`palette ${path}: want a JSON object of name -> #rrggbb`)
+  }
+  const bad = Object.entries(palette)
+    .filter(([name, value]) => !NAME.test(name) || typeof value !== 'string' || !HEX.test(value))
+    .map(([name, value]) => `${JSON.stringify(name)}: ${JSON.stringify(value)}`)
+  if (bad.length) {
+    throw new Error(`palette ${path}: ${bad.join(', ')} -- a name is letters, digits, '.', '_' ` +
+      `or '-' (starting with a letter or digit), and a value is #rrggbb`)
+  }
+  return palette
 }
 
 function serve() {
@@ -135,7 +161,7 @@ async function main() {
     console.error(
       'usage: node cli.mjs <doc.json> [--ops ops.json] [--png out.png]\n' +
       '                    [--scale N] [--flip] [--squint PX] [--crop x,y,w,h]\n' +
-      '                    [--palette colours.json] [--padding N]\n' +
+      '                    [--palette colours.json [--stock]] [--padding N]\n' +
       '                    [--hide stage]...  (repeatable, or one comma list)\n' +
       '                    [--only stage]...  keep ONLY these stages (a study)\n' +
       '                    [--offset STAGE:dx,dy]...  [--streamline X]'
@@ -178,13 +204,13 @@ async function main() {
 
     const palettePath = flag('palette')
     if (palettePath) {
-      const palette = JSON.parse(await readFile(palettePath, 'utf8'))
-      // a misspelt name was silently ignored and its flats kept tldraw's stock hue
-      const unknown = Object.keys(palette).filter((name) => name !== 'background' && !STOCK.includes(name))
-      if (unknown.length) {
-        throw new Error(`palette: ${unknown.join(', ')} not a stock name; the 13 are ${STOCK.join(', ')}, plus background`)
-      }
-      await page.evaluate((colours) => window.canvas.repaint(colours), palette)
+      const palette = checkPalette(JSON.parse(await readFile(palettePath, 'utf8')), palettePath)
+      await page.evaluate(
+        ({ colours, stock }) => window.canvas.repaint(colours, stock),
+        { colours: palette, stock: process.argv.includes('--stock') }
+      )
+    } else if (process.argv.includes('--stock')) {
+      throw new Error('--stock qualifies --palette, and no --palette was given')
     }
 
     if (existsSync(docPath)) {
