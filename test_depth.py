@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """The depth gate, checked in both directions.
 
-A gate nobody has seen fail is not a gate. Three of the checks here have at
-some point reported clean over a drawing that was wrong, so this one is held
-against a document known to be correct and one known to be broken, and has to
-tell them apart.
+A gate that has never been seen to fail cannot be trusted. Each check here
+could report clean over a wrong drawing, so this one is run against a document
+known to be correct and one known to be broken, and has to tell them apart.
 
     python3 test_depth.py
 """
 import sys
 
-from check import depth
+from check import backwards_keys, depth
 
 INVENTORY = {
     "a/b": {"in_front": "b"},   # b is in front, so a's ink must precede b's fill
@@ -66,9 +65,24 @@ def main():
     hits, unresolved, _ = depth(ops, nut)
     assert not hits and not unresolved, (hits, unresolved)
 
+    # a key written near/far (in_front names its first half) is reported, not passed
+    assert backwards_keys({"foot.near/rock": {"in_front": "foot.near"},
+                           "rock/foot.far": {"in_front": "foot.far"}}) == ["foot.near/rock"]
+
+    # two sub-forms of one surface: "same" decides the row with no order, either way round
+    one = {"dog.chest/dog.ruff": {"in_front": "same"}}
+    for order in (["dog.chest", "dog.ruff"], ["dog.ruff", "dog.chest"]):
+        ops = [mark(stage, tag) for tag in order for stage in ("fill", "ink")]
+        hits, unresolved, rows = depth(ops, one)
+        assert rows == 1 and not hits and not unresolved, (hits, unresolved)
+    # ... and it is still UNRESOLVED when a side is not on the page
+    hits, unresolved, _ = depth([mark("fill", "dog.chest"), mark("ink", "dog.chest")], one)
+    assert [row[0] for row in unresolved] == ["dog.chest/dog.ruff"], unresolved
+
     print("depth: right order passes, stage-major order fails, "
           "an unnamed pair is UNRESOLVED, tags resolve through '+' and '.', "
-          "ink-only near forms and S2 flats are ordered, a sub-form's own row wins")
+          "ink-only near forms and S2 flats are ordered, a sub-form's own row wins, "
+          "a near/far key is reported, an in_front \"same\" row needs no order")
 
 
 if __name__ == "__main__":

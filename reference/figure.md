@@ -1,10 +1,10 @@
 # The figure as masses
 
-A figure is usually the largest object in a panel and reliably the worst-drawn.
-It also has more gates pointed at it than anything else — an inventory, a form
-ratio, a describer, a zoom — and all of them will pass a figure with no shoulder
-and no hip. That is the shape of the problem: **a figure fails in the joints
-between its parts, and every check in the kit measures parts.**
+A figure is usually the largest object in the picture and the one most often
+drawn badly. Many checks are pointed at it (an inventory, a form ratio, a
+describer, a zoom), and all of them will pass a figure with no shoulder and no
+hip. A figure fails in the joints between its parts, and every check measures
+parts.
 
 ## The seven ways a drawn figure fails
 
@@ -14,96 +14,143 @@ it, because none of them is visible at 1:1.
 
 | The fault | The measurement that finds it |
 |---|---|
-| **The body encloses no space.** Where a limb hangs forward off the shoulder the subject runs a wedge of ground between the garment's dark and the limb's pale | Sight that gap on ten rows. A subject holds it for hundreds of px in total; the drawing routinely leaves **zero on every row**, its dark running unbroken across the whole torso |
-| **The garment over the hips is a kidney** — no buttock corner, no seat contact, no leg opening, one smooth boundary top and bottom | Its forward edge overshoots by a large fraction of the torso's width, which is exactly what closes the window above. Measure the forward edge against the subject's on the same row |
-| **The arm has no elbow** — one tube, shoulder to hand | Trace the back contour: a subject holds near-vertical, then **breaks 20–30 px sideways within 30 rows**, a 40° corner. A drawing without an elbow drifts a few px over the whole run and never breaks |
-| **A third pale limb** — an unaccounted contour splitting one arm lengthwise into two thin ones | Count skin runs across the arm on a dozen rows. Three where the subject holds two. A subject's interior arm mark is narrow, on two rows, and **dies out** |
-| **The legs are straws** — no calf, no ankle | Sight the shin at the calf and at the ankle. A drawn leg of constant width against a subject that swells by half at the calf and narrows again at the ankle |
+| **The body encloses no space.** Where a limb hangs forward off the shoulder, the subject shows a wedge of ground between the garment's dark and the limb's pale | Sight that gap on ten rows. A subject holds it for hundreds of px in total; a drawing with this fault routinely leaves **zero on every row**, its dark running unbroken across the whole torso |
+| **The garment over the hips is a kidney**: no buttock corner, no seat contact, no leg opening, one smooth boundary top and bottom | Its forward edge overshoots the subject's by a large fraction of the torso's width, which also closes the gap in the row above. Measure the forward edge against the subject's on the same row |
+| **The arm has no elbow**: one tube, shoulder to hand | Trace the back contour. A subject holds near-vertical, then **breaks 20-30 px sideways within 30 rows**, about a 40° corner. A drawing without an elbow drifts a few px over the whole run and never breaks |
+| **A third pale limb**: an unaccounted contour splitting one arm lengthwise into two thin ones | Count skin runs across the arm on a dozen rows. Three where the subject holds two. A subject's interior arm mark is narrow, on two rows, and **dies out** |
+| **The legs are straws**: no calf, no ankle | Sight the shin at the calf and at the ankle. A drawn leg of constant width, against a subject that swells by half at the calf and narrows again at the ankle |
 | **One sleeve chord for two arms** | A subject's two hems sit at *different heights*, because the two arms are at different depths. A single straight ink across both flattens them onto one plane |
-| **A limb ending in no extremity at all**, and a folded forearm that is a constant-width slab with a squared end | See `hands-and-feet.md`. A wrist-worn object drawn as a disc laid on top rather than a band running round the wrist is the same fault one scale down |
+| **A limb ending in no extremity at all**, and a folded forearm that is a constant-width slab with a squared end | See `hands-and-feet.md`. A wrist-worn object drawn as a disc laid on top, rather than a band running round the wrist, is the same fault one scale down |
 
-**The envelope will be right the whole time.** A garment's bounding box can agree
-with the subject's to within two pixels on a shape with no shoulder in it, and a
-parts check will report a median form ratio near 1.0 with nothing MISSING across
-eighty boxes. It cannot do otherwise: **no box owns a joint.** An inventory with
-no shoulder, hip, elbow or knee — and often **no upper arm at all**, because one
-230 px box runs from sleeve to hand — cannot report any of them missing.
+**The envelope can be right while the figure is wrong.** A garment's bounding box
+can agree with the subject's to within two pixels on a shape with no shoulder in
+it, and a parts check will report a median form ratio near 1.0 with nothing
+missing. It cannot do otherwise: no box owns a joint. An inventory with no
+shoulder, hip, elbow or knee, and often no upper arm at all (because one box runs
+from sleeve to hand), cannot report any of them missing.
 
-So the rule is about the list, not the marks: **a finer inventory is not a better
-one; more joints is.** Splitting surfaces further while dropping `upper arm` and
-`elbow` from the list makes the drawing worse, and the parts check will not say
-so.
+So improve the list, not the marks: a finer inventory is not a better one, but
+one with more joints is. Splitting surfaces further while dropping `upper arm`
+and `elbow` from the list makes the drawing worse, and the parts check will not
+say so.
 
 ## The schema is a diagnostic, never a scaffold
 
-Everything below is knowledge about the **average** figure, and the average
-figure is not the one in front of you. **Do not build on it.** Build on landmarks
-measured off the subject, and use what follows only afterwards, to ask why your
-measured figure differs and whether the difference is the pose, the person, the
-clothing — or a mistake.
+Everything below describes the **average** figure, and the average figure is not
+the one in front of you. **Do not build on it.** Build on landmarks measured off
+the subject. Use what follows afterwards, to ask why your measured figure
+differs and whether the difference is the pose, the person, the clothing or a
+mistake.
 
-It bites hardest here because the figure canon is *arithmetic*. A ball or a fold
-at least has to be drawn; "eight heads, crotch at the halfway point, elbow on the
-navel" can be satisfied with a ruler, and a figure that satisfies every one of
-those numbers can still be nobody. Loomis, who wrote the canon a drawer would
-reach for, says so inside the book that contains it:
+This matters most for the figure because the figure canon is arithmetic. A ball
+or a fold has to be drawn, but "eight heads, crotch at the halfway point, elbow
+on the navel" can be satisfied with a ruler, and a figure that satisfies every
+one of those numbers can still be nobody. Loomis, who wrote the canon most
+artists reach for, says so in the book that contains it:
 
 > *"If you are accustomed to measuring off so many heads, you must discard the
 > method in drawing the reclining figure… **Measurements are not standard and
-> apply only to the subject before you.**"* — and, of his own block forms,
+> apply only to the subject before you.**"* And, of his own block forms,
 > *"Never fit a box around anything that is an interpretation of life."*
 
 If a passage below could be followed with the subject covered up, you are using
-it wrongly. **Provenance is marked throughout**: *bought* means one of our
-drawings paid for the claim and the measurement is named; *read* means it comes
-from the literature, is named to its source, and **has never been tested here.**
+it wrongly. `[read: source]` marks a claim taken from the named book or paper: it comes from the literature and has not yet been tested here. Rules without the tag come from measured failures.
 
 ## Three masses and a spine [read: Bridgman, Loomis]
 
-Only three parts of the body are rigid — the **head**, the **ribcage**, the
-**pelvis** — so the pose *is* the three relations between them, and it is stated
-by measuring three angles, not by drawing one outline. The bend of a hunched
-figure is spent in one short place between ribcage and pelvis, not spread evenly
-as a curve. Two masses of differing proportion **wedge into each other**; they do
-not abut.
+Only three parts of the body are rigid: the **head**, the **ribcage** and the
+**pelvis**. The pose is the three relations between them, so state it by
+measuring three angles, not by drawing one outline. The bend of a hunched figure
+happens in one short place between ribcage and pelvis, not spread evenly as a
+curve. Two masses of differing proportion **wedge into each other**; they do not
+abut.
 
 **What to measure.** The ribcage's long axis and the pelvis's long axis, as two
-angles, separately, off the subject — then their difference. If you cannot name
+angles, separately, off the subject, then their difference. If you cannot name
 two different angles you have not looked at two masses, and what you draw next
 will be one bag.
 
-## The shoulder girdle rides on the ribcage [read: Bridgman, Goldfinger] [bought]
+## The shoulder girdle rides on the ribcage [read: Bridgman, Goldfinger]
 
-"No shoulder" is not a missing bump on an outline. It is two structures merged
-that are not attached to each other.
+A missing shoulder is more than a missing bump on an outline. The shoulder and
+the ribcage are two structures that are not attached to each other, and the
+drawing has merged them.
 
 - **The arm's only bony connection to the trunk is the collarbone.** Bridgman:
   the clavicle *"expresses an important spring function, it being the only bony
   union of arm and shoulder with the trunk."* Blade, shoulder mass and arm are
   slung in muscle against the **outside** of the ribcage and slide on it.
 - **The scapula is a plate on a barrel**, *"a flat plaque of bone fitting snugly
-  against the cage of the thorax"*, its outer corner the **acromion** — the hard
-  point you can feel at the top of a shoulder, and Goldfinger's *Human Anatomy
-  for Artists* is where to look up how these read on the surface. The arm hangs
-  from that point, above and outside the ribcage, never from the ribcage's own
-  silhouette.
-- **The deltoid is a wedge, not a curve** — a block *"with its long diameter
+  against the cage of the thorax"*, its outer corner the **acromion**, the hard
+  point you can feel at the top of a shoulder. Goldfinger's *Human Anatomy for
+  Artists* shows how these read on the surface. The arm hangs from that point,
+  above and outside the ribcage, never from the ribcage's own silhouette.
+- **The deltoid is a wedge, not a curve**: a block *"with its long diameter
   sloping down and out, beveled off at the end"*, which *"lies diagonally across
   and overlaps the mass of the arm"*, its *"apex sink[ing] into the outer groove
-  of the arm half way down."* A cap over the arm pointing down it, which is why a
+  of the arm half way down."* It is more than a cap over the arm, which is why a
   shoulder reads as a **corner** and a sleeve has to turn one too.
 - `quadruped.md` says the opposite for the same reason: a cow has **no**
   clavicle, so its front end hangs between two blades with no strut across and
   its shoulders are narrow. The clavicle is what pushes a human's out wide.
 
 **What to measure.** Where the arm's silhouette *departs* from the torso's, and
-the ground between them — as a negative shape, per `measuring.md`, since you hold
-no preconception about the shape of a gap. Here it is a tapering wedge 75 px at
-its widest, closing to nothing at the wrist. **Zero ground between torso and arm
-is the mitten failure at figure scale**, diagnosed exactly as `hands-and-feet.md`
-diagnoses a fist welded to a bar.
+the ground between them, as a negative shape (see `measuring.md`), since you hold
+no preconception about the shape of a gap. It is usually a tapering wedge, widest
+near the shoulder and closing to nothing at the wrist. **Zero ground between
+torso and arm is the mitten failure at figure scale**, diagnosed the way
+`hands-and-feet.md` diagnoses a fist merged with a bar.
 
-## Where the thigh actually leaves the pelvis [read: Bridgman] [bought]
+## A turned torso, and a look back over the shoulder [read: Bridgman, Goldfinger]
+
+A pose that lives in a turn is carried by a few angles, and the describer
+reads it off a few degrees. With every shape close, a figure that looks back
+over its shoulder can still be read as "torso facing forward, head turned".
+How a turned torso shows on the surface:
+
+- **The shoulder line foreshortens.** Turned away from you, the ribcage shows
+  its near side wide and its far side narrow, so the far half of the shoulder
+  line (pit of the neck to the far acromion) is shorter than the near half. On
+  most turns seen from about shoulder height the far shoulder also sits lower,
+  partly hidden behind the neck, the hair or the near shoulder.
+- **The centre-front line moves toward the far edge**, as the centre line of a
+  turned head does (`head.md` § The schema is a diagnostic): the pit of the neck,
+  the breastbone and a garment's front opening run close to the far contour.
+  A collar drawn symmetric about the neck says the torso faces you.
+- **The neck shows its sternomastoid.** The muscle runs from the knob behind
+  the ear (the mastoid) to the pit of the neck at the top of the breastbone;
+  when the head turns, the one on the side away from the turn stands out as a
+  diagonal cord. Bridgman and Goldfinger both draw it as the line that says the
+  head is turned on the neck rather than the whole figure turning.
+- **The chin comes over the near shoulder.** Turning the head toward a shoulder
+  carries the chin toward it, so in the picture the chin, the pit of the neck
+  and the near half of the shoulder line come close to one line.
+
+**What to measure: the angles that carry "looking back over the shoulder".**
+Type two points each with `look.py axis` (`--seg NAME:subject/render`):
+
+1. **The near half of the shoulder line**, pit of the neck to the near
+   shoulder's top, its angle and its length against the eye spacing.
+2. **The eye line against the shoulder line** (`--pair eyes,shoulder`): the
+   head's turn and tilt against the torso's.
+3. **The sternomastoid**, earlobe to the pit of the neck.
+4. **The chin line**, chin to the pit of the neck, against the near shoulder
+   line (`--pair chin,shoulder`): near 0° when the chin is over the shoulder.
+
+Add the torso's centre-front line (pit of the neck to the waist or a garment's
+front opening) when the turn is large. As an example: on a painted portrait of
+a woman looking back over her shoulder, the subject's chin line lay within 1° of
+the near shoulder line. A drawing with every shape close put the chin line 10°
+above it and drew the near half of the shoulder 1.52 eye spacings long against
+the subject's 1.35, and it was described as facing forward. Its eye line,
+sternomastoid and centre-front line were all within 2°.
+
+**When to measure.** At stage 0, write these angles in `reading.md`, measured on
+the subject. At stage 4 and at the final gate, run `look.py axis` again with the
+render's points after the slash, and match them. A pose clause the describer
+misses is an angle to measure and correct, not a shape to redraw.
+
+## Where the thigh leaves the pelvis [read: Bridgman]
 
 The pelvis is a **bucket** with a rim, a front, a back and a closed bottom, and
 in a seated figure it is the only mass carrying weight. The leg does not leave
@@ -115,155 +162,155 @@ the bottom of it:
 > under the hip socket."*
 
 The thigh leaves the **side**, swings out past the widest point and comes back
-in; the surface landmark is the **great trochanter**, *"the upper tip of the
+in. The surface landmark is the **great trochanter**, *"the upper tip of the
 shaft which reaches up slightly beyond where the neck joins."* That knob makes a
-hip, and a smooth arc from waist to thigh has claimed there is nothing there.
+hip, and a smooth arc from waist to thigh says there is nothing there.
 
-- **A leg opening is a cross-contour**, not the edge of the black — it wraps the
-  thigh and obeys its perspective — the band-around-a-barrel rule below,
-  unchanged.
-  The subject's near opening is a diagonal hem across the thigh, the far one
-  higher and at a different angle because the legs are at different phases and
-  depths. **Two openings, never one.**
-- **The seat is a contact and contacts are drawn.** The subject shows the
-  saddle's own dark wedge with its own contour and a break between the two.
+- **A leg opening is a cross-contour**, not the edge of the dark mass. It wraps
+  the thigh and obeys its perspective, like the band around a barrel (see
+  "Cloth on the figure"). The near opening is a diagonal hem across the thigh;
+  the far one sits higher and at a different angle, because the legs are at
+  different phases and depths. **Two openings, never one.**
+- **A seat is a contact, and contacts are drawn.** Give the seat its own dark
+  wedge with its own contour and a break between it and the body.
 - Bridgman on the thigh's mass: *"inclined inward from hip to knee, and… slightly
-  beveled toward the knee from front, back and outside."* Widest at the root,
-  tapering into the joint. Ours does neither.
+  beveled toward the knee from front, back and outside."* It is widest at the
+  root and tapers into the joint. A thigh of constant width, or one that widens
+  toward the knee, is wrong.
 
 **What to measure.** Each leg opening's height and angle separately, and where
-the black's forward edge sits against the machine's landmarks. Ours ran 75 px
-past the subject's — a fault in the shorts that surfaced as a missing gap
-nowhere near them.
+the dark mass's forward edge sits against the landmarks of whatever the figure
+sits on. A garment whose forward edge overshoots the subject's shows up as a
+missing gap somewhere else in the figure, nowhere near the garment.
 
-## Proportion: the unit is the head, the thing measured is a segment [bought] [read: Loomis]
+## Proportion: the unit is the head, and what you measure is a segment [read: Loomis]
 
-A canon of total height dies the moment the figure stops standing — which here is
-always. Three of Loomis's statements survive it, because they are about a limb's
-*own* length and stay checkable on a folded figure by asking where the joint
-would fall if the limb hung: elbow at the navel, wrist at the crotch, knee just
-above the lower quarter. Everything else in the canon is a fact about nobody in
-particular.
+A canon of total height stops applying the moment the figure stops standing,
+which in most pictures it does. Three of Loomis's statements survive, because
+they are about a limb's *own* length and can be checked on a folded figure by
+asking where the joint would fall if the limb hung: elbow at the navel, wrist at
+the crotch, knee just above the lower quarter. The rest of the canon describes
+nobody in particular.
 
-So the unit is the **head** and what you measure against it is a **segment**, not
-the picture. Measure crown-to-sole on a figure bent double and you get something
-like 3.2 heads, which is not a canon violation but a meaningless number: the
-height of a folded figure is not its height. Two further limits: **headgear is
-not a head** — measure the unit both ways, or the whole ladder shifts — and **a
-cartoon has its own canon**, so what you are measuring is distance from *the
-subject's own internal ratios*, head against torso against wheel.
+So the unit is the **head**, and what you measure against it is a **segment**,
+not the whole picture. Crown to sole on a figure bent double gives something
+like 3.2 heads, which is a meaningless number: the height of a folded figure is
+not its height. Two further limits. **Headgear is not a head**, so measure the
+unit both ways, or every proportion shifts. And **a cartoon has its own canon**,
+so measure how far the subject departs from *its own internal ratios*: head
+against torso, torso against whatever it rides or holds.
 
-## A limb's contour is the masses under it [read: Bridgman] [bought]
+## A limb's contour is the masses under it [read: Bridgman]
 
-A limb is a stack of forms in a sleeve of skin, and its width at any height is a
-record of what is inside it there. Trace one and the drawing records where the
-edge was, states nothing about why, and so has no way to be wrong — which is the
-same as having no way to be corrected. Bridgman on how the segments meet:
+A limb is a stack of forms in a sleeve of skin, and its width at any height
+records what is inside it there. If you only trace the edge, the drawing records
+where the edge was, states nothing about why, and so has no way to be wrong,
+which means it has no way to be corrected. Bridgman on how the segments meet:
 
 > *"The masses of the shoulder, arm, forearm and hand do not join directly end to
 > end with each other, but overlap and lie at various angles. They are joined by
 > wedges and wedging movements."*
 
-Read straight, that forbids the tube: two segments overlapping at an angle
+Read straight, that forbids the tube. Two segments overlapping at an angle
 produce a **break in the contour** at every joint, and the break *is* the joint.
-`hands-and-feet.md` says the same of a finger — *"a step-down from each segment to
-the one beyond, bridged by a wedge"* — and a limb is that rule two sizes up.
+`hands-and-feet.md` says the same of a finger (*"a step-down from each segment to
+the one beyond, bridged by a wedge"*), and a limb is that rule at a larger size.
 
-| Symptom | What it is | Measured here |
+| Symptom | What it is | What to look for |
 |---|---|---|
-| Constant width | **The straw** — no muscle stated anywhere along it | Near shin 19–25 px against a subject's 59 at the calf, 34 at the ankle |
-| Widening toward the far end | **Backwards.** A limb is widest at its root, narrowest at the joint it runs into | Ours 42 px at the sleeve, 55 at the wrist; the subject's 42 narrowing to 36 into the elbow |
-| No direction change | **No joint** | 41° break at y 570 in the subject; 6° of drift over 110 rows in ours |
-| A contour down the middle | **The tramline** — reads as two thin limbs, and it is a duplicate | Three pale runs against two, on 9 of 12 rows. `ink` cannot see it; `form` can |
-| Two limbs at one angle | **Twinning** (principle 7) | Loomis: *"drop one hip, get the elbows at different levels… do anything that keeps your drawing from looking like a wooden dummy"* |
+| Constant width | **The straw**: no muscle stated anywhere along it | A drawn shin well under half the subject's width at the calf (in one case 19-25 px against 59), and still narrower than the subject at the ankle (34 px there) |
+| Widening toward the far end | **Backwards.** A limb is widest at its root, narrowest at the joint it runs into | A drawn forearm wider at the wrist than at the sleeve (in one case 42 px at the sleeve, 55 at the wrist), where the subject narrows toward the elbow (42 narrowing to 36) |
+| No direction change | **No joint** | About a 40° break in the subject's contour at the elbow or knee, which is 20-30 px sideways within 30 rows; a few px of drift in the drawing |
+| A contour down the middle | **The tramline**: reads as two thin limbs, and it is a duplicate | Three pale runs where the subject has two, on most rows (in one case 9 of 12). `ink` cannot see it; `form` can |
+| Two limbs at one angle | **Twinning** (the rule against twinning, in `SKILL.md`) | Loomis: *"drop one hip, get the elbows at different levels… do anything that keeps your drawing from looking like a wooden dummy"* |
 | Drawn dead straight | Stiffness with a bony cause | Loomis: *"no bone is perfectly straight. An arm or a leg drawn with a perfectly straight bone will lie rigid and stiff-looking"* |
 
-**An interior line on a limb must die out.** The subject carries one inside the
-near arm — an elbow crease 9–11 px wide, living on two rows, gone. Ours ran the
-full length at full weight. That is the cloth test below applied to skin: point at
-the mark and name what it comes from. A crease has an address; a tramline has
-none.
+**An interior line on a limb must die out.** A subject may carry one inside the
+near arm, such as an elbow crease: narrow, living on two rows, then gone. A line
+that runs the full length of the limb at full weight is a tramline. This is the
+cloth test below applied to skin: point at the mark and name what it comes from.
+A crease has an address; a tramline has none.
 
-## Foreshortening: length is the one thing you may not reason about [read: Loomis, Hogarth]
+## Foreshortening: do not reason about length [read: Loomis, Hogarth]
 
-A limb pointing at the viewer keeps its width and loses its length, and the lost
-length cannot be recovered by reasoning about it — you are looking down a gun
-barrel. Think of the form as sections lined up one behind the other. Untested
-here. What follows for a drawing:
+A limb pointing at the viewer keeps its width and loses its length, and you
+cannot recover the lost length by reasoning about it, because you are looking
+down a gun barrel. Think of the form as sections lined up one behind the other.
+This comes from the literature and has not been tested here. For a drawing it
+means:
 
 - **The depth cue is overlap, not size.** With the length gone, the only thing
-  left to say a limb comes forward is which contour crosses in front of which —
-  `bicycle.md`'s occlusion rule in flesh. The far contour **stops and restarts**;
-  a flat cannot hide ink.
+  left to say a limb comes forward is which contour crosses in front of which.
+  The far contour **stops and restarts**; a flat cannot hide ink (see the
+  occlusion rule in `bicycle.md` for the same idea on a lattice).
 - **Draw the joint's ellipse even where it will be covered.** A knee edge-on is a
   line; the same knee coming at you is a wide ellipse, and its opening measures
   the turn.
-- **Measure the foreshortened segment against something in the picture plane** —
-  the head, the other limb, a frame tube. You cannot check it against itself.
+- **Measure the foreshortened segment against something in the picture plane**
+  (the head, the other limb, a frame tube). You cannot check it against itself.
 - **Symbol tell:** a foreshortened arm drawn at full length and then "shortened"
   by being made *thinner*. A near-pointing forearm is fatter than a side-on one.
 
-## The cyclist [bought] [read: bike-fit literature]
+## A seated, braced figure [read: bike-fit literature]
 
-A standing canon does not draw this figure. Five things do.
+A standing canon does not draw a figure that sits and leans on something. A
+cyclist is the clear case, and the same reasoning applies to a rider, a driver,
+or anyone at a desk. Five things do the work.
 
-**Five contacts, and each is a place two forms meet.** Two hands on the bar, two
-feet on the pedals, the pelvis on the saddle. `bicycle.md` names the first three
-and both panels failed all three; the saddle is the one this document adds, and
-it failed too. At each: the object continues past the body on both sides, and
-there is a band of the subject's own ground — or, where the whole passage is
-dark, a second lighter value — saying they are two things.
+**Five contacts, and each is a place two forms meet.** For a cyclist: two hands on the
+bar, two feet on the pedals, the pelvis on the saddle. `bicycle.md` covers the
+first three; the saddle is the fourth. At each, the object continues past the
+body on both sides, and there is a band of the subject's own ground (or, where
+the whole passage is dark, a second lighter value) saying they are two things.
 
 **The fold is at the hip first and the lumbar spine second.** The fit literature
-puts a road rider's torso at 40–50° from horizontal and the closed hip angle at
-44–58°, tighter for a fitter rider; a mobile rider rotates the pelvis forward and
-keeps the lower back long, a stiff one rounds it. Untested here, and it says what
-to look for rather than what to draw: **a long shallow arc is a rotated pelvis, a
-short sharp one is a rounded lumbar spine, and they are different characters.**
-Measure it as rise over run, tailbone to shoulder: a rise of about half the run
-is a shallow dome, not a hunch. It is usually the only long curve in a picture
-otherwise made of straights, so exaggerate it.
+puts a road rider's torso at 40-50° from horizontal and the closed hip angle at
+44-58°, tighter for a fitter rider. A mobile rider rotates the pelvis forward and
+keeps the lower back long; a stiff one rounds it. This is from the literature, not yet tested here, and it says what to look for
+rather than what to draw: **a long shallow arc is a rotated pelvis, a short sharp
+one is a rounded lumbar spine, and they are different characters.** Measure it as
+rise over run, tailbone to shoulder: a rise of about half the run is a shallow
+dome, not a hunch. It is usually the only long curve in a picture otherwise made
+of straights, so exaggerate it.
 
 **The arms are struts**, carrying weight from the shoulder girdle into the bars:
 nearly straight, never locked, never parallel. Loomis on braced limbs describes a
-cyclist exactly — *"limbs become props or braces rather than complete supports.
+cyclist exactly: *"limbs become props or braces rather than complete supports.
 The spine has a tendency to relax in a concave manner toward such bracing."* The
-elbow's small bend is the whole difference between an arm and a stick, and the
-gap is wide enough to measure: expect **around 40° of break in the subject
-against under 10° in a first drawing.**
+elbow's small bend is the difference between an arm and a stick. Expect **around
+40° of break in the subject against under 10° in a first drawing.**
 
 **The legs are never at the same phase.** The cranks are 180° apart, so one knee
-is always up and one down and the two thighs leave the pelvis at different
+is always up and one down, and the two thighs leave the pelvis at different
 angles. Plot the bottom bracket, then both pedals against it: one falls **below
 and behind**, the other **above and in front**. The two knees then sit roughly a
-third of a head unit apart vertically. **Level knees is a figure standing on two
-pedals**, not pedalling.
+third of a head unit apart vertically. **Level knees show a figure standing on
+two pedals**, not pedalling.
 
 **Everything doubles and nothing twins.** Two shoulders, arms, hips, legs, shoes,
-each pair on a different depth plane; the far one is narrower, shorter, and — per
-`quadruped.md`'s depth rule — takes a **lighter weight and a duller value**,
-because the ladder is spent on depth before light. The subject's far thigh is
-51 px and ours was 17: not one plane back, one dimension down. And the **neck is
-extended** — a rider looking up the road holds the head against the spine's
+each pair on a different depth plane; the far one is narrower, shorter, and (per
+the depth rule in `quadruped.md`) takes a **lighter weight and a duller value**,
+because depth is settled before light. A far thigh drawn at a third of the
+subject's width is not one plane back, it is a dimension too small. The **neck is
+extended**: a rider looking up the road holds the head against the spine's
 direction, the one place in the figure where the back compresses and the throat
-opens. Ours put the head on the jersey with neck and cheek as one pale mass.
+opens. If the head sits straight on the jersey with neck and cheek as one pale
+mass, the neck is missing.
 
-## Cloth on the figure [bought]
+## Cloth on the figure
 
-Cloth appears in every drawing this skill has made of a person, and in every one
-of them it was drawn as a flat coloured region with straight lines ruled across
-it. That is what happens to any object the drawer has no construction for — the
-same thing that happened to the bicycle before `bicycle.md` existed.
+Cloth tends to be drawn as a flat coloured region with straight lines ruled
+across it. This is what happens to any object you have no construction for.
 
 | Where | The fault | What the measurement says |
 |---|---|---|
-| a top | One closed silhouette whose entire interior is seams: chords spanning the full torso, a vertical down the centre, a hem chord | **No folds at all.** Not one interior mark answers to a tension point — not the shoulder bearing weight, not a forearm folded across the body, not the hip |
-| a waist band | Both edges near-straight, parallel, a constant width apart, running silhouette to silhouette | A band goes *around a barrel*, and is interrupted by anything crossing in front of it. A flat strip measures at about **half the structure** of a formed one — nothing missing from the box, the box simply carrying less |
-| a chin strap | Two bands into a buckle, lying on the jaw like a ribbon | A chin strap exists *because* it is in tension over a jaw, and the tension is the one thing not drawn |
+| a top | One closed silhouette whose entire interior is seams: chords spanning the full torso, a vertical down the centre, a hem chord | **No folds at all.** Not one interior mark answers to a tension point (the shoulder bearing weight, a forearm folded across the body, the hip) |
+| a waist band | Both edges near-straight, parallel, a constant width apart, running silhouette to silhouette | A band goes *around a barrel*, and is interrupted by anything crossing in front of it. A flat strip measures at about **half the structure** of a formed one: nothing missing from the box, the box simply carrying less |
+| a chin strap | Two bands into a buckle, lying on the jaw like a ribbon | A chin strap exists *because* it is in tension over a jaw, and the tension is what the drawing leaves out |
 | trousers or shorts | A flat with a hem chord | Same failure, fewer marks |
 
-**A seam is not a fold, and neither is a straight line.** Two different kinds of
-interior mark, and the panels get both wrong at once:
+**A seam is not a fold, and neither is a straight line.** They are two different
+kinds of interior mark, and drawings often get both wrong at once:
 
 - A **fold** is a line *of* the cloth. It must answer to a tension point, it
   begins where the force is applied, and it must die out. A fold drawn at full
@@ -272,51 +319,95 @@ interior mark, and the panels get both wrong at once:
   a **cross-contour**: it wraps the form and obeys its perspective. A band around
   a torso is an ellipse around a barrel, not a chord across a rectangle, and its
   depth changes as the barrel turns away. A seam is often *also* a support, so
-  folds may radiate from one — but because it is a support, never because it is a
+  folds may radiate from one, but because it is a support and not because it is a
   line.
 
-**What to plot before drawing any cloth**: every support and every tension point,
-as points, written down; and the lowest point of contact, which is the boundary
-between cloth-on-form and cloth-hanging-free. Below it, cloth hangs vertically
-whatever the body is doing. Above it, every mark has a cause you can point at.
+**What to plot before drawing any cloth.** Write down every support and every
+tension point, as points. Also plot the lowest point of contact, which is the
+boundary between cloth lying on the form and cloth hanging free. Below it, cloth
+hangs vertically whatever the body is doing. Above it, every mark has a cause you
+can point at.
+
+## A small figure is still a whole figure
+
+People draw the eye at any size. A viewer finds a human figure in a picture
+before almost anything else, and reads what it is doing, so a recognisable
+figure is never a minor part however few pixels it covers. Its tier sets how
+heavy its line is and how much contrast it gets. It never sets which parts of the
+body exist.
+
+The usual failure is a small figure drawn as one closed outline: a round head
+on a body shape with no arms, and two straight tubes for legs. It reads as a
+gingerbread cut-out, and next to a subject whose small figures have hats,
+shoulders, bent knees and something in their hands, it is the first thing a
+viewer sees as wrong.
+
+At any size, a figure is built from:
+
+- the **head**, with its hat or the mass of its hair, and the **neck** under it;
+- the **shoulder line**, set at its own angle, and the **torso** under it;
+- **both arms**, each with an elbow and a hand. The hands hold whatever the
+  subject shows (a stick, a basket, a bag, a rein), and the held object is an
+  inventory entry of its own with its junctions (`figure.hand/stick`,
+  `stick/figure.shoulder`);
+- the **hips**, and **both legs**, each with a knee;
+- **both feet**, each with its direction on the ground.
+
+And it has a **pose taken from the gesture**: which leg is forward, how far the
+knees bend, how the body leans over the feet, where the weight sits. A walking
+figure has one leg straight and one bent, its feet at different heights. A
+figure standing on two straight legs side by side is not walking whatever the
+road under it says.
+
+Build it like any other part. Give it its own `--zoom` box, and a working
+resolution where its head is around 40px, so a head of 10px in the picture is
+drawn four times larger. Its stages, its joints in the inventory and its
+describer run on its crop are the same as for a large figure. Only its weight and
+its contrast are those of its tier. The cost is the strokes its joints need,
+written into the budget at stage 0, not taken from whatever is left at the end.
+
+```checklist
+object: person|people|figure|figures|man|men|woman|women|child|children|walker|walkers|rider|riders
+sub-forms: head torso|body arm leg foot|feet
+```
 
 ## Build order
 
-Figure and machine are drawn **together and at one stage throughout**
-(`bicycle.md` says the same from the other side); cloth stays one stage behind
-the body, because a rendered fold over a blocked-in torso must now be bent to fit
-whatever the torso turns out to be.
+Draw figure and any object it rides or holds **together and at one stage
+throughout** (`bicycle.md` says the same from the other side). Keep cloth one
+stage behind the body, because a rendered fold over a blocked-in torso has to be
+bent to fit whatever the torso turns out to be.
 
-1. **Write the joints and the gaps into the inventory** — shoulder, hip, elbow,
-   knee, upper arm, and the negative shape between torso and arm, boxed like any
-   other part. None of ours were listed, so none could be reported missing.
-2. **Say the pose as three masses** — the ribcage's tilt, the pelvis's tilt, the
-   head against both — as three angles measured separately and written down.
-   Then **the line of action**, one curve, exaggerated: in a cyclist it runs
-   pelvis to crown and it is the only long curve in the picture.
+1. **Write the joints and the gaps into the inventory**: shoulder, hip, elbow,
+   knee, upper arm, and the negative shape between torso and arm, each boxed like
+   any other part. A joint that is not listed cannot be reported missing.
+2. **State the pose as three masses**: the ribcage's tilt, the pelvis's tilt, the
+   head against both, as three angles measured separately and written down. Then
+   **the line of action**, one curve, exaggerated. A turn or a look over the
+   shoulder adds the angles in § A turned torso, measured with `look.py axis`. In a cyclist it runs pelvis to
+   crown and is the only long curve in the picture.
 3. **The ribcage and the pelvis as two measured boxes**, with the changeable
    waist between them. Not one bag.
-4. **The shoulder girdle laid on the ribcage** — acromion outside and above the
-   barrel, deltoid as a wedge pointing down the arm — and the **ground under the
-   arm** plotted as a shape at the same time.
-5. **The pelvis's contacts and openings**: trochanter as a landmark, saddle as a
+4. **The shoulder girdle laid on the ribcage**: acromion outside and above the
+   barrel, deltoid as a wedge pointing down the arm. Plot the **ground under the
+   arm** as a shape at the same time.
+5. **The pelvis's contacts and openings**: trochanter as a landmark, any seat as a
    separate form with its own contour, each leg opening its own cross-contour at
    its own height and angle.
 6. **Limbs as stacked segments between measured joints**, every joint a break in
-   the contour, every segment widest at its root. Both arms at different angles,
-   both legs at different phases read off the cranks.
+   the contour, every segment widest at its root. Draw both arms at different
+   angles and both legs at different phases (for a cyclist, read off the cranks).
 7. **Foreshortened segments last**, measured against something in the picture
    plane, their overlaps drawn as stops and restarts rather than painted over.
 8. **Walk the inventory, joints included, before passing any stage.** A median
-   form ratio of 0.98 across 81 boxes is what this drawing scored with no
-   shoulder in it.
-9. **A garment drawn as one closed mass reads as furniture** — a bag, a
-   cushion, a bundle the figure rests against. Correct width and correct
-   placement do not save it: what makes cloth read as worn is the **hem that
-   interrupts the limb it covers**, with the limb continuing out of it. Give
-   every garment its openings — the two arcs where the thighs leave shorts,
-   the cuff the forearm leaves, the collar the neck leaves — as contours of
-   the garment, not of the limb. A mass that *ends* where a limb begins reads
-   as an object the limb is behind; a mass the limb *emerges from* reads as
-   clothing. This fault survives every numeric gate and the describer names it
-   plainly, so a garment is worth one describer run of its own.
+   form ratio near 1.0 across dozens of boxes is compatible with a figure that
+   has no shoulder.
+9. **A garment drawn as one closed mass reads as furniture**: a bag, a cushion, a
+   bundle the figure rests against. Correct width and placement do not fix it.
+   Cloth reads as worn when the **hem interrupts the limb it covers** and the limb
+   continues out of it. Give every garment its openings (the two arcs where the
+   thighs leave shorts, the cuff the forearm leaves, the collar the neck leaves)
+   as contours of the garment, not of the limb. A mass that *ends* where a limb
+   begins reads as an object the limb is behind; a mass the limb *emerges from*
+   reads as clothing. Numeric gates do not catch this and the describer names it
+   plainly, so give a garment one describer run of its own.

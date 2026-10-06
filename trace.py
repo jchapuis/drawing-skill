@@ -3,15 +3,15 @@
 
     python3 trace.py subject.png palette.json [--out regions.json] [--png regions.png]
                      [--ink black] [--line 8] [--min-area 150] [--fringe 0]
-                     [--offset X,Y | --local] [--space W,H]
+                     [--offset X,Y | --local] [--space W,H] [--smooth PX]
     python3 trace.py subject.png palette.json --measure-line [--ink black]
 
 Every pixel is classified to its nearest palette entry. Pixels of the ink colour
-that lie in a run no wider than --line are handed to whichever region is
-nearest, so two flats that share a drawn line meet along that line's centre --
-which is where the ink stroke belongs. Ink wider than a line is a flat of that
-colour and keeps its own region. Regions are cut before the line is handed out,
-so two flats of one colour that a line separates stay two. Each becomes an entry:
+that lie in a run no wider than --line go to whichever region is nearest, so
+two flats that share a drawn line meet along the centre of that line, which is
+where the ink stroke belongs. Ink wider than a line is a flat of that colour
+and keeps its own region. Regions are cut before the line is handed out, so two
+flats of one colour that a line separates stay two. Each region becomes an entry:
 
     {"id": 3, "colour": "orange", "area": 22641, "box": [x, y, w, h],
      "centre": [x, y],            # the CENTROID -- often not inside the region
@@ -21,58 +21,69 @@ so two flats of one colour that a line separates stay two. Each becomes an entry
      "contour": [[x, y], ...],    # the outline as a curve (1.5px tolerance)
      "holes": [[[x, y], ...]]}    # every hole's outline: a ring is not a disc
 
-`centre` is a centroid, and a centroid is not a point in the region: on any
-crescent, ring or bent form it lands in a neighbour. Probing there returns the
-NEIGHBOUR's colour, which looks exactly like proof that the region is an
-anti-aliasing artefact -- and culling on that basis throws away real flats and
-flattens the form they were shading. Probe `inside`, or compare `median`
-against the palette entry, which needs no probe at all: an artefact's median
-sits between two palette colours, a real flat's sits on one.
+`centre` is a centroid, and a centroid is not always a point in the region: on
+a crescent, ring or bent form it lands in a neighbour. Probing there returns the
+neighbour's colour, which looks like proof that the region is an anti-aliasing
+artefact. Culling on that basis throws away real flats. Probe `inside`, or
+compare `median` against the palette entry, which needs no probe: an artefact's
+median sits between two palette colours, a real flat's sits on one.
 
 This is the measuring instrument for stages 2, 3 and 6. It cannot supply a form
-the subject does not have, which is the test a tool here must pass. What it does
-not do is decide anything: which regions matter, which edges are stated and
-which are lost, what is left out, and what weight a line takes are still the
-drawing -- and it writes no mark: its points are read, and the ones that carry
-a form are typed into the script. Regions come out largest first.
+the subject does not have. It also decides nothing: which regions matter, which
+edges are stated and which are lost, what is left out, and what weight a line
+takes are still up to you. It writes no mark. You read its points and type the
+ones that carry a form into the script. Regions come out largest first.
 
-What it drops is a decision too. A region under --min-area is gone, and so is
-every dark form narrower than --line, which is handed to its neighbours as line:
-a spray of droplets or a thin tail vanishes here, silently. Compare the census
-against the regions before trusting the count. --ink takes every palette name
-that is line, not only the darkest: a near-black a few levels off the ink
-classifies as its own flat and the line network comes back as one huge region.
-A small ink-coloured region where three lines meet is a junction, where the
-lines are wider than --line, not a flat. On an upscaled subject, --fringe 60
-hands the ramp beside every line to the line; without it the ramp comes back as
-a ring region round every outlined form.
+What it drops matters too. A region under --min-area is gone, and so is every
+dark form narrower than --line, which goes to its neighbours as line. A spray
+of droplets or a thin tail vanishes here without a message. Compare your count
+of small forms against the regions before trusting the result. --ink takes
+every palette name that is line, not only the darkest: a near-black a few
+levels off the ink classifies as its own flat, and the line network comes back
+as one huge region. A small ink-coloured region where three lines meet is a
+junction where the lines are wider than --line, not a flat. On an upscaled
+subject, --fringe 60 gives the ramp beside every line to the line. Without it
+the ramp comes back as a ring region round every outlined form.
 
-A crop cut by crop.py carries its own corner in the panel, and its regions come
-back in panel coordinates with no flag. --offset X,Y is for a crop made any
-other way; given on a crop.py crop, it must agree with the stored corner or the
-trace is refused -- a box corner passed as the offset put every region of one
-panel 8px off, silently. --local keeps a crop's own coordinates.
+A crop cut by crop.py carries its own corner in the picture, and its regions
+come back in picture coordinates with no flag. --offset X,Y is for a crop made
+any other way. Given on a crop.py crop, it must agree with the stored corner or
+the trace is refused, because passing the box corner instead puts every region
+off by the crop's margin (8px or more) with no error. --local keeps a crop's
+own coordinates.
 
---measure-line prints the width of the --ink line and exits: for every ink pixel
-the run through it along its row and along its column, the SMALLER of the two
-(an axis scan across a diagonal reads it too wide), as percentiles over pixels.
-Runs wider than --cap are flats -- a tyre, a pair of shorts -- and are left out;
-the default cap is twice the median run. A fraction of the image does not
-work at every size: at 4% a panel's filled blacks (a mouth, a moustache) counted
-as line and moved its p90 to 51, and a 12px floor sat under a 680px object's
-15-22px lines and came back as the p90. Twice the median read 33, 19, 18 and 24
-on four subjects whose lines were measured by hand at about 30, 20, 20 and 22.
-Pass the p90 as --line. Measured on one panel: 6 at delivered size and 20, not
-24, on its 4x bilinear upscale, because the ramp thins the core that classifies
-as ink. Measure in the space you trace in; never multiply.
+--measure-line prints the width of the --ink line and exits. For every ink
+pixel it takes the run through it along its row and along its column, keeps the
+smaller of the two (an axis scan across a diagonal reads too wide), and reports
+percentiles over pixels. Runs wider than --cap are flats (a tyre, a solid hat)
+and are left out. The default cap is twice the median run. A fixed fraction of
+the image does not work at every size: at 4%, filled blacks such as a mouth or
+a moustache counted as line and moved the p90 to 51, and a 12px floor sat under
+a 680px object's 15-22px lines and came back as the p90. Twice the median read
+33, 19, 18 and 24 on four subjects whose lines were measured by hand at about
+30, 20, 20 and 22. Pass the p90 as --line. On one picture the p90 was 6 at
+delivered size and 20 (not 24) on its 4x bilinear upscale, because the ramp
+thins the core that classifies as ink. Measure in the space you trace in, and
+do not multiply.
 
 Every trace also reports the share of pixels further than 30 levels from every
-palette entry, with the largest such patches: a flat the palette is missing
-shows up there as a patch, where grain and anti-aliasing stay scattered.
+palette entry, with the largest such patches. A flat the palette is missing
+shows up as a patch, while grain and anti-aliasing stay scattered.
+
+--smooth PX is for a printed or textured subject: a halftone, a lithograph's
+grain, a scan of rough paper. Each pixel's colour there is a speck of ink or
+paper, not the flat it belongs to, so it classifies to the wrong entry and the
+regions come back as a tangle. With --smooth, every pixel is first replaced by
+the median colour of the square PX pixels either side of it (so 2 is a 5x5
+square). The specks go and the edges between flats stay where they were, so
+the regions' coordinates are in the same place as without it. Start at about
+the grain's spacing and raise it until the misfit share stops falling. Too
+large, and thin lines and small forms vanish into their neighbours, so measure
+--line on the smoothed picture too: --measure-line takes --smooth as well.
 
 --space W,H rescales the output into another coordinate space. Scaling a small
-trace UP puts every boundary on a lattice the size of the factor: measure at the
-resolution you draw at instead, and use this only to scale down.
+trace up puts every boundary on a lattice the size of the factor, so measure at
+the resolution you draw at and use this only to scale down.
 """
 import argparse
 import json
@@ -82,9 +93,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
 
-
-STOCK = ("black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow",
-         "orange", "green", "light-green", "light-red", "red", "white")
+from pen import read_palette
 
 
 def classify(image, palette):
@@ -99,9 +108,20 @@ def classify(image, palette):
     return names, labels.reshape(image.height, image.width), miss.reshape(image.height, image.width)
 
 
+def smooth(image, radius):
+    """The image with each pixel's colour the median over a square `radius`
+    pixels either side. Same size, so every coordinate stays where it was."""
+    if radius < 0:
+        raise SystemExit(f"--smooth takes a number of pixels, 0 or more, not {radius}")
+    if radius == 0:
+        return image
+    return Image.fromarray(cv2.medianBlur(np.ascontiguousarray(np.asarray(image)), 2 * radius + 1))
+
+
 def misfit(miss, level=30.0, floor=0.0005):
     """Pixels further than `level` from every palette entry, and the largest
-    patches of them. Grain and anti-aliasing scatter; a missing flat clumps."""
+    patches of them. Grain and anti-aliasing are scattered; a missing flat is a
+    clump."""
     far = miss > level
     parts, count = ndimage.label(ndimage.binary_opening(far, np.ones((3, 3))))
     sizes = ndimage.sum(np.ones_like(parts), parts, range(1, count + 1)) if count else []
@@ -117,13 +137,13 @@ def separate(labels, ink, line):
     """Split the classified subject into regions, and give every LINE pixel to
     the region nearest it.
 
-    The ink colour is also a flat wherever it is wider than a line -- a tyre, a
-    pair of shorts, a shoe -- so only what a disc of the line's width can pass
+    The ink colour is also a flat wherever it is wider than a line (a tyre, a
+    solid hat, a shoe), so only what a disc of the line's width can pass
     through is line. Anything thicker keeps its own region at full extent.
 
-    Regions are cut BEFORE the line is handed out, so two flats of one colour
-    that only a line separates -- an eye white and the sky beside it -- stay two
-    regions. Handed out first, the line joins them and the eye is the sky.
+    Regions are cut before the line is handed out, so two flats of one colour
+    that only a line separates (an eye white and the sky beside it) stay two
+    regions. If the line were handed out first, it would join them.
     Returns (region id per pixel, colour index per region id)."""
     line_mask = np.zeros(labels.shape, bool)
     mask = np.isin(labels, ink)
@@ -163,10 +183,10 @@ def line_width(mask, cap=None):
     (default twice the median run) dropped as flats. Returns the widths."""
     across = np.minimum(run_lengths(mask), run_lengths(mask.T).T)
     if not cap:
-        # twice the median run, the median read under a loose cap: a fixed
-        # fraction of the image either let a panel's filled blacks count as
-        # line (4%: p90 51 against 33) or sat under a small object's own line
-        # (12px on 680px, where the lines run 15-22) and reported itself
+        # twice the median run, with the median read under a loose cap. A fixed
+        # fraction of the image either lets filled blacks count as line (4%:
+        # p90 51 against 33) or sits under a small object's own line (12px on
+        # 680px, where the lines run 15-22) and reports itself
         loose = across[mask & (across <= max(4, round(0.04 * min(mask.shape))))]
         cap = max(4, round(2 * np.median(loose))) if loose.size else 4
     return across[mask & (across <= cap)]
@@ -177,53 +197,62 @@ def outline(contour, tolerance, dx, dy):
     return [[int(x) + dx, int(y) + dy] for [[x, y]] in simplified]
 
 
+def region_entry(ids, number, where, image_rgb, min_area):
+    """Region `number` of the label map `ids` (its slice `where`) as an entry:
+    area, box, centre, inside, median, blockin, contour and holes, in the
+    label map's own coordinates. None when it is under `min_area`."""
+    if where is None:
+        return None
+    mask = ids[where] == number
+    area = int(mask.sum())
+    if area < min_area:
+        return None
+    top, left = where[0].start, where[1].start
+    padded = np.pad(mask, 1).astype(np.uint8)
+    found, tree = cv2.findContours(padded, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    outer = max((k for k in range(len(found)) if tree[0][k][3] < 0), key=lambda k: len(found[k]))
+    holes = [found[k] for k in range(len(found))
+             if tree[0][k][3] == outer and cv2.contourArea(found[k]) >= min_area]
+    ys, xs = np.nonzero(mask)
+    # `centre` is a centroid, which can fall outside the region: on a
+    # crescent, ring or bent form it lands in a neighbour. Probing there
+    # reports the neighbour's colour and looks like proof that the region
+    # is an anti-aliasing artefact, so real flats get culled.
+    # `inside` is the deepest point of the region itself; probe that.
+    deep = cv2.distanceTransform(padded, cv2.DIST_L2, 3)
+    iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
+    median = np.median(image_rgb[where][mask], axis=0)
+    dx, dy = left - 1, top - 1
+    return {
+        "area": area,
+        "box": [int(xs.min()) + left, int(ys.min()) + top,
+                int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
+        "centre": [round(float(xs.mean()) + left, 1), round(float(ys.mean()) + top, 1)],
+        "inside": [int(ix) + dx, int(iy) + dy],
+        "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
+        "blockin": outline(found[outer], 6.0, dx, dy),
+        "contour": outline(found[outer], 1.5, dx, dy),
+        "holes": [outline(hole, 1.5, dx, dy) for hole in holes],
+    }
+
+
 def trace(image, palette, ink, line, min_area, fringe=0.0):
     image_rgb = np.asarray(image.convert("RGB"))
     names, labels, miss = classify(image, palette)
     ink_ids = [names.index(name) for name in ink if name in names]
     if fringe and ink_ids:
         # the ramp between a line and the flat beside it is a mid-tone, and its
-        # nearest palette entry is some third colour: left alone it comes back as
-        # a ring region round every outlined form. Steep pixels are ramp.
+        # nearest palette entry is some third colour. Left alone it comes back
+        # as a ring region round every outlined form. Steep pixels are ramp.
         grey = np.asarray(image.convert("L"), dtype=float)
         steep = np.hypot(ndimage.sobel(grey, 0), ndimage.sobel(grey, 1)) > fringe
         labels = np.where(steep, ink_ids[0], labels)
     ids, colour_of = separate(labels, ink_ids, line)
     regions = []
     for number, where in enumerate(ndimage.find_objects(ids), 1):
-        if where is None:
-            continue
-        mask = ids[where] == number
-        area = int(mask.sum())
-        if area < min_area:
-            continue
-        top, left = where[0].start, where[1].start
-        padded = np.pad(mask, 1).astype(np.uint8)
-        found, tree = cv2.findContours(padded, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-        outer = max((k for k in range(len(found)) if tree[0][k][3] < 0), key=lambda k: len(found[k]))
-        holes = [found[k] for k in range(len(found))
-                 if tree[0][k][3] == outer and cv2.contourArea(found[k]) >= min_area]
-        ys, xs = np.nonzero(mask)
-        # `centre` is a centroid and a centroid is NOT a point in the region:
-        # any crescent, ring or bent form puts it in a neighbour. Probing
-        # there reports the neighbour's colour and reads as proof that the
-        # region is an anti-aliasing artefact, so real flats get culled.
-        # `inside` is the deepest point of the region itself; probe that.
-        deep = cv2.distanceTransform(padded, cv2.DIST_L2, 3)
-        iy, ix = np.unravel_index(int(deep.argmax()), deep.shape)
-        median = np.median(image_rgb[where][mask], axis=0)
-        dx, dy = left - 1, top - 1
-        regions.append({
-            "colour": names[colour_of[number]], "area": area,
-            "box": [int(xs.min()) + left, int(ys.min()) + top,
-                    int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)],
-            "centre": [round(float(xs.mean()) + left, 1), round(float(ys.mean()) + top, 1)],
-            "inside": [int(ix) + dx, int(iy) + dy],
-            "median": "#%02x%02x%02x" % tuple(int(v) for v in median),
-            "blockin": outline(found[outer], 6.0, dx, dy),
-            "contour": outline(found[outer], 1.5, dx, dy),
-            "holes": [outline(hole, 1.5, dx, dy) for hole in holes],
-        })
+        entry = region_entry(ids, number, where, image_rgb, min_area)
+        if entry:
+            regions.append(dict(colour=names[colour_of[number]], **entry))
     regions.sort(key=lambda region: -region["area"])
     for number, region in enumerate(regions):
         region["id"] = number
@@ -246,8 +275,8 @@ def move(regions, sx=1.0, sy=1.0, dx=0.0, dy=0.0):
 
 
 def sheet(image, regions):
-    """Every block-in polygon over the subject, numbered, so the trace can be
-    looked at before it is trusted."""
+    """Every block-in polygon over the subject, numbered, so you can look at
+    the trace before relying on it."""
     out = image.copy()
     pen = ImageDraw.Draw(out)
     for region in regions:
@@ -257,6 +286,19 @@ def sheet(image, regions):
         pen.text((region["centre"][0] - 4, region["centre"][1] - 6),
                  str(region["id"]), fill=(20, 60, 220))
     return out
+
+
+def corner(stored, offset, local, subject):
+    """The offset to add to every coordinate: the corner crop.py stored in the
+    PNG, unless `local`. An --offset that disagrees with a stored corner is
+    refused, since a box corner passed there is off by the crop's margin."""
+    if not stored or local:
+        return offset
+    if offset and [float(part) for part in offset.split(",")] != [float(part) for part in stored.split(",")]:
+        raise SystemExit(f"--offset {offset} disagrees with the corner crop.py stored in "
+                         f"{subject} ({stored}). The crop's corner is the box's corner "
+                         f"less its margin. Drop --offset to use the stored one")
+    return stored
 
 
 def main():
@@ -282,6 +324,9 @@ def main():
     parse.add_argument("--exclude", default="",
                        help="comma-separated palette names left out of the trace: a flat "
                             "within a few levels of the ground, which would take bare ground")
+    parse.add_argument("--smooth", type=int, default=0,
+                       help="median-filter the subject over a square PX pixels either side "
+                            "before classifying, for halftone or grain. 0 is off")
     parse.add_argument("--measure-line", action="store_true",
                        help="print the --ink line's width percentiles and exit")
     parse.add_argument("--cap", type=int, default=0,
@@ -291,13 +336,13 @@ def main():
 
     opened = Image.open(args.subject)
     stored = (opened.info or {}).get("offset")
-    image = opened.convert("RGB")
-    with open(args.palette) as handle:
-        palette = json.load(handle)
-    unknown = [name for name in palette if name not in STOCK and name != "background"]
-    if unknown:
-        raise SystemExit(f"palette: {', '.join(unknown)} is not a stock name, and the canvas "
-                         f"ignores it. The names are: {', '.join(STOCK)}, plus background")
+    image = smooth(opened.convert("RGB"), args.smooth)
+    palette = read_palette(args.palette)
+    for option, given in (("--ink", args.ink), ("--exclude", args.exclude)):
+        missing = [name for name in given.split(",") if name and name not in palette]
+        if missing:
+            raise SystemExit(f"{option}: {', '.join(missing)} not in {args.palette}. "
+                             f"Its names are: {', '.join(palette)}")
     if args.measure_line:
         names, labels, _ = classify(image, palette)
         ink = np.isin(labels, [names.index(name) for name in args.ink.split(",") if name in names])
@@ -309,13 +354,7 @@ def main():
         print("  " + "  ".join(f"p{q} {np.percentile(widths, q):.0f}" for q in (50, 75, 90, 95)))
         print("pass the p90 as --line")
         return
-    if stored and not args.local:
-        corner = [float(part) for part in stored.split(",")]
-        if args.offset and [float(part) for part in args.offset.split(",")] != corner:
-            raise SystemExit(f"--offset {args.offset} disagrees with the corner crop.py stored in "
-                             f"{args.subject} ({stored}). The crop's corner is the box's corner "
-                             f"less its margin; drop --offset and the stored one is used")
-        args.offset = stored
+    args.offset = corner(stored, args.offset, args.local, args.subject)
     palette = {name: value for name, value in palette.items()
                if name not in args.exclude.split(",")}
     regions, miss = trace(image, palette, args.ink.split(","), args.line, args.min_area, args.fringe)
@@ -344,11 +383,11 @@ def main():
               f"  {len(region['blockin']):2d} straights / {len(region['contour']):3d} contour points"
               + (f"  {len(region['holes'])} holes" if region["holes"] else ""))
     print(f"\n{share:.1%} of pixels are over 30 levels from every palette entry"
-          + ("; the largest patches (a flat the palette lacks clumps, grain scatters):" if patches else ""))
+          + ("; the largest patches (a missing flat is a clump, grain is scattered):" if patches else ""))
     for size, box in patches:
         print(f"  {size:7d}px  box {[round(value) for value in box]}")
-    print("\na region is a flat, not an object: one object is several regions and one\n"
-          "region can span two objects of the same colour. Naming them is the reading.")
+    print("\na region is a flat, not an object: one object is several regions, and one\n"
+          "region can span two objects of the same colour. Deciding which is which is your job.")
 
 
 if __name__ == "__main__":
