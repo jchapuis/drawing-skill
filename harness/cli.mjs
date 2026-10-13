@@ -9,48 +9,65 @@
  * between calls without anything having to stay running, and the same file
  * opens in tldraw for a human to edit by hand afterwards.
  *
- * TWO THINGS ABOUT THAT, BOTH PAID FOR:
+ * Two things to know about that.
  *
- * Ops are APPENDED. A flat script that is edited and re-run appends its whole
- * history again and the drawing DOUBLES on run 2 -- a handlebar drawn twice
- * 12px apart was diagnosed for rounds as a badly-drawn fist. For a
- * script-driven drawing the persistence is a hazard, not a feature: have
- * build.sh `rm -f DOC.json` before every call, so the document is rebuilt from
- * the one flat script every time and the script stays the single source of
- * truth. pen's fixed default seed makes the hand identical run to run.
+ * Ops are appended. A flat script that is edited and re-run appends its whole
+ * history again, and the drawing doubles on the second run (for example, a
+ * handlebar drawn twice 12px apart). For a script-driven drawing the persistence
+ * is a hazard, not a feature: have build.sh `rm -f DOC.json` before every call,
+ * so the document is rebuilt from the one flat script every time and the script
+ * stays the single source of truth. pen's fixed default seed makes the hand
+ * identical from run to run.
  *
- * The PNG comes back at the browser's DEVICE PIXEL RATIO, normally 2x: a frame
- * of 928 renders 1848 wide. Every width, gap and coordinate you read off a
- * render is in RENDER pixels. Divide by (png width / frame width) before
- * comparing anything to a measurement taken off the subject, or use
- * `--scale 0.5` to pin the export to 1:1. A weight ladder read without this
- * comes back at double, which is three nibs of error.
+ * The PNG comes back at the browser's device pixel ratio, normally 2: a frame of
+ * 928 renders 1848 wide. Every width, gap and coordinate you read off a render
+ * is in render pixels. Divide by (png width / frame width) before comparing
+ * anything to a measurement taken off the subject, or use `--scale 0.5` to pin
+ * the export to 1:1. A weight swatch read without this comes back at double,
+ * which is an error of about three nib sizes.
  *
- * Three flags have traps in them, all paid for:
+ * Three flags need care:
  *
- * --only / --hide match a mark's STAGE (when in the ladder it was made) or its
- *         TAG (which object it belongs to) -- pen.stroke takes both, and they
- *         are independent axes. `--only ink,frame` is the whole panel's ink;
- *         `--only bike,frame` is the bicycle at every stage; and
- *         `--only bike,blockin,frame` is the bicycle over the composition
+ * --only / --hide match a mark's stage (when in the stage sequence it was made)
+ *         or its tag (which object it belongs to). pen.stroke takes both, and
+ *         they are independent. `--only ink,frame` is the whole picture's ink;
+ *         `--only bike,frame` is the object tagged `bike` at every stage; and
+ *         `--only bike,blockin,frame` is that object over the composition
  *         rough, which is the view a detail pass on one object needs.
- * --only  is --hide's complement: keep these stages, drop the rest. It is what
- *         a study is made of -- one object worked to full depth over a faded
- *         composition rough, without leaving the panel's coordinate space, so
- *         it is registered from its first mark. INCLUDE `frame` IN THE LIST,
- *         or the render bounds collapse to the shapes you kept and every crop
- *         taken against it means something different.
- * --padding 0  makes the frame clip as well as pin. Contours then run past it,
- *         as they should, and fall off the edge instead of dragging the border
- *         out and leaving a margin of bare paper the drawing never reaches.
- *         Use it with pen.frame() whenever working from a reference, so every
- *         render shares the subject's coordinate space and overlay is exact.
- * --palette  repoints any of the 13 stock colour names at a real hex value:
- *         black grey light-violet violet blue light-blue yellow orange green
- *         light-green light-red red white. Any other name is refused.
- *         `background` is repointable too, but it is the ground, not a
- *         fourteenth colour: a mark may not use it. Measure it off the subject
- *         -- see pen.write's docstring for what a wrong ground costs.
+ * --only  is --hide's complement: keep these stages, drop the rest. It makes a
+ *         study: one object worked to full depth over a faded composition
+ *         rough, in the picture's own coordinate space, so it is registered
+ *         from its first mark. Include `frame` in the list, or the render
+ *         bounds collapse to the shapes you kept and every crop taken against
+ *         it means something different.
+ * --padding 0  makes the frame clip as well as pin. Contours then run past it
+ *         and fall off the edge, instead of dragging the border out and leaving
+ *         a margin of bare paper the drawing never reaches. Use it with
+ *         pen.frame() whenever working from a reference, so every render shares
+ *         the subject's coordinate space and overlay is exact.
+ * --palette  names the drawing's colours: a JSON object of name -> #rrggbb.
+ *         A name is the agent's own (`coat.lit`, `roof`, `sky`: letters,
+ *         digits, `.`, `_`, `-`), as many as the subject has flats, and a
+ *         mark's color= takes it. A color= the palette does not name is
+ *         refused, with the palette's names. The 13 stock names (black grey
+ *         light-violet violet blue light-blue yellow orange green light-green
+ *         light-red red white) are always valid: a palette may repoint them
+ *         (the older form, still read unchanged) and a stage look uses them.
+ *         `background` is the ground, not a colour: a mark may not use it.
+ *         Measure it off the subject. See pen.write's docstring for what a
+ *         wrong ground costs.
+ * --stock  with --palette: keep the stock colours and the stock ground, and
+ *         take only the palette's own names. For the stage looks, which an
+ *         older palette's repointed stock names would recolour.
+ *
+ * Two flags are for the finished look (finish.py), never for a gate render:
+ *
+ * --offset STAGE:dx,dy  moves every mark of that stage by dx,dy page units for
+ *         this render only, keeping its place in the stack. `--offset fill:2,1`
+ *         puts the colour a little off the line, as a hand colouring in does,
+ *         while a flat that was under the ink stays under it. Repeatable.
+ * --streamline X  sets the smoothing tldraw puts on every stroke (fixed at
+ *         0.62) to X in 0..1. Lower keeps small hooks and wobbles the pen gave.
  */
 import { createServer } from 'node:http'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -59,8 +76,6 @@ import { extname, join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 
-const STOCK = ['black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow',
-  'orange', 'green', 'light-green', 'light-red', 'red', 'white']
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DIST = join(HERE, 'dist')
 
@@ -71,6 +86,26 @@ const TYPES = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.woff2': 'font/woff2',
+}
+
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const HEX = /^#[0-9a-fA-F]{6}$/
+
+// A palette is any number of named colours. A name that cannot pass through
+// the tools' comma and plus lists, or a value that is not #rrggbb, is refused
+// here rather than misread later
+function checkPalette(palette, path) {
+  if (palette === null || typeof palette !== 'object' || Array.isArray(palette)) {
+    throw new Error(`palette ${path}: want a JSON object of name -> #rrggbb`)
+  }
+  const bad = Object.entries(palette)
+    .filter(([name, value]) => !NAME.test(name) || typeof value !== 'string' || !HEX.test(value))
+    .map(([name, value]) => `${JSON.stringify(name)}: ${JSON.stringify(value)}`)
+  if (bad.length) {
+    throw new Error(`palette ${path}: ${bad.join(', ')} -- a name is letters, digits, '.', '_' ` +
+      `or '-' (starting with a letter or digit), and a value is #rrggbb`)
+  }
+  return palette
 }
 
 function serve() {
@@ -106,15 +141,30 @@ function flags(name) {
   return found
 }
 
+// `--offset fill:2,-1`, repeatable. Parsed apart from `flags`, whose comma split
+// would cut a shift in half
+function offsets() {
+  const found = []
+  process.argv.forEach((word, at) => {
+    if (word !== '--offset') return
+    const raw = process.argv[at + 1] ?? ''
+    const match = raw.match(/^([\w-]+):(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/)
+    if (!match) throw new Error(`--offset wants STAGE:dx,dy, got '${raw}'`)
+    found.push({ stage: match[1], dx: Number(match[2]), dy: Number(match[3]) })
+  })
+  return found
+}
+
 async function main() {
   const docPath = process.argv[2]
   if (!docPath || docPath.startsWith('--')) {
     console.error(
       'usage: node cli.mjs <doc.json> [--ops ops.json] [--png out.png]\n' +
       '                    [--scale N] [--flip] [--squint PX] [--crop x,y,w,h]\n' +
-      '                    [--palette colours.json] [--padding N]\n' +
+      '                    [--palette colours.json [--stock]] [--padding N]\n' +
       '                    [--hide stage]...  (repeatable, or one comma list)\n' +
-      '                    [--only stage]...  keep ONLY these stages (a study)'
+      '                    [--only stage]...  keep ONLY these stages (a study)\n' +
+      '                    [--offset STAGE:dx,dy]...  [--streamline X]'
     )
     process.exit(2)
   }
@@ -132,6 +182,11 @@ async function main() {
   const padding = Number(flag('padding', '32'))
   const hide = flags('hide')
   const only = flags('only')
+  const offset = offsets()
+  const streamline = flag('streamline')
+  if (streamline !== null && !(Number(streamline) >= 0 && Number(streamline) <= 1)) {
+    throw new Error(`--streamline wants a number in 0..1, got '${streamline}'`)
+  }
 
   const { server, port } = await serve()
   const browser = await chromium.launch()
@@ -143,18 +198,19 @@ async function main() {
   })
 
   try {
-    await page.goto(`http://localhost:${port}/`)
+    const query = streamline === null ? '' : `?streamline=${Number(streamline)}`
+    await page.goto(`http://localhost:${port}/${query}`)
     await page.waitForFunction('window.canvasReady === true', { timeout: 30000 })
 
     const palettePath = flag('palette')
     if (palettePath) {
-      const palette = JSON.parse(await readFile(palettePath, 'utf8'))
-      // a misspelt name was silently ignored and its flats kept tldraw's stock hue
-      const unknown = Object.keys(palette).filter((name) => name !== 'background' && !STOCK.includes(name))
-      if (unknown.length) {
-        throw new Error(`palette: ${unknown.join(', ')} not a stock name; the 13 are ${STOCK.join(', ')}, plus background`)
-      }
-      await page.evaluate((colours) => window.canvas.repaint(colours), palette)
+      const palette = checkPalette(JSON.parse(await readFile(palettePath, 'utf8')), palettePath)
+      await page.evaluate(
+        ({ colours, stock }) => window.canvas.repaint(colours, stock),
+        { colours: palette, stock: process.argv.includes('--stock') }
+      )
+    } else if (process.argv.includes('--stock')) {
+      throw new Error('--stock qualifies --palette, and no --palette was given')
     }
 
     if (existsSync(docPath)) {
@@ -168,15 +224,15 @@ async function main() {
       console.log(`applied ${ops.length} ops, ${made.length} new strokes`)
     }
 
-    const census = await page.evaluate(() => window.canvas.census())
-    console.log('on the page:', JSON.stringify(census))
+    const shapeCounts = await page.evaluate(() => window.canvas.shapeCounts())
+    console.log('on the page:', JSON.stringify(shapeCounts))
 
     await writeFile(docPath, JSON.stringify(await page.evaluate(() => window.canvas.save())))
 
     if (pngPath) {
       const encoded = await page.evaluate(
         (options) => window.canvas.shot(options),
-        { scale, flip, squint, crop, padding, hide, only }
+        { scale, flip, squint, crop, padding, hide, only, offset }
       )
       if (encoded === null) {
         console.log('nothing on the page to render')
