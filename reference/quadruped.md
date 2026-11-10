@@ -75,8 +75,8 @@ above.
 
 So **block in the barrel and the chest at the same stage as the head, and check
 them together.** Do not draw the head first. A head at the contour stage over a
-chest at block-in fails the gate, because no part may be more than one stage
-ahead of any other.
+chest at block-in fails the gate, because no part may be even one stage ahead
+of any other.
 
 ## The skeleton under the hide [read: Ellenberger & Baum; Bammes]
 

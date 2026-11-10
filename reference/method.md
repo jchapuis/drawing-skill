@@ -207,7 +207,7 @@ expression unasked.
 | 5 | **Masses** | The picture as filled areas, no line at all | `check.py --masses` beside the subject's: the two read as the same shape, said in words. Nothing drawn on top will fix them if they do not |
 | 6 | **Contour** | The real edge: break the straights into curve | Curves depart from the primitives where the subject does |
 | 7 | **Cleanup** | Which line is the line | Every line intended for ink exists and is right; construction is out of the final render (`build.sh` hides it) |
-| 8 | **Ink** | Weight, permanence, hierarchy | None. This is the last line stage |
+| 8 | **Ink** | Weight, permanence, hierarchy | No edge drawn twice and no stage skipped (`--doubled`, `--stages`); no line stopping just short of what it meets (`--joins`); the line weights match the subject's (`--linework`). This is the last line stage |
 | 9 | **Fill** | The masses refined: shadow, blacks, flats | Structure already fixed; value cannot rescue wrong proportion |
 | 10 | **Correct** | Where colour and line disagree | Ink and flats both final; every correction survives being switched off |
 
