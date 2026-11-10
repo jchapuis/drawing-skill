@@ -357,7 +357,7 @@ def _speed(points):
     scale = np.percentile(turn, 85)
     turn = np.clip(turn / (scale + 1e-9), 0.02, 12.0)
     fast = turn ** (-1.0 / 3.0)
-    return (fast - fast.min()) / (fast.ptp() + 1e-9)
+    return (fast - fast.min()) / (np.ptp(fast) + 1e-9)
 
 
 def _wander(count, sigma):

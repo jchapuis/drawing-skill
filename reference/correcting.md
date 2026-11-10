@@ -1,26 +1,33 @@
 # Correcting
 
-A drawing is not finished when the last mark goes down. There is a last pass, like
-an hour with a rag and a small brush, going round the whole picture putting colour
-back where it fell short of a line and taking it off where it ran past one.
-Nothing new is drawn in that pass and nothing is redrawn.
+A drawing needs one more pass after the last mark, like an hour going round it
+with a rag and a small brush: put colour back where it fell short of a line, and
+take it off where it ran past one. This pass draws nothing new and redraws
+nothing.
 
-It is a separate pass because it uses a separate faculty. Drawing is looking at
-the subject. Correcting is looking at the drawing, against its own line art, for
-the places where two marks that were each aimed correctly do not agree with each
-other.
+It is separate because it looks at something else. Drawing looks at the subject.
+Correcting looks at the drawing against its own line art, for places where two
+marks, each aimed correctly, do not agree.
+
+## Contents
+
+- What the corrective pass may not do
+- Aiming
+- A corrective pass does not survive upstream changes
+- Prove each one, or take it out
+- The other pass: relationships, not marks
+- Finding them
 
 ## What the corrective pass may not do
 
-It is for faults that are local consequences of decisions that are right
-everywhere else. The defining case: a flat is trapped seven pixels past its
-contour along its whole length, correctly, and for forty rows near a corner the
-contour turns in faster than the flat does, so the trap comes out from under the
-line and stands clear of it in the open. The flat is not wrong. Pulling it back
-far enough to clear those forty rows would un-trap the four hundred that are
-correct. Correct a fault local to forty rows locally, on top.
+The pass is only for small local faults caused by a decision that is right
+everywhere else. For example, a flat is correctly trapped seven pixels past its
+contour along its whole length, but for forty rows near a corner the contour
+turns in faster than the flat, so the trap shows in the open. Pulling the flat
+back far enough to fix those rows would un-trap the four hundred correct ones.
+Fix the forty rows locally, with a mark on top.
 
-Everything else goes back to the stage that made it:
+Every other fault goes back to the stage that made it:
 
 | The fault | Where it belongs |
 |---|---|
@@ -31,144 +38,138 @@ Everything else goes back to the stage that made it:
 | A contour that stops on the frame instead of running past it | redraw the stage |
 | Anything wrong along its whole length | redraw the stage |
 
-A drawing rescued by body colour everywhere reads as scraped, and it is a reliable
-sign that a stage was signed off before it was right.
+A drawing patched with body colour all over looks scraped, and reliably means a
+stage was signed off before it was right.
 
 ## Aiming
 
-- **Underneath by default.** A correction on the `mend` stage sits above the flats
-  and under the ink, so it cannot damage the line. One on `correct` sits above
-  everything and can damage anything it touches. Reach over the ink only when the
-  thing being corrected is the ink.
-- **Correct with the colour of the thing you are restoring**: the paper's own
-  outside a contour, the flat's own inside it, the ink's own to close a hole in a
-  black. Never white. On a cream ground white is lighter than anything else in the
-  picture, and the eye lands on it before it lands on the drawing.
-- **Put a trim on the waste, not on the edge you want.** Centre it halfway between
-  the edge you have and the edge you want, and make it at least as wide as the
-  strip between them. Aiming at the target edge cuts a pale gash through the
-  middle of the mark and leaves its true edge floating above a hole.
-- **Measure where the mark actually landed**, never where it was sent. Aiming and
-  landing are different things, and a correction placed from an impression lands
-  beside the fault and leaves two faults where there was one.
-- **Turn the hand down.** Everywhere else in a drawing the imprecision is the
-  point. Here it is the enemy, because there is no third pass to catch what this
-  one misses.
-- **Every correction leaves a speck**: the tip of whatever it took, marooned
-  beyond the new edge. The last thing the pass does is go round and pick them off.
-- **One fault, one mark.** When a correction falls short, widen it, and do not lay
-  a second one alongside. Two marks of the same colour overlapping leave a seam
-  between them, and the seam is a straighter and more legible line than whatever
-  they were covering. The second attempt then reads worse than the first.
+- **Put corrections underneath by default.** A correction on the `mend` stage
+  sits above the flats and under the ink, so it cannot damage the line. One on
+  `correct` sits above everything and can damage anything it touches. Use
+  `correct` only to correct the ink itself.
+- **Correct with the colour of what you are restoring**: the paper's colour
+  outside a contour, the flat's colour inside it, the ink's colour to close a
+  hole in a black. Never use white. On a cream ground, white is lighter than
+  anything else in the picture, and the eye goes to it before the drawing.
+- **Aim a trim at the excess, not at the edge you want.** Centre it halfway
+  between the edge you have and the edge you want, and make it at least as wide
+  as the strip between them. A trim centred on the target edge cuts a pale gash
+  through the middle of the mark and leaves its real edge floating above a hole.
+- **Measure where the mark actually landed**, never where it was sent. A
+  correction placed from an impression lands beside the fault, leaving two
+  faults where there was one.
+- **Turn the hand down** (`hand=`, the pen's built-in variation). Elsewhere that
+  imprecision is wanted. Here it does harm, because no later pass will catch
+  what this one misses.
+- **Every correction leaves a speck**: the tip of whatever it removed, stranded
+  beyond the new edge. Finish by going round and removing these.
+- **Use one mark per fault.** When a correction falls short, widen it. Do not lay
+  a second mark beside it. Two overlapping marks of the same colour leave a seam
+  between them that is a straighter, more visible line than what they covered.
 
 ## A corrective pass does not survive upstream changes
 
-Every mark in it is aimed at where the marks underneath actually landed, not at
-where they were sent. So anything that moves them (a changed control point, a
-different seed, a fix to the pen itself) invalidates the whole pass at once, and
-the cuts that covered a spill now sit a little to one side of it. Run the
-registration check again after any such change and expect to redo work. This is
-the price of correcting at the pixel and not at the decision, and it is why a
-fault is sent back to its own stage whenever it can be.
+Every corrective mark is aimed at where the marks underneath landed. Anything
+that moves them (a changed control point, a different seed, a fix to the pen)
+invalidates the whole pass: the cuts that covered a spill now sit beside it.
+After such a change, run the registration check again and expect to redo work.
+This is the cost of correcting pixels instead of decisions, and why a fault goes
+back to its own stage whenever it can.
 
 ## Prove each one, or take it out
 
-**Render with the corrective stage hidden, and compare the two frames at 4x.** A
-correction that does not survive being switched off is not a correction. Most
-candidates do not survive: a fault that measures three pixels wrong can be
-invisible because the subject is broken up in the same place, and then the right
-answer is to take the correction out and keep the fault.
+**Render with the corrective stage hidden, and compare the two frames at 4x.** If
+switching a correction off makes no visible difference, remove it. Most
+candidates fail this test: a fault that measures three pixels wrong can be
+invisible because the subject is broken up at the same place. Then keep the
+fault.
 
-This is the only check in the skill that compares the drawing against itself and
-not against the subject, and the corrective pass cannot do without it.
+This is the only check in the skill that compares the drawing with itself
+instead of with the subject, and the corrective pass cannot skip it.
 
 ## The other pass: relationships, not marks
 
-Everything above is about marks disagreeing with each other. A finished picture
-has to answer a second question that no amount of trimming reaches: do its parts
-lead in the order the subject's parts lead? A picture can be correct part by part
-and still put its furniture in front of its subject. That, more than the thinness
-of the tier-3 objects, is what makes an economical drawing read as unfinished.
-The furniture is not too crude. It is too loud.
+A finished picture also has to pass a test that no trimming reaches: do its
+parts stand out in the same order as the subject's? A picture can be correct
+part by part and still put its furniture ahead of its subject. That, more than
+how thinly the tier-3 objects are drawn, is what makes an economical drawing look
+unfinished. The furniture is not too crude; it draws too much attention.
 
-`check.py --ranking parts.json` measures it: the spread of value inside each
-part's own box, ranked, the drawing's order against the subject's.
+`check.py --ranking parts.json` measures this. For each part it takes the spread
+of value inside the part's own box, ranks the parts, and compares the drawing's
+order with the subject's.
 
-**The move is zero-sum.** A ranking cannot be lifted by working harder: add marks
-to every part and the order comes back unchanged. The only way to raise what
-should lead is to put down what competes with it.
+**Raising one part means lowering another.** Adding marks to every part leaves
+the order unchanged. The only way to raise what should lead is to tone down what
+competes with it.
 
-**There is no cheap way to put it down.** The obvious instrument is a translucent
-glaze laid over the region, ink included. It was built and measured, and it was
-rejected by the first person to look at the picture. Do not use it. The numbers said it worked: three glazes moved one picture's
-rank agreement with its subject from +0.77 to +0.80 and closed a standing
-describer disagreement about which part of the picture dominates by area. The
-picture said otherwise. A glaze does not push an object back a plane. It makes a
-dirty copy of it in place: the blacks lift to brown, the lights go tan, and a
-veiled object beside an unveiled neighbour of the same kind reads as a ghost, not
-as distance. A whole-picture number can go the right way while the drawing gets
-worse, which is why `method.md` says never to let one stand in for the verdict.
+**There is no cheap way to tone a part down.** The obvious tool is a translucent
+glaze over the region, ink included. Do not use it: it was built and measured,
+and the first person to look at the result rejected it. The numbers improved
+(three glazes moved one picture's rank agreement with its subject from +0.77 to
++0.80, and settled a standing describer disagreement about which part dominates
+by area), but a glaze does not push an object back in space. It makes a dirty
+copy of it in place: the blacks lift to brown, the lights go tan, and a veiled
+object next to an unveiled one of the same kind reads as a ghost, not as
+distance. A whole-picture number can improve while the drawing gets worse, which
+is why `method.md` says never to let one stand in for the verdict.
 
-What actually recedes an object is losing its contour and letting it merge into
-the mass behind it. That is a decision for the masses stage. Running the object
-stages per object never offers it, because they have already given every object a
-closed outline of its own. See `scene.md`.
+What makes an object recede is losing its contour and letting it merge into the
+mass behind it. That is a decision for the masses stage. Running the object
+stages object by object never offers it, because by then every object already
+has a closed outline. See `scene.md`.
 
-So `--ranking` stays a diagnostic with no pass attached to it. Read a large delta
-as a pointer to the stage that made it.
-
-**Most large deltas are not relational faults at all.** A flat filled in the wrong
-colour, a background contour drawn across the object in front of it, or a form
-whose construction is wrong each arrive in this report looking exactly like a
-merged junction, because a merged junction and a mis-filled flat have the same
-signature: low spread where the subject has high. In one case the report's two worst rows
-were both one fill in the wrong colour, and the right response was stage 9. Crop
-the part and look. The report names a region and never names a repair.
+So `--ranking` is a diagnostic with no corrective pass attached. Read a large
+delta as a pointer to the stage that caused it. **Most large deltas are not
+relationship faults at all.** A flat filled in the wrong colour, a background
+contour drawn across the object in front of it, and a badly constructed form all
+look exactly like a merged junction in this report, because they share its
+signature: low spread where the subject has high. In one case the report's two
+worst rows were both a single fill in the wrong colour, and the fix belonged at
+stage 9. Crop the part and look. The report names a region, never a repair.
 
 ## Finding them
 
-By eye at 1:1 you will not find these. They are two and three pixels wide, and
-they are the first thing a viewer's eye lands on anyway, which is the difficulty.
-`check.py --registration` finds them mechanically, from the drawing alone:
+You will not find registration faults by eye at 1:1: they are two or three
+pixels wide, yet a viewer's eye lands on them first. `check.py --registration`
+finds them mechanically, from the drawing alone:
 
 ```bash
 python3 check.py drawing.png --registration --space x0,y0,x1,y1 --out faults.png
 ```
 
 It floods the picture inward from the bare paper at its border, through anything
-that is not line, and the drawing splits in two: what the line encloses and what
-it does not.
+that is not line, which splits the drawing in two: what the line encloses and
+what it does not.
 
 - A **spill** is colour the flood reached. It lies outside the line art, so
   nothing covers its edge.
 - A **gap** is paper the flood did not reach. It is walled in by line and colour
   on every side, so it reads as a hole.
-- If the flood pours into a region it had no business reaching, the line art is
-  **open** somewhere. This is the most common flatting fault of all, seen from the
-  other side.
+- If the flood pours into a region it should not reach, the line art is **open**
+  somewhere. This is the most common flatting fault, seen from the other side.
 
-The seeds are bare paper only, never every border pixel, because a shape is
-supposed to run off the edge of the picture and not stop on it.
+The flood starts only from bare paper, never from every border pixel, because a
+shape is supposed to run off the edge of the picture, not stop on it.
 
-It reports and does not decide. A flat mixed at the paper's own value is reported
-as a gap every time (an eye white on cream paper, for instance), and a trap that
-wanders under its own line is not reported at all, because it is not a fault. Look
-at every hit before correcting any of it.
+The check reports and does not decide. A flat mixed at the paper's own value (an
+eye white on cream paper, for instance) is reported as a gap every time. A trap
+that wanders under its own line is not reported at all, because it is not a
+fault. Look at every hit before correcting any of them.
 
-**Its smallest hits are usually the renderer, not the drawing.** Where a hairline
-crosses paper the two blend, and a blend classifies as neither ink nor paper, so
-it is reported as a spill a few pixels long. Measure two or three before chasing
-any of them. If the pixels run smoothly from the line's value to the paper's, that
-is anti-aliasing and there is nothing to correct. List the ones you have cleared
-in the drawing's own notes so the next pass does not hunt them twice.
+**Its smallest hits usually come from the renderer, not the drawing.** Where a
+hairline crosses paper the two blend, and a blended pixel counts as neither ink
+nor paper, so it is reported as a spill a few pixels long. Measure two or three
+before chasing any. If the pixels run smoothly from the line's value to the
+paper's, it is anti-aliasing: leave it. List the ones you have cleared in the
+drawing's own notes so the next pass does not chase them again.
 
-**It is a vignette check.** It assumes bare paper surrounds the subject, which is
-what makes the flood meaningful. Run it on a full-bleed scene (a room, a
-landscape, anything whose colour reaches the frame on every side) and the wall and
-the floor come back as the two largest spills in the drawing, because they are
-colour the flood reached and nothing covers their edge. On such a picture the
-report is still usable, but only from the small end: sort by size and work upward,
-since a real misregistration is two and three pixels wide and everything at the
-top of the list is the picture. A cast shadow drawn without an outline will be
-reported every time, and correctly. The check cannot tell it from a spill, and
-only you know it is meant to be there.
+**It is a check for vignettes.** It assumes bare paper surrounds the subject,
+which is what makes the flood meaningful. On a full-bleed scene (a room, a
+landscape, anything whose colour reaches the frame on every side) the wall and
+the floor come back as the two largest spills. The report is still usable, but
+only from the small end: sort by size and work upward, since a real
+misregistration is two or three pixels wide and the top of the list is the
+picture itself. A cast shadow drawn without an outline is reported every time,
+and correctly: the check cannot tell it from a spill, and only you know it is
+meant to be there.
