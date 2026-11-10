@@ -27,7 +27,7 @@ that at the reading stage.
   `method.md`'s "measure the ground" becomes a lookup. Record **where** each
   entry was sampled. If two samples inside one region disagree, one of them
   landed on something else (the measuring error described below).
-- **A posterised read.** `scene.md`'s step 0 asks you to posterise the source
+- **A posterised read.** `scene.md`'s S0 asks you to posterise the source
   and measure the masses. Here you can do better: classify every pixel to its
   nearest palette entry and print the picture as one character per block, in
   the picture's own coordinates. The bands, the depth planes and every object's

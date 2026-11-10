@@ -399,42 +399,45 @@ of what it has spent can be low by more than a factor of two.
 
 ## Order of work
 
-Steps 0-3 reverse the usual order: none of them draws an object.
+Steps S0-S2 reverse the usual order: none of them draws an object. The numbers
+are the same as the scene table in SKILL.md.
 
-0. **Read the source as a tone field.** Posterise it to three or four values and
+- **S0 · Read the source as a tone field.** Posterise it to three or four values and
    measure the masses, not the objects. Say in one sentence what the picture is
    about, and pick one centre of interest. *Done when* a thumbnail notan reads as
    a design with one dominant value and the strongest contrast at the focus.
-1. **Armature.** Eye level, ground plane, the main perspective lines, the
+- **S1 · Armature.** Eye level, ground plane, the main perspective lines, the
    frame's subdivision, and the major masses' silhouettes. Still no objects.
    *Done when* every later shape can be located on this ground.
-2. **Tonal plan and merging.** Give every region a value class and merge
-   adjacent same-value objects into single shapes. The output is five to twelve
-   shapes, not eighty-four parts. Record for each shape edge whether it is sharp
-   or lost. *Done when* the shape map matches the posterised source at thumbnail
-   size and no object has a closed contour.
-3. **Block the masses** in straights: lay the middle tone over the whole, then
-   the light shapes, then the darks, following the sharp/lost decisions. *Done
-   when* the downsampled render matches step 2.
-4. **Every part: run the single-subject stages** unchanged, each in place in the
+- **S2 · Masses: tonal plan, merging, block-in.** Give every region a value class
+   and merge adjacent same-value objects into single shapes. The output is five
+   to twelve shapes, not eighty-four parts. Record for each shape edge whether
+   it is sharp or lost. Then block the masses in straights: lay the middle tone
+   over the whole, then the light shapes, then the darks, following the
+   sharp/lost decisions. *Done when* the shape map matches the posterised source
+   at thumbnail size, no object has a closed contour, and the downsampled render
+   matches it.
+- **S3 · Every part: run the single-subject stages** unchanged, each in place in the
    picture's document, far to near, by depth group. The part at the centre of
    interest goes to the full quality bar. The others pass their gates at the
-   lighter emphasis decided in step 2 and stop.
-5. **Emphasis gradient.** Decide it before the parts are drawn and confirm it
-   here: each part's line weight and edge count fall with distance from the
-   centre of interest and with depth, and were drawn that way, not adjusted
-   afterwards. *Done when* no part beyond the focus
-   carries the focus's weight and a describer still names every part.
-6. **Junction pass, as its own stage.** Walk every place two things meet, decide
+   lighter emphasis decided at S0 and stop.
+- **S4 · Junctions, as their own stage.** Walk every place two things meet, decide
    lost or found, put the occlusion accent where forms touch, and break tangents
    by overlap or separation. *Done when* every junction has a recorded decision.
-7. **Texture fields.** A few units drawn at the boundary nearest the focus, the
-   rest as one indicated pattern.
-8. **Spot the blacks and vignette.** One pass placing the black pattern across
-   objects rather than within them, then a check of the whole drawing's
-   silhouette against the paper.
-9. **Correct from a distance.** Downsample again and compare against step 0,
-   and confirm there is still exactly one focus.
+- **S5 · Emphasis gradient.** Decided before the parts are drawn and confirmed
+   here: each part's line weight and edge count fall with distance from the
+   centre of interest and with depth, and were drawn that way, not adjusted
+   afterwards. *Done when* no part beyond the focus carries the focus's weight
+   and a describer still names every part.
+- **S6 · Overlaps on the whole picture.** One pass over the overlaps table across
+   the merged picture: accents, tangents, lost edges confirmed. *Done when*
+   every row has a decision and a look.
+- **S7 · Blacks, texture fields and edges.** One pass placing the black pattern
+   across objects rather than within them; texture as a few units drawn at the
+   boundary nearest the focus, the rest as one indicated pattern; then a check of
+   the whole drawing's silhouette against the paper.
+- **S8 · Correct from a distance.** Downsample again and compare against S0, and
+   confirm there is still exactly one focus.
 
 Passing a stage gate means no part was skipped, not that every part had equal
 work: at the masses gate a background band is finished as one shape while a
