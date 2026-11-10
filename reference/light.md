@@ -101,8 +101,10 @@ made only of line, it is the main way to show volume.
   broken or absent where the light hits hardest.
 - **Weight shows depth**: thicker on the edges nearest the viewer, lighter as a
   contour recedes.
-- **Weight shows contact**: heaviest where two forms touch or overlap, as the
-  occlusion shadow is the darkest note.
+- **Weight shows contact**, in many styles heaviest where two forms touch or
+  overlap, as the occlusion shadow is the darkest note. Others leave the contact
+  thin (`line.md` § What decides the weight): match the subject's measured
+  weights.
 - **Weight shows mass**: taper a stroke along its length to suggest a bulge,
   whatever the light.
 - **Lost and found**: draw, leave a gap, resume. Drawn segments read as a hard

@@ -50,9 +50,9 @@ that affordable is in `line.md` § Hatching and texture.
 
 | Instrument | Behaviour under overlap | Use for tone? |
 |---|---|---|
-| `marker` | translucent, overlaps darken | **Yes**: this is the hatching instrument |
+| `marker` | translucent, overlaps darken | **Yes**, for tone built by overlapping passes (glazes, soft gradients) |
 | `crayon` | broken, grainy, three offset passes per call | **Yes**, for texture and for the grainiest darks |
-| `brush` | opaque, swings thin to thick | For contour and for a deliberate single dark, not for building |
+| `brush` | opaque, swings thin to thick, tapers both ends | **The hatching instrument**: one tapered stroke per line, at the small sizes in `line.md` § Hatching and texture, tone from spacing rather than overlap. Also contour and a deliberate single dark |
 | `pen` | opaque, dead uniform | No |
 | `flat` | opaque region | The mass itself, never the modelling on it |
 

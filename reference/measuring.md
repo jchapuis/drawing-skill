@@ -214,27 +214,15 @@ good as the straight it replaced.
 
 Comparative measurement takes one length from the subject as a unit and
 expresses everything else as a ratio to it. The standard unit is the head
-length. Adults are 7.5 heads tall in life and 8 in the idealised canon.
+length. Adults are 7.5 heads tall in life and 8 in the idealised canon. On an
+image the unit is a pixel span you read off the subject (§ Sighting by pixels);
+check the same ratio on the drawing.
 
-Procedure:
+**Angles.** Read a tilted edge's angle and note which other landmarks its line
+crosses, then check that the same line on the drawing crosses the matching
+points. `look.py axis` gives the angle directly.
 
-1. Sit where you can see subject and drawing without moving.
-2. Extend your arm and lock the elbow every time; a bent arm changes the
-   measurement.
-3. Close one eye, to flatten the scene to 2D.
-4. Hold the pencil perpendicular to your line of sight, line its tip up with
-   landmark A, and slide your thumb to landmark B. That span is the unit.
-5. Keeping the thumb fixed, count how many units fit across a larger span.
-6. Measure the drawing the same way, arm locked, and check the ratio.
-
-**Angles.** Turn the pencil at the wrist until it lines up with the tilted edge,
-and note which other landmarks that line crosses. Then freeze the wrist, turn to
-the drawing, and check that the same tilt crosses the matching points. The usual
-way to remember the angle is a clock face: "two o'clock to eight o'clock". There
-is no degree-based protocol, and the literature has no "two-pencil method": the
-real technique uses one pencil, one measurement at a time.
-
-**Plumb lines.** Hold a true vertical through one landmark and note every other
+**Plumb lines.** Take a true vertical through one landmark and note every other
 point it crosses, then carry that relationship over to the drawing and check it.
 This works because people judge verticals and horizontals far more reliably than
 diagonals. Drop several plumb lines over a drawing, not one.

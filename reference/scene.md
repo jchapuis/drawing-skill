@@ -102,24 +102,27 @@ recede, remove its contour and let it merge into the mass behind it.
 
 ## The budget is a design decision, not a division
 
-Tiers are masses, not ranked objects. Which tier something belongs to is
-decided by its contrast with its surround and its distance from the one centre
-of interest, not by how important it is. The furthest tier gets no marks of its
+A scene sorts its objects two ways. The numbered **tier** in `parts.json`
+(tier 1 the focus, then tier 2, tier 3) ranks the *parts* and sets how heavy and
+how contrasted each is drawn. Separately, every object is either a **part** or a
+**mass**, and that split is what this section is about. Whether something is a
+part or a mass is decided by its contrast with its surround and its distance from the one centre
+of interest, not by how important it is. The furthest objects get no marks of their
 own: it lives inside a mass and receives at most one found edge.
 
 Do not aim for "the fewest confident marks" per object: few marks still give
 each object a closed contour, which is what breaks the picture. Aim for no
 silhouette instead.
 
-A middle tier ("stated": only the edges that differ, drawn at the picture's
+A middle kind ("stated": only the edges that differ, drawn at the picture's
 scale) was tried and failed. In one test every object given that treatment came
 out crude, furniture and figure alike: a lamp became a diamond on a stick, a
 strip of tape four floating squares, a torso one bean with no shoulder, while
 an object drawn at four times the picture's scale came out well. At the
 picture's scale you cannot see well enough to draw, whatever the economy of
-marks. So there are two tiers:
+marks. So there are only two kinds:
 
-| tier | what it is | treatment |
+| kind | what it is | treatment |
 |---|---|---|
 | **part** | Every object that must be recognisable (the figure, the vehicle, the lamp, the picture on the wall), each an object and never a feature of one | The single-subject stages, in the picture's one document at the working resolution its smallest feature needs, looked at with `--zoom`. Emphasis is the line weight and edge count it is drawn with, decided at stage 0. A far part is drawn lighter and sparer from the start, not thinned afterwards |
 | **mass** | Everything else, which is most of the list | Inside a mass. No contour and no marks of its own, except in a source that inks every flat boundary, where the mass keeps its one line (`redrawing.md`) |

@@ -58,9 +58,10 @@ the subject's, with the heaviest line about right. Fix it from the bottom up:
   the subject's finest width, usually a third or less of the silhouette.
 - **Make the silhouette heavier**, unevenly: heavier on the shadow side and where
   the form turns away, thinner on the lit side.
-- **Make the contacts heaviest**: under a form resting on another, where a foot
-  meets the ground, under an overhang, where a limb crosses the body. A heavy
-  line there stands in for the cast shadow.
+- **Weight the contacts as the subject does**: under a form resting on another,
+  where a foot meets the ground, under an overhang, where a limb crosses the
+  body. Styles disagree here (see Contact below), so read the subject's weight
+  at its contacts with `--weights` and match it.
 
 Each is a `size` or pressure on a stroke you write; read it back on the swatch
 and the drawing with `--weights`.
@@ -84,9 +85,11 @@ defined by flatness and the absence of hatching.
   anything solid, not on smoke, fire or cloud.
 - **Depth**: foreground heavy, middle ground medium, background fine. This alone
   separates the planes without any shading.
-- **Contact**: an edge touching another surface gets no extra weight, and an
-  edge pulled away into open air gets a thicker line. This is how "in front"
-  reads.
+- **Contact depends on the style.** Some make the contact the heaviest line,
+  standing in for the occlusion shadow; others give a touching edge no extra
+  weight and thicken the edge pulled away into open air, which is how "in
+  front" reads. Neither is a rule: measure the subject's weight at its contacts
+  with `--weights` and match it.
 - **Distance from the light**: the further away, the thicker. Under an overhead
   light the feet carry more weight than the head.
 - **Anatomy**: thicker around fat and muscle, thinner around bone.
@@ -109,14 +112,10 @@ it is standing on the near figure's shoulder.
 
 ## Line quality
 
-- **Draw from the shoulder or elbow**, not the wrist, for anything longer than a
-  few centimetres. That gives smooth, even arcs instead of jittery segments
-  pivoting at the wrist.
-- **Taper**: thick through the middle, pointed at both ends. A hand gets this by
-  speeding up into the stroke and easing off out of it, like a car reaching speed
-  and then coasting instead of braking.
-- **Ghost the stroke** two or three times before touching down, then make it in
-  one confident pass.
+- **Long arcs are one smooth stroke**: give a long curve its points along the
+  whole run and let `smooth=True` carry it, rather than chaining short pieces.
+- **Taper**: thick through the middle, pointed at both ends. On the page that is
+  a stroke's `lead` and `tail`.
 - **Never correct by drawing over**: a second, bolder mark makes the error *more*
   visible. Redraw the whole segment.
 - **A drawn line does not shake.** Watch anyone ink: the stroke is smooth. What
@@ -291,9 +290,8 @@ that colour: sample the centre of a few marks on the subject at the magnified
 view and put the value in `palette.json`, under the name you ink with. Old prints
 and pen drawings are often a warm dark brown. Uniform, square-ended marks in pure
 black look heavier than their width, so a group at the subject's width can still
-look like heavy brush strokes. Use `tool="brush"`,
-whose default `lead` and `tail` taper both ends, at the small sizes below (or
-`lead=` and `tail=` on a `marker`). `tool="pen"` has no taper: keep it for a
+look like heavy brush strokes. Hatch with `tool="brush"`,
+whose default `lead` and `tail` taper both ends, at the small sizes below. `tool="pen"` has no taper: keep it for a
 subject whose hatching is a technical pen's even hairline.
 
 A swatch rendered at 4x with `--scale 0.5`
