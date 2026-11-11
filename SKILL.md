@@ -98,17 +98,23 @@ the `claude` CLI on the PATH.
 - Copy `build.sh` into it and point it at this skill with `export SKILL=…`, or
   edit its `SKILL=` line. A copy cannot find the skill on its own, and says so.
 - Your script is `draw.py`; it writes `ops.json`.
-- Copy `gates.sh` in the same way. `./gates.sh` runs every gate whose input
+- Copy `gates.sh` in the same way, with its own `SKILL=` line set. `./gates.sh` runs every gate whose input
   files exist, prints one line per gate (PASS, FAIL, UNCHECKED, SKIP, or LOOK
   for an image you must look at yourself), keeps full output in `gates/`, and
   exits 1 on any FAIL. `--zoom`, `--hatch`, `--unfilled` and the describer are
   run by hand.
 - **Work at four times the delivered size** for a scene, and for a single
-  object whose smallest feature is under about 40px. `subject.png` is the
+  object whose smallest feature is under about 40px. The delivered size is the
+  subject's own size unless the user names another. `subject.png` is then the
   delivered image upscaled 4x with `Image.BILINEAR` (never LANCZOS or BICUBIC,
   which leave a pale halo beside every dark line). Keep the original beside it
   as `subject_1x.png`. Render with `./build.sh --scale 0.5` so renders line up
-  1:1 with `subject.png`. Tracing details are in `reference/stage-0.md`.
+  1:1 with `subject.png`. Points traced on `subject_1x.png` are typed at 4x;
+  multiply them as you write them. Describe a render shrunk back to
+  `subject_1x.png`'s size, since that is what the describer saw of the subject.
+- **Files you will keep**, besides those stage 0 lists: `notes.md` (one entry
+  per correction round) and `refuted.md` (every complaint that did not survive
+  measuring). Create both at the start. Tracing details are in `reference/stage-0.md`.
 - **The shell may be zsh.** zsh does not split a variable into words, so
   `G="--stages ops.json"; check.py drawing.png $G` reaches `check.py` as one
   argument. Write flags out, or use an array: `G=(--stages ops.json); …
@@ -155,10 +161,10 @@ those before it), pass its gate, and only then write the next.
 | # | Stage | You produce | Gate |
 |---|---|---|---|
 | 0 | **Read** | `palette.json`, `regions.json`, `subject.describe.md`, `reading.md`, `parts.json` (see `reference/stage-0.md`) | every tier-1 and tier-2 part has a shape note; the acceptance list quotes the describer's answers 3–5; `reading.md` records the line character, and every hatched region you will draw has a `hatch` entry measured with `--hatch` |
-| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop. Use `smooth=False` for a built or faceted mass (a building, a box, a machine, a rock), or it renders as ovals and the describer names jars | `describe.sh gesture.png` answers questions 2 and 3 the way `subject.describe.md` does. If the action does not read now, no later stage adds it. Exceptions below |
-| 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1 and tier-2 region as straight lines from `regions.json`, with shared corners named once | `check.py blockin.png --ref subject.png --overlay`: the straight lines sit on the subject's edges |
-| 4 | **Construction** | `stage="construction"`: for each volume, how it turns in space, written down, and its centre line placed accordingly | a written turn for every tier-1 form |
-| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one flat per surface, trapped where it meets a silhouette (see below), written in depth order | `check.py drawing.png --ref subject.png --masses`: both read as the same shape, described in words. On a subject with heavy line, judge it once each form's ink is in: flats alone never match a subject whose lines carry weight |
+| 1 | **Gesture** | 3–10 strokes, `stage="gesture"`: the line of action, then each big mass as one loose loop. Use `smooth=False` for a built or faceted mass (a building, a box, a machine, a rock), or it renders as ovals and the describer names jars | `describe.sh gesture.png` answers questions 2 and 3 the way `subject.describe.md` does (for a subject with no figures, such as a diagram, compare question 4 instead). If the action does not read now, no later stage adds it. Exceptions below |
+| 2–3 | **Block-in** | `stage="blockin"`, `smooth=False`: every tier-1 and tier-2 region as straight lines from `regions.json`, with shared corners named once | `check.py blockin.png --ref subject.png --overlay --dark 200` (block-in lines are pale; without `--dark` none count as line): the straight lines sit on the subject's edges |
+| 4 | **Construction** | `stage="construction"`: for each volume, how it turns in space, written down, and its centre line placed accordingly | a written turn for every tier-1 form (on flat art, one line saying nothing turns) |
+| 5 | **Masses** | `stage="fill"`, `tool="flat"`: one flat per surface, trapped where it meets a silhouette (see below), written in depth order | `check.py contour.png --ref subject.png --masses` (`STAGE=fill ./build.sh` stops before `drawing.png`, which it removes): both read as the same shape, described in words. On a subject with heavy line, judge it once each form's ink is in: flats alone never match a subject whose lines carry weight |
 | 6 | **Contour** | `stage="contour"`: the real edge, curved where the subject curves | `--overlay` again |
 | 7–8 | **Ink** | `stage="ink"`: one stroke per edge, width measured on the subject, each tagged with the edge it draws; then hatching, group by group, one stroke per line | `--doubled ops.json` and `--stages ops.json` pass; `--joins ops.json --parts parts.json` lists no line stopping just short of what it meets; `--linework parts.json --ref subject.png` passes |
 | 9 | **Fill** | flats refined; the blacks laid in as one value before anything is shaded | rendered with `--hide ink`, the figure still stands out from the ground |
@@ -194,7 +200,13 @@ relies on are in `reference/marks.md` § Overlap order.
 **A subject with no outline** (flat vector art, a poster) goes through the same
 stages. Its contour is the shared edges between flats, with no weight of its
 own. The ink stage holds only what the subject draws as a dark line (spokes,
-cables, a seam). Do not add an outline the subject does not have.
+cables, a seam). Do not add an outline the subject does not have. The build
+refuses ink with no contour stage, so write the contour as the flats' own point
+lists at `stage="contour"`; it is scaffolding and never shows in `drawing.png`.
+
+**A diagram** (icons, arrows, labels) is drawn as a scene of small flat
+objects. Lettering, arrowheads and dashed lines: `reference/redrawing.md` §
+Diagrams and lettering.
 
 Going back to a stage invalidates everything after it, so re-run each later
 stage. One call re-renders the lot.
@@ -338,8 +350,9 @@ Read `reference/marks.md` before the first ink. The rules that matter most:
   renders as a single bow with no bend at the knee.
 - **Straight lines, corners on the frame, quads and faceted forms take
   `smooth=False`.** Organic forms keep the default smoothing.
-- **Draw a weight swatch first**, read it back with `--weights`, and check it at
-  delivered size.
+- **Draw a weight swatch first**, in its own `swatch.py` → `swatch.json`,
+  render it with `node $SKILL/harness/cli.mjs` and `--palette palette.json`,
+  read it back with `--weights`, and check it at delivered size.
 - **A chain, belt, rope or cable is one continuous path** that meets what it
   wraps with no gap.
 

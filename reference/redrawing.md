@@ -16,6 +16,7 @@ that was never there**, and not copying what makes it look machine-made.
 - Structure that does not survive measurement
 - Ask where the boundary EXISTS, not where to break the line
 - Measure the object, never a box round it
+- Diagrams and lettering
 
 ## What it hands you free
 
@@ -199,3 +200,21 @@ Four cheap fixes:
   fix that actually catches the error. A probe that gets the control right and
   the object surprising is a measurement. A probe that gets the control wrong
   was never measuring the object, and its number is worthless.
+
+## Diagrams and lettering
+
+A diagram (icons, arrows, labels) is drawn as a scene of small flat objects,
+with the focus on what the diagram is about.
+
+- **Solid arrowheads** and other ink-coloured solids are drawn at the ink
+  stage, not as flats.
+- **Lettering**: there is no text tool. Letter each word by hand as ink
+  strokes, measured from column and row scans of the subject like any other
+  edge, and match its weight with `--weights`. A closed letter (o, e, a)
+  renders heavier than the swatch predicts: lower its scale and read it back.
+- **Dashed lines**: the renderer's `dash=` spacing is fixed, so a dashed line
+  whose spacing matters is typed dash by dash. List the dashes as intended gaps
+  for `--joins` (`"_gaps": ["arrow.dashes/arrow"]` in `parts.json`; a tag prefix
+  works).
+- **The colour check flags hand-lettered words** when the subject's letter edges
+  are blurred. If `--weights` matches, record it in `refuted.md`.
