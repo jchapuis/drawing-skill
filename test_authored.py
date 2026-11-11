@@ -39,7 +39,11 @@ CASES = {
     "points typed at the subject's size under unit(4)": (True, {}, HEAD + STAGES +
         "from pen import unit\nunit(4)\n"
         "ops.append(stroke([(5, 7), (40, 30)], tag='a'))\n"
-        "ops.append(stroke([(12, 3), (60, 50)], tag='b'))\n" + TAIL),
+        "ops.append(stroke([(12, 3), (60, 50)], tag='b'))\n" + TAIL +
+        # the marks land at 4x, so a unit() that scales nothing fails here
+        "import json\nA = [o for o in json.load(open('ops.json')) if o.get('tag') == 'a'][0]\n"
+        "assert abs(A['points'][0][0] - 20) < 4 and abs(A['points'][0][1] - 28) < 4, A['points'][0]\n"),
+    "unit(0)": (False, {}, HEAD + "from pen import unit\nunit(0)\n" + TAIL),
     "a loop stamping literal points": (False, {}, HEAD + STAGES +
         "for pts in ([(1, 2), (30, 40)], [(5, 6), (70, 80)]):\n"
         "    ops.append(stroke(pts))\n" + TAIL),

@@ -34,6 +34,7 @@ This file is the map. The detail lives in `reference/`, loaded when you need it
 - **Gate**: a check a stage must pass before the next stage begins.
 - **Describer** and **critic**: the two judges, described under [Judging](#judging).
 - **Emphasis**: how heavy and how detailed a part is drawn, relative to the centre of interest.
+- **The files**: `draw.py` is your script; it writes `ops.json`, the list of marks the canvas renders. `palette.json` holds the named colours, `regions.json` the subject's traced colour regions, and `parts.json` the parts list (each part's tier, its pieces and the overlaps between parts).
 
 ## You write the marks; tools only measure
 
@@ -110,8 +111,8 @@ the `claude` CLI on the PATH.
   which leave a pale halo beside every dark line). Keep the original beside it
   as `subject_1x.png`. Render with `./build.sh --scale 0.5` so renders line up
   1:1 with `subject.png`. Points traced on `subject_1x.png` can be typed as
-  traced after `pen.unit(4)`, which scales them and adds no shape; `unit(1)`
-  goes back to working pixels. Describe a render shrunk back to
+  traced after `from pen import unit; unit(4)`, which scales them and adds no
+  shape; `unit(1)` goes back. `frame()` and `trap=` stay in working pixels. Describe a render shrunk back to
   `subject_1x.png`'s size, since that is what the describer saw of the subject.
 - **Files you will keep**, besides those stage 0 lists: `notes.md` (one entry
   per correction round) and `refuted.md` (every complaint that did not survive
@@ -442,8 +443,8 @@ per part: --zoom beside the subject, and the describer on its crop
   silhouette has no volume behind it, so there is nothing to correct it against.
 - **Two value groups that never overlap**, decided before any tone.
 - **Vary the execution, keep the structure.** Weight and path vary; proportion,
-  landmarks and identifying features do not. Never mirror, and avoid two limbs
-  or two figures in the same pose: they read as copies.
+  landmarks and identifying features do not. Never mirror, and avoid twinning,
+  two limbs or two figures in the same pose: they read as copies.
 - **Exaggerate gently along each feature's own direction:** a small mouth gets
   smaller.
 - **Overlaps are objects.** They get their own inventory entries and depth

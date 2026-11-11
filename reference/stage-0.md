@@ -19,8 +19,9 @@ delivered size, as in most objects). Every mark, measurement and render lives
 in this space. Make it once: `subject.png` is the delivered image
 upscaled 4x with `Image.BILINEAR`, and the delivered image is kept beside it as
 `subject_1x.png`, for the describer and for reading the whole picture.
-Points you trace on `subject_1x.png` can be typed as traced after `pen.unit(4)`
-(and `unit(1)` to go back); it scales them and adds no shape. Widths are still
+Points you trace on `subject_1x.png` can be typed as traced after
+`from pen import unit; unit(4)` (and `unit(1)` to go back); it scales them and
+adds no shape. `frame()` and `trap=` stay in working pixels. Widths are still
 measured at 4x, not multiplied (below).
 
 Do not upscale with LANCZOS or BICUBIC. Both overshoot into a pale halo beside

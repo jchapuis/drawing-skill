@@ -160,8 +160,8 @@ roughly 3M.
 - **A new kind of subject.** Add `reference/<subject>.md` and list it in
   `SKILL.md`'s Reference section. Give it a ` ```checklist ` block naming the
   object and its pieces (`object: bike|bicycle` /
-  `sub-forms: tyre|tire rim spoke hub ...`). The build then refuses an inventory
-  that leaves one of them out without a reason.
+  `sub-forms: tyre|tire rim spoke hub ...`). The build then refuses a parts
+  list (`parts.json`) that leaves one of those pieces out without a reason.
 - **A new check.** Add a function and a flag in `check.py`, with a test in
   `test_tools.py` that passes a known-good case and fails a known-bad one.
 - **A new instrument.** Add a `tool` to `INSTRUMENTS` in `pen.py`.

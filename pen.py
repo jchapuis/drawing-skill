@@ -63,6 +63,8 @@ def unit(factor):
     as hand-written. `unit(1)` goes back to working pixels. `frame()` and `trap=`
     stay in working pixels."""
     global _UNIT
+    if not float(factor) > 0:
+        raise ValueError(f"unit({factor!r}): the factor must be positive, like 4 for a 4x working space")
     _UNIT = float(factor)
 
 
