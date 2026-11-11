@@ -97,6 +97,12 @@ always judged up close, never at the size of the whole picture.
 
 ## How it works
 
+![The method as a diagram, drawn by the skill itself: an apple seen (look), blocked in with straight lines (block), laid in as flat colour (colour) and outlined (ink), with an eye (check) looping back from the finished apple to the block-in](docs/how-it-works.png)
+
+The diagram above was drawn by the skill, mark by mark, in a test run where
+the agent had only the skill and [this flat source](docs/how-it-works-subject.png).
+Even the words are lettered by hand.
+
 ### Claude draws; the tools only measure
 
 The tools can tell Claude where things are in the subject: where an edge runs,
