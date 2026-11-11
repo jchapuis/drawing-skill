@@ -53,6 +53,19 @@ def seed(value):
     _SEED, _SEED_GIVEN = value, True
 
 
+_UNIT = 1.0
+
+
+def unit(factor):
+    """Type points in units of `factor` pixels from here on: `unit(4)` lets you
+    write the points you traced on `subject_1x.png` as they are, in a 4x working
+    space. It scales what you typed and adds no shape, so the points still count
+    as hand-written. `unit(1)` goes back to working pixels. `frame()` and `trap=`
+    stay in working pixels."""
+    global _UNIT
+    _UNIT = float(factor)
+
+
 def _hand_for(points, stage, tag, *salt):
     """A hand seeded by the mark itself, so editing one stroke changes only that
     stroke. With one running generator, inserting or deleting a mark would
@@ -662,6 +675,8 @@ def stroke(points, stage="ink", tag=None, closed=False, weight=1.0, lead=None,
     # interior shapes until they eat the form. `--unfilled` says which flats
     # need it.
     look["authored"] = _origin(points)
+    if _UNIT != 1.0 and stage != "frame":
+        points = [(p[0] * _UNIT, p[1] * _UNIT, *p[2:]) for p in points]
     if tool == "flat" and closed and trap and len(points) >= 3:
         points = trap_outward(points, float(trap))
 

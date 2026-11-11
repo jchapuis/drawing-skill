@@ -36,6 +36,10 @@ CASES = {
         "ops.append(stroke([(140, 205), (152, 173)], tag='wing.shaft'))\n"
         "ops.append(stroke([(181, 203), (193, 171)], tag='wing.shaft'))\n"
         "ops.append(stroke([(220, 210), (232, 178)], tag='wing.shaft'))\n" + TAIL),
+    "points typed at the subject's size under unit(4)": (True, {}, HEAD + STAGES +
+        "from pen import unit\nunit(4)\n"
+        "ops.append(stroke([(5, 7), (40, 30)], tag='a'))\n"
+        "ops.append(stroke([(12, 3), (60, 50)], tag='b'))\n" + TAIL),
     "a loop stamping literal points": (False, {}, HEAD + STAGES +
         "for pts in ([(1, 2), (30, 40)], [(5, 6), (70, 80)]):\n"
         "    ops.append(stroke(pts))\n" + TAIL),

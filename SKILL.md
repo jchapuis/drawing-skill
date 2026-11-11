@@ -109,8 +109,9 @@ the `claude` CLI on the PATH.
   delivered image upscaled 4x with `Image.BILINEAR` (never LANCZOS or BICUBIC,
   which leave a pale halo beside every dark line). Keep the original beside it
   as `subject_1x.png`. Render with `./build.sh --scale 0.5` so renders line up
-  1:1 with `subject.png`. Points traced on `subject_1x.png` are typed at 4x;
-  multiply them as you write them. Describe a render shrunk back to
+  1:1 with `subject.png`. Points traced on `subject_1x.png` can be typed as
+  traced after `pen.unit(4)`, which scales them and adds no shape; `unit(1)`
+  goes back to working pixels. Describe a render shrunk back to
   `subject_1x.png`'s size, since that is what the describer saw of the subject.
 - **Files you will keep**, besides those stage 0 lists: `notes.md` (one entry
   per correction round) and `refuted.md` (every complaint that did not survive
