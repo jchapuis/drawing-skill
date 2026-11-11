@@ -82,5 +82,11 @@ gate linework  drawing.png subject.png parts.json -- drawing.png --ref subject.p
 gate counts    drawing.png subject.png parts.json palette.json -- drawing.png --ref subject.png --counts parts.json
 gate ranking   drawing.png subject.png parts.json -- drawing.png --ref subject.png --ranking parts.json
 gate parts     drawing.png subject.png parts.json -- drawing.png --ref subject.png --parts parts.json --out gates/parts.png
-gate masses    drawing.png subject.png -- drawing.png --ref subject.png --masses --out gates/masses.png
+# STAGE=fill stops before drawing.png, so the masses gate reads contour.png there
+MASSES=drawing.png
+if [ ! -f drawing.png ] && [ -f contour.png ]; then
+  MASSES=contour.png
+  echo "  (masses: no drawing.png, so reading contour.png, which still shows the block-in lines)"
+fi
+gate masses    "$MASSES" subject.png -- "$MASSES" --ref subject.png --masses --out gates/masses.png
 exit $FAILED

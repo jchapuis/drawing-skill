@@ -4,12 +4,12 @@
     "name": "Jonas Chapuis",
     "url": "https://github.com/jchapuis"
   },
-  "description": "A Claude Code skill for drawing by hand, mark by mark, on a real canvas.",
+  "description": "Claude draws by hand, mark by mark, from a subject, on a real tldraw canvas.",
   "plugins": [
     {
       "name": "drawing",
       "source": "./",
-      "description": "Draw something yourself, mark by mark, on a real canvas \u2014 see the subject, block it in with straights, gate each stage on a check, and only then commit to curve, ink and black. Use when asked to draw, sketch, illustrate, redraw or restyle an image by hand rather than generate it with an image model.",
+      "description": "Draws a subject by hand on a real canvas, one mark at a time, the way a person would: loose gesture, straight-line block-in, flat colour, then ink, with every stage checked against the subject. No image model. Use when asked to draw, sketch, illustrate, ink, redraw or restyle a picture by hand.",
       "version": "1.0.0"
     }
   ]

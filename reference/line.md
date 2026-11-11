@@ -1,28 +1,19 @@
 # Line weight, inking, and blacks
 
+
+## Contents
+
+- The weight hierarchy
+- What decides the weight
+- Line quality
+- Spotting blacks
+- Continuous paths: chains, belts, ropes, cables
+- Hatching and texture, by hand
+- The inking pass
 ## The weight hierarchy
 
-Three tiers, and the ratio between finest and heaviest is roughly **8–10×**:
-
-> **The ratio belongs to the style, not to drawing in general.** 8–10× is a
-> heavily inked comic. A flat cel or *ligne claire* design runs nearer 2–3×, and
-> its finest line is not fine at all. When there is a subject in front of you,
-> **measure its own span** (the width of its lightest interior mark and its
-> heaviest silhouette) and match that, instead of importing the number below.
->
-> **Matching the span is only half of it. Match how much of the drawing sits at
-> each weight.** Suppose the swatch is calibrated so its heaviest nib equals the
-> subject's heaviest silhouette. The drawing will still come out far too heavy
-> overall if the two weights below it are then spent freely, because a flat
-> design reserves weight for the outer silhouette and drops to its finest line
-> the moment it is inside a form. The symptom is a drawing that measures
-> correctly feature by feature and reads as crude. `check.py --parts` shows it as
-> a consistent ten to twenty points more ink than the subject in *every* box, and
-> this is the one way it becomes visible. The error is invisible at full size and
-> obvious at 4×. For example, a 22px band round a jaw whose subject uses 11px,
-> with 2px threads inside a face whose subject never goes below 3px, reads as
-> unfinished however well every mark is placed. `check.py --weights` reports both
-> figures, in pixels.
+There are three tiers, and the finest line is roughly **8–10×** thinner than the
+heaviest:
 
 1. **Heaviest**: the outer silhouette of the figure or object.
 2. **Medium**: plane breaks, where two interior forms meet (sleeve against arm,
@@ -30,265 +21,277 @@ Three tiers, and the ratio between finest and heaviest is roughly **8–10×**:
 3. **Finest**: surface detail inside a single plane. Even these should not be
    dead uniform: thicker in the middle, tapering to a point at open ends.
 
-With four stroke sizes available, that maps to `xl`/`l` for silhouette, `m` for
-plane breaks, `s` for detail.
+With four stroke sizes, that maps to `xl`/`l` for the silhouette, `m` for plane
+breaks and `s` for detail.
+
+> **The ratio depends on the style.** 8–10× is a heavily inked comic. A flat cel
+> or *ligne claire* design runs nearer 2–3×, and its finest line is not fine at
+> all. When you have a subject, **measure its own span** (the width of its
+> lightest interior mark and of its heaviest silhouette) and match that instead
+> of using the number above.
+>
+> **Also match how much of the drawing sits at each weight.** Even with the
+> heaviest nib matched to the subject's heaviest silhouette, the drawing comes
+> out far too heavy if the two lower weights are used freely, because a flat
+> design drops to its finest line as soon as it is inside a form. The drawing
+> then measures correctly feature by feature and still looks crude: invisible at
+> full size, obvious at 4×, and visible to the tools only in `check.py --parts`,
+> as ten to twenty points more ink than the subject in *every* box. For example, a 22px band round a jaw whose subject uses 11px, with
+> 2px threads inside a face whose subject never goes below 3px, looks unfinished
+> however well every mark is placed. `check.py --weights` reports both figures,
+> in pixels.
 
 ### Measuring the hierarchy
 
-Read the subject's span before choosing any weight, and read the drawing's after
-its first ink. `check.py drawing.png --linework parts.json --ref subject.png`
+Read the subject's span before choosing any weight, and the drawing's after its
+first ink. `check.py drawing.png --linework parts.json --ref subject.png`
 prints the finest, middle and heaviest line width of each picture over the
 inventory's boxes, read on each mark's centre line, and fails when the drawing's
 span is under half the subject's. `--weights` on a few rows names single lines
-(`width@centre`), so you can say which line is the heaviest and where it sits.
+(`width@centre`), so you can say which line is the heaviest and where it is.
 
-The common failure is one even, fairly heavy outline round every form, with the
+The common failure is one even, fairly heavy outline round every form, with
 interior lines nearly as heavy. It measures as a finest line two or three times
-the subject's and a heaviest line about right. Fix it from the bottom:
+the subject's, with the heaviest line about right. Fix it from the bottom up:
 
-- **Interior lines thin.** Surface detail and lines inside a form go down to the
-  subject's finest width, usually a third or less of the silhouette.
-- **Silhouette heavier**, and not evenly: heavier on the shadow side and where
+- **Thin the interior lines.** Surface detail and lines inside a form go down to
+  the subject's finest width, usually a third or less of the silhouette.
+- **Make the silhouette heavier**, unevenly: heavier on the shadow side and where
   the form turns away, thinner on the lit side.
-- **Heaviest at the contacts**: under a form resting on another, where a foot
-  meets the ground, under an overhang, where a limb crosses the body. A heavy
-  line there stands in for the cast shadow.
+- **Weight the contacts as the subject does**: under a form resting on another,
+  where a foot meets the ground, under an overhang, where a limb crosses the
+  body. Styles disagree here (see Contact below), so read the subject's weight
+  at its contacts with `--weights` and match it.
 
-Each of these is a different `size` or pressure on a stroke you write, read back
-on the swatch and on the drawing with `--weights`.
+Each is a `size` or pressure on a stroke you write; read it back on the swatch
+and the drawing with `--weights`.
 
 ### How wide a span
 
-Where line weight is quantified at all, it is quantified in technical pens, sold
-from **0.03 mm to 0.8 mm**. The top of that range, 0.5–0.8 mm, is what panel
-frames and backgrounds use. That puts the real span of a page at roughly **20×**,
-wider than the **8–10×** that a single figure's contours span.
+Where line weight is quantified at all, it is in technical pens, sold from
+**0.03 mm to 0.8 mm**. Panel frames and backgrounds use the top of that range,
+0.5–0.8 mm, so a whole page spans roughly **20×**, wider than the **8–10×** of a
+single figure's contours.
 
 There is **no rule about how many weights**, and some artists ink a whole page
-with one. What is not optional is that weight *varies*. Even *ligne claire*,
-defined by flatness and the absence of hatching, varies it. Uniform weight is the
-default nowhere in the medium.
+with one. But the weight always *varies*, even in *ligne claire*, which is
+defined by flatness and the absence of hatching.
 
 ## What decides the weight
 
 **Decide the light source first.** Every later weight decision depends on it.
 
 - **Shadow side heavy, light side thin**, on the same form. This works on
-  anything solid; it does not apply to smoke, fire or cloud.
+  anything solid, not on smoke, fire or cloud.
 - **Depth**: foreground heavy, middle ground medium, background fine. This alone
-  separates the planes with no shading at all.
-- **Contact**: an edge touching another surface gets no extra weight; an edge
-  pulled away into open air gets a thicker line. This is how "in front" reads.
-- **Distance from the light**: further away, thicker. Under an overhead light the
-  feet carry more weight than the head.
-- **Anatomy**: thicker around fat and muscle mass, thinner around bone.
+  separates the planes without any shading.
+- **Contact depends on the style.** Some make the contact the heaviest line,
+  standing in for the occlusion shadow; others give a touching edge no extra
+  weight and thicken the edge pulled away into open air, which is how "in
+  front" reads. Neither is a rule: measure the subject's weight at its contacts
+  with `--weights` and match it.
+- **Distance from the light**: the further away, the thicker. Under an overhead
+  light the feet carry more weight than the head.
+- **Anatomy**: thicker around fat and muscle, thinner around bone.
 - **Curves**: thinnest at the apex of a curve. A motion swoosh is the exception
   and thickens at its apex.
-- **Junctions**: thicken where structures meet, like jaw into neck.
+- **Junctions**: thicker where structures meet, like jaw into neck.
 
-**A top-lit face** gets heavier line under the top eyelid, under the nose, under
-the top lip, under the bottom lip, and under the jaw, where heavy line stands in
-for cast shadow. **Invert every weight** for underlighting, which is why
-underlighting reads as sinister.
+**A top-lit face** gets heavier line under the top eyelid, the nose, the top lip,
+the bottom lip and the jaw, where the heavy line stands in for cast shadow.
+**Invert every weight** for lighting from below, which is why underlighting looks
+sinister.
 
-**Consistency**: keep all light-side lines roughly equal to each other and all
-shadow-side lines roughly equal. Weight varies for a *reason*, never at random.
+**Keep it consistent**: all light-side lines roughly equal to each other, and
+all shadow-side lines roughly equal. Weight varies for a *reason*, never at
+random.
 
 **Never give two adjacent objects on different depth planes the same weight.**
-It merges them onto one plane, and a distant small figure starts to look like it
-is standing on the near figure's shoulder.
+It merges them onto one plane, and a small distant figure starts to look as if
+it is standing on the near figure's shoulder.
 
 ## Line quality
 
-- **Draw from the shoulder or elbow**, not the wrist, for anything longer than a
-  few centimetres. That produces smooth even arcs instead of jittery pivoted
-  segments.
-- **Taper**: thick through the middle, pointed at both ends. Produce it by
-  accelerating through the stroke and decelerating out of it, like a car
-  reaching speed and coasting down instead of braking.
-- **Ghost the stroke** two or three times before touching down, then execute in a
-  single confident pass. Once the tool touches, do not hesitate or slow.
-- **Never correct by overdrawing.** A second bolder mark makes the error *more*
-  visible. Redraw the whole segment fresh.
+- **Long arcs are one smooth stroke**: give a long curve its points along the
+  whole run and let `smooth=True` carry it, rather than chaining short pieces.
+- **Taper**: thick through the middle, pointed at both ends. On the page that is
+  a stroke's `lead` and `tail`.
+- **Never correct by drawing over**: a second, bolder mark makes the error *more*
+  visible. Redraw the whole segment.
 - **A drawn line does not shake.** Watch anyone ink: the stroke is smooth. What
-  varies between one mark and the next is where it landed, how hard they leaned,
-  and a slight bow across the whole arc, never a wobble travelling along it.
-  Physiological tremor is real and is measured in tens of microns; at the scale
-  a drawing is looked at it is invisible. Rendering tremor is the loudest way to
-  make a line read as a beginner's.
-- **One contour, one stroke.** Chaining short segments end to end so they merely
-  abut leaves a step at every join, because each carries its own placement error.
-  A long contour really is laid in several passes, but they overlap *along the
-  whole run*, retracing, and do not butt. **A change of weight is the only good
-  reason to lift the pen**, and even then the two strokes should meet where both
-  are at their thinnest, so the taper hides the join.
-- **Do not reinforce by doubling.** With an opaque ink, a second pass beside the
-  first makes a tramline and not a heavier line. Weight comes from the nib and
-  the pressure profile.
+  varies from one mark to the next is where it landed, how hard the hand leaned,
+  and a slight bow across the whole arc, never a wobble along it. Real hand
+  tremor is tens of microns, invisible at viewing scale. Rendering tremor is the
+  quickest way to make a line look like a beginner's.
+- **One contour, one stroke.** Short segments chained end to end leave a step at
+  every join, because each has its own placement error. A long contour is
+  really laid in several passes, but they overlap and retrace *along the whole
+  run* instead of butting together. **Lift the pen only to change weight**, and
+  then make the two strokes meet where both are thinnest, so the taper hides the
+  join.
+- **Do not add weight by doubling.** With an opaque ink, a second pass beside the
+  first makes two parallel lines, not a heavier one. Weight comes from the nib
+  and the pressure profile.
 - **A closed form is one closed contour.** An eye, a nostril, a vent slot: one
   continuous loop of varying weight, not two arcs meeting at the corners. Arcs
   that meet leave a knuckle at each corner, and the corners of an eye are where
   the subject's line is finest.
-- **A heavy line has to be more precise than a fine one, not less.** Weight
-  magnifies error. A kink that is invisible at 3px is a lump at 10px, and the
-  pressure model makes it worse, because a hand leans into a tight turn and lays
-  more ink exactly where the unintended corner is. So a heavy contour carries
-  *fewer* control points, spaced further apart, with no direction change you did
-  not mean. If a thick stroke looks jagged, take points out.
-- A uniform-width mechanical line is **dead** however accurate it is. Variation
-  along one continuous stroke is what makes a line look alive.
-- For a small enclosed detail such as a nostril, **outline it and fill it**. One
-  stroke distorts the shape.
+- **A heavy line must be more precise than a fine one.** Weight magnifies error:
+  a kink invisible at 3px is a lump at 10px. The pressure model makes it worse,
+  because a hand leans into a tight turn and lays more ink exactly at the
+  unintended corner. So give a heavy contour *fewer* control points, further
+  apart, with no change of direction you did not mean. If a thick stroke looks
+  jagged, take points out.
+- A uniform-width mechanical line looks **dead** however accurate it is. Vary the
+  width along each stroke.
+- For a small enclosed detail such as a nostril, **outline it and fill it**. A
+  single stroke distorts the shape.
 - **A ring is a stroke, not a filled shape.** A tyre, a rim, a chainring, a clock
-  bezel, a washer: these are annuli, and filling a closed circle fills the hole
-  as well. State the band by running a single wide stroke along its centre line,
-  so the stroke's own width is the band's. The same applies to any outline whose
-  inside must stay open.
-- **A band drawn as a stroke sits on its CENTRE line, and a scan of the subject
-  gives you its EDGE.** The two are only the same for a hairline, and the error
-  is half the band's width on every side at once. In one test, a tyre whose
-  points were taken off the subject's outer silhouette and then drawn as a 24px
-  stroke came out 14 to 55px too wide, worst at the bottom of the wheel, where
-  both sides are nearly horizontal and the full band lands outside the form.
-  Every point was measured correctly and the object was still wrong. So after
+  bezel and a washer are rings, and filling a closed circle fills the hole too.
+  Draw the band as a single wide stroke along its centre line, so the stroke's
+  width is the band's width. The same goes for any outline whose inside must
+  stay open.
+- **A band drawn as a stroke sits on its CENTRE line, but a scan of the subject
+  gives you its EDGE.** The two coincide only for a hairline; otherwise the band
+  is off by half its width on every side at once. For example, a tyre whose
+  points were taken off the subject's outer silhouette and drawn as a 24px stroke
+  came out 14 to 55px too wide, worst at the bottom of the wheel, where the whole
+  band lands outside the form, although every point was measured correctly. So
+  after
   measuring where a band ends, **move the path half a weight inward** before
-  drawing it. Anything radiating to that band (spokes, hatching, a joint) stops
-  at the new path, not at the old silhouette.
-- **A mark that bounds a small pale shape is subtracting from it**, and past a
-  certain width it has eaten the shape. An eye is the lid *and* the white
-  beneath it, so thickening the lid does not strengthen the eye. It deletes the
-  eye, and the expression goes with it while the lid stays exactly where it was
-  measured. The same arithmetic applies to a nostril, a highlight, a gap between
-  two tubes, or the slot inside a vent. **Where a form is stated by the gap
-  between two marks, the gap is the measurement.** Take it off the subject and
-  let the marks fall where it puts them, instead of choosing a weight and hoping
-  the space survives. Halving one such mark is often the change that brings a
-  feature back, and on the page it looks like drawing less.
+  drawing it. Anything that meets that band (spokes, hatching, a joint) stops at
+  the new path, not at the old silhouette.
+- **A mark that bounds a small pale shape eats into it**, and past a certain
+  width it has eaten all of it. An eye is the lid *and* the white beneath it, so
+  a thicker lid deletes the white, and the expression with it, while the lid
+  stays exactly where it was measured.
+  The same applies to a nostril, a highlight, a gap between two tubes, or the
+  slot inside a vent. **Where a form is defined by the gap between two marks,
+  the gap is what you measure.** Take it off the subject and let the marks fall
+  where it puts them, instead of choosing a weight and hoping the space
+  survives. Halving one such mark often brings a feature back.
 
-Economy is a line-quality virtue as well as an editing one: *"the secret to
-drawing is not the making of lines, but the elimination of unnecessary lines."*
-It takes more skill to render a form in fewer lines than in more, and
-over-rendering usually masks weak construction.
+Leave out every line you can: *"the secret to drawing is not the making of
+lines, but the elimination of unnecessary lines."* Rendering a form in fewer
+lines takes more skill, and over-rendering usually hides weak construction.
 
 ## Spotting blacks
 
 Solid blacks are **placed**, not shaded. They separate figure from ground, set
-depth, lead the eye, set mood, and unify scattered shapes into one read.
+depth, lead the eye, set mood, and tie scattered shapes together into one.
 
-**Distribution is deliberately uneven**: a little black on most things, a lot on
-some, a little on objects of interest. An even scatter reads as noise;
-concentrated masses read as intentional.
+**Spread them unevenly on purpose**: a little black on most things, a lot on
+some, a little on the objects of interest. An even scatter looks like noise.
 
-**Three values across three planes.** Assign black, mid and white one each to
-foreground, middle ground and background, and vary which gets which from panel
-to panel to change what carries the weight. Never give two objects on different
-depth planes the same value.
+**Three values across three planes.** Give black, mid-tone and white one each to
+foreground, middle ground and background, and change which gets which from
+panel to panel to shift where the weight falls. As with line weight, never give
+two objects on different depth planes the same value.
 
-**Contrast tension**: leave small islands of white inside a black mass, or drop
-small black accents into a large empty area. The local interruption pulls the eye
+**Contrast inside a mass**: leave small islands of white in a black mass, or drop
+small black accents into a large empty area. The local break pulls the eye
 harder than a large uniform black does.
 
 If a finished panel looks flat and grey when squinted, add a real black anchor
-**and** a real white breathing space. More mid-tone detail will not fix it.
+**and** a real white space to rest the eye. More mid-tone detail will not fix
+it.
 
 ## Continuous paths: chains, belts, ropes, cables
 
-A chain, a belt, a rope, a cable, a hose or a wire is one continuous path, even
-where it is written as several strokes. The eye follows it end to end, and a
-break anywhere along it reads as a broken object: a chain whose run stops short
-of the sprocket is an open loop, and a cable that stops before its stop hangs
-loose. A path is drawn like this:
+A chain, belt, rope, cable, hose or wire is one continuous path, even when
+written as several strokes. The eye follows it end to end, and any break reads
+as a broken object: a chain whose run stops short of the sprocket
+is an open loop, and a cable that stops before its end stop hangs loose. Draw a
+path like this:
 
 - **Every piece meets the next with no gap.** Write the path as consecutive
   strokes (a straight run, the wrap round a wheel, the next run) that share their
-  end points by name: the end of one is the start of the next, from one entry
-  of the dict of measured points. Two numbers typed separately for one junction
-  drift apart.
-- **A run meets a wheel at its tangent point.** A straight run leaves a round
-  form where the line touches the circle without cutting it, which is the point
-  where the radius is square to the run. Measure that point on the subject's
-  `--zoom` and name it. The wrap round the wheel starts and ends at those named
-  points. Stopping at the wheel's outline anywhere else leaves a kink or a gap.
-- **An anchor is a point the path reaches.** A rope ends at the hand or the
-  ring that holds it, and a cable at its stop or its housing. The last point of
-  the stroke is that anchor's named point.
+  end points by name: the end of one and the start of the next come from the
+  same entry in the dict of measured points. Two numbers typed separately for one
+  junction drift apart.
+- **A run meets a wheel at its tangent point**, where the straight line touches
+  the circle without cutting it and the radius is square to the run. Measure
+  that point on the subject's `--zoom` and name it. The wrap round the wheel
+  starts and ends at those named points. Stopping at the wheel's outline
+  anywhere else leaves a kink or a gap.
+- **An anchor is a point the path reaches.** A rope ends at the hand or ring that
+  holds it, and a cable at its stop or housing. The stroke's last point is that
+  anchor's named point.
 - **Give each run its own tag** (`bike.chain.upper`, `bike.chain.wrap.rear`).
-  `--joins` does not compare a stroke with others under the same tag, since a
-  hatch group shares one, so runs under one tag are never checked against each
-  other.
-- **Carry the path's texture when the subject shows it.** A chain's links, a
+  `--joins` does not compare strokes that share a tag, since a hatch group shares
+  one, so runs under one tag are never checked against each other.
+- **Draw the path's texture when the subject shows it.** A chain's links, a
   rope's twist and a beaded cable read as a textured line, and a plain line in
   their place reads as a wire. Look at the subject's `--zoom`: if the line is
-  beaded or linked, draw it as one. `dash="dotted"` or `dash="dashed"` on the
-  stroke gives a beaded or broken line along your own path. The renderer sets
-  the spacing, so compare it with the subject's link pitch on `--zoom`, and
-  where it does not match, write the links as small marks, each its own stroke,
-  at the measured pitch. Either way the path's points are yours.
-- **Teeth are a repeated small form.** A gear's or a sprocket's teeth are
-  counted (`--counts`, or on `--zoom` into `notes.md`) and written, each tooth
-  as its own points, like any other group of repeated forms. A plain circle in
-  their place reads as a ring, not a gear.
+  beaded or linked, draw it that way. `dash="dotted"` or `dash="dashed"` gives a
+  beaded or broken line along your own path, at a spacing the renderer sets.
+  Compare that with the subject's link pitch on `--zoom`; where it does not
+  match, draw each link as its own small stroke at the measured pitch. Either
+  way the path's points are yours.
+- **Teeth are a repeated small form.** Count a gear's or sprocket's teeth
+  (`--counts`, or on `--zoom` into `notes.md`) and write each tooth with its own
+  points, like any other group of repeated forms. A plain circle in their place
+  reads as a ring, not a gear.
 
 `check.py --joins ops.json --parts parts.json` lists every ink end that stops
-one to eight line widths short of a mark of its own object that it runs at:
-too far to read as a join, too near to read as a separation. A gap the subject
-really shows goes in parts.json as `"_gaps": ["tagA/tagB"]`.
+one to eight line widths short of a mark of its own object that it is heading
+for: too far to read as a join, too near to read as a separation. A gap the
+subject really has goes in parts.json as `"_gaps": ["tagA/tagB"]`.
 
 ## Hatching and texture, by hand
 
-On a subject whose look is fine ink (an engraving, a pen drawing, an old printed
-illustration), the hatching carries the shading, the texture of each material and
-most of what makes it look drawn. Flats with an outline and no hatching read as a
-colouring-book copy of it, however well they are placed.
+On a subject drawn in fine ink (an engraving, a pen drawing, an old printed
+illustration), the hatching carries the shading, the texture of each material
+and most of what makes it look drawn. Flats with an outline and no hatching look
+like a colouring-book copy of it, however well they are placed.
 
 **Measure, then write.** For each hatched region:
 
-1. Box it and run `check.py subject.png --hatch x,y,w,h`. It prints the share of
-   the box covered by line marks and, per group of parallel marks, its angle (0
-   horizontal, 90 vertical, 45 a `/`), the spacing between neighbours, the
-   typical length and width, and the middle half of each range. Pale lines cut
-   into a dark (feather shafts on a black wing, light grain on a dark rock) are
-   read with `--light`. If it warns of grain, the marks are texture fragments,
+1. Box it and run `check.py subject.png --hatch x,y,w,h`. For the box, it prints
+   the share covered by line marks, and for each group of parallel marks, its
+   angle (0 horizontal, 90 vertical, 45 a `/`), the spacing between neighbours,
+   the typical length and width, and the middle half of each range. Read pale
+   lines cut into a dark (feather shafts on a black wing, light grain on a dark
+   rock) with `--light`. If it warns of grain, the marks are texture fragments,
    not hatching (a photograph, fur): see `photograph.md`.
-2. Write the group into the part's `parts.json` entry as `"hatch": {"angle",
+2. Write each group into the part's `parts.json` entry as `"hatch": {"angle",
    "spacing", "length"}`, one entry per group, so `--linework` can check it.
-   Pale lines add `"light": true` inside the same dict.
+   For pale lines add `"light": true` inside the same dict.
 3. Read the actual lines off a `--zoom` or a `--scan` across the group: where
-   each line starts and ends. Then write each hatch line as its own `stroke`,
-   on its own line of `draw.py`, with its own two or three measured points. Vary
+   each line starts and ends. Then write each hatch line as its own `stroke`, on
+   its own line of `draw.py`, with its own two or three measured points. Vary
    length and spacing within the measured ranges, as a hand does: no two lines
    the same length, no two gaps equal.
-4. Re-run `--hatch` with `--ref drawing.png`. It flags (`<<`) a group missing,
+4. Re-run `--hatch` with `--ref drawing.png`. It flags (`<<`) a missing group,
    an angle more than 20° off, spacing off by more than half, or coverage under
    half the subject's. It FAILs (exit 1) a group whose marks are over 1.6× the
    subject's width, or whose width as a share of the drawing's outline weight is
    over 1.6× the subject's share. Both numbers print either way, in the
    subject's pixels whatever size the render is.
 
-**Check the outline weight first.** Run `--weights` on a few rows across the
-outline, on the subject and on your drawing, before you write a hatch mark. The
-outline sets the scale every hatch mark is read against: hatching that matches
-the subject's width in pixels still reads heavy against an outline drawn too
-thin, and right against an outline drawn at the subject's weight. Fix the
-outline first.
+**Fix the outline weight first.** Before writing any hatch mark, run
+`--weights` on a few rows across the outline, on subject and drawing. Hatching
+is read against the outline: hatching at the subject's pixel width still looks
+heavy against an outline drawn too thin.
 
-**Hatch weight: the lightest in the swatch, from the measured width.** Hatching
-takes the lightest weights you have. Pick its weight from the group's `width`
-in `--hatch`, never from the outline: a hatch drawn "a step under the contour"
-lands at the contour's weight, and a field of marks as heavy as the outline
-reads as heavy brush strokes however right their angles are. The subject's
-width is read at half each mark's darkness, so a soft upscaled line is not read
-wider than it is; match your swatch to that number.
+**Hatch weight: the lightest in the swatch, set from the measured width.** Take
+the hatch weight from the group's `width` in `--hatch`, never from the outline.
+A hatch drawn "a step under the contour" ends up at the contour's weight, and a
+field of marks as heavy as the outline looks like heavy brush strokes however
+right their angles are. The match is relative too: if the subject's hatch is a
+third of its outline's weight, the drawing's is a third of its own. `--hatch`
+reads the subject's width at half each mark's darkness, so a soft upscaled line
+is not read wider than it is; match your swatch to that number.
 
 **Hatch character: tapered, and in the line's colour.** A hand-drawn hatch mark
-tapers at both ends, thin where the nib lands and lifts, and it is drawn in the
-subject's line colour. Measure that colour: sample the centre of a few marks on
-the subject at the magnified view and put the value in `palette.json`, on the
-name you ink with. Old prints and pen drawings are often a warm dark brown, not
-pure black. Uniform marks with square ends in pure black read heavier than
-their width, so a group that matches the subject's width can still look like
-heavy brush strokes. Use `tool="brush"`, whose default `lead` and `tail` taper
-both ends, at the small sizes below. `tool="pen"` has no taper: keep it for a
+tapers at both ends, thin where the nib lands and lifts, and more at the end
+that runs out into the light. It is drawn in the subject's line colour. Measure
+that colour: sample the centre of a few marks on the subject at the magnified
+view and put the value in `palette.json`, under the name you ink with. Old prints
+and pen drawings are often a warm dark brown. Uniform, square-ended marks in pure
+black look heavier than their width, so a group at the subject's width can still
+look like heavy brush strokes. Hatch with `tool="brush"`,
+whose default `lead` and `tail` taper both ends, at the small sizes below. `tool="pen"` has no taper: keep it for a
 subject whose hatching is a technical pen's even hairline.
 
 A swatch rendered at 4x with `--scale 0.5`
@@ -307,46 +310,40 @@ against a paper of 250 once downsampled 4x to the delivered size:
 | `brush`, `size="m"`, `scale=1.0` | 11px | 236 |
 
 So the hairline at 4x is `pen` `size="s"` at `scale` 0.75–1.0: 2–3px, still a
-visible grey line at the delivered size. Under `scale` 0.5 it fades out there.
-`pen` has no taper; for a mark that ends in a point at both ends, `brush`
-`size="s"` at `scale` 0.35–0.5 gives 3–5px, tapered by its `lead` and `tail`. A `brush` at
-`size="m"` starts at 7px: that is outline territory on most subjects, not
-hatching. Render your own swatch before trusting these: the numbers move with
-the palette, the ground and the renderer.
+visible grey line at the delivered size. Below `scale` 0.5 it fades out there.
+For a mark that ends in a point at both ends, `brush` `size="s"` at `scale`
+0.35–0.5 gives 3–5px, tapered by its `lead` and `tail`. A `brush` at `size="m"`
+starts at 7px, which on most subjects is an outline weight, not a hatching one.
+Render your own swatch before trusting these: the numbers move with the palette,
+the ground and the renderer.
 
-The instrument prints numbers only. Nothing turns a group into strokes, and a
-loop or comprehension that does is a generated mark, refused by `pen.write`. A
-hatched region costing fifty or a hundred lines of `draw.py` is expected.
+The instrument only prints numbers. Nothing turns a group into strokes, and a
+loop or comprehension that does is a generated mark, which `pen.write` refuses.
+Expect a hatched region to cost fifty or a hundred lines of `draw.py`.
 
-**Indicate; do not fill.** A hand does not hatch a whole surface evenly, and
-neither should you. Hatching is kept affordable the way illustrators keep it
-affordable:
+**Indicate; do not fill.** Do not hatch a whole surface evenly. Keep hatching
+affordable the way illustrators do:
 
 - **At the edges and the turns.** Put the texture where the form turns away and
   along the shadow edge, and let it thin out and stop as the surface comes into
   the light. A few marks at the edge of a roof or a field of grass say the whole
   surface is tiled or grassy [read: Guptill, *Rendering in Pen and Ink*].
-- **Near the centre of interest.** Spend the densest groups there and thin them
-  with distance from it, as with every other kind of detail.
-- **One group per plane.** Each plane of the form gets its own group, at its own
+- **Near the centre of interest.** Put the densest groups there and thin them
+  out with distance from it, as with every other kind of detail.
+- **One group per plane.** Each plane of the form gets its own group at its own
   angle. Where the plane turns, the group changes direction or curves round the
   form. A single angle across several planes flattens them into one.
-- **Anchor each line in a dark.** Start it at the shadow edge or the contour and
+- **Start each line in a dark.** Begin it at the shadow edge or the contour and
   run it out into the light (`tone.md`), so the group has one hard edge and one
   ragged one.
 
 **Line quality inside a group:**
 
-- **Bad**: all hatch lines the same length, intersecting at right angles. This
-  reads as a mechanical mathematical pattern.
-- **Also bad**: two layers nearly parallel, which produces a moiré.
+- **Bad**: all hatch lines the same length, crossing at right angles. This looks
+  like a mechanical pattern.
+- **Also bad**: two layers at nearly the same angle, which produces a moiré.
 - **Good**: varied lengths, some short and broken, getting heavier as they merge
-  toward a black; lines curving *around* the form to imply volume.
-- A hatch line is a finer weight than the contour it sits against, and tapers at
-  both ends (`lead=` and `tail=` on a `brush` or `marker`), more at the end that
-  runs out into the light. The measured width is
-  the target, and its ratio to the outline: if the subject's hatch is a third
-  of its outline's weight, the drawing's is a third of its own.
+  toward a black, and lines curving *around* the form to show volume.
 
 Texture that is not hatching (a rock's cracks, bark, the dashes of a stone wall)
 follows the same rules: measure the marks' direction, length and spacing with
@@ -355,19 +352,19 @@ follows the same rules: measure the marks' direction, length and spacing with
 ## The inking pass
 
 1. **Fix the light source.** Everything else depends on it.
-2. **Ink the contours of the big shapes first**, applying light-side-thin /
-   shadow-side-heavy as you go. Every later decision is placed relative to these.
-3. **Establish depth** by contour weight per plane (heavy foreground, medium
-   middle, fine background) before adding any other information.
-4. **Spot the blacks as a planning decision while inking contours**: mark every
-   area destined to be solid, but do **not** fill yet.
+2. **Ink the contours of the big shapes first**, thin on the light side and heavy
+   on the shadow side. Every later decision is placed relative to these.
+3. **Set up depth** with contour weight per plane (heavy foreground, medium
+   middle, fine background) before adding anything else.
+4. **Plan the blacks while inking the contours**: mark every area that will be
+   solid, but do **not** fill it yet.
 5. **Inking is not tracing.** Correct obvious errors in the underdrawing instead
-   of reproducing them faithfully. Viewing the page mirrored defeats habituation
-   and makes proportion errors visible.
+   of copying them. Viewing the page mirrored shows proportion errors you have
+   stopped noticing.
 6. **Feather and hatch** to soften hard black edges and add volume. Know what
    each mark is for; do not copy the pencil's rough marks literally.
 7. **Erase all pencil, then fill the blacks.** Filling after erasing keeps them
    dense; filling first muddies them.
-8. **Background, texture and effects last**, on top of the fixed contour-and-black
-   structure, so they respect the hierarchy instead of competing with it.
+8. **Background, texture and effects last**, on top of the settled contours and
+   blacks, so they follow the hierarchy instead of competing with it.
 9. **Final pass**: remove stray marks. Neatness counts even on a rush job.
