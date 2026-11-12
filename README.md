@@ -3,7 +3,7 @@
 **A Claude Code skill that makes Claude draw the way a person does: one mark at
 a time, from a subject in front of it.**
 
-![One picture drawn stage by stage: the subject, the first loose lines, the straight-line block-in, the flat colour masses, and the finished drawing](docs/stages.png)
+![A half-timbered house being drawn stroke by stroke: the photo, the first loose lines, the straight-line block-in, the colour and ink, then the watercolour finish](docs/timelapse.gif)
 
 No image model is involved. Claude writes every stroke itself, as numbers in a
 Python script, and a real canvas ([tldraw](https://tldraw.com)) renders it. It
@@ -115,6 +115,8 @@ out as numbers. Auto-tracing the subject into strokes is forbidden outright,
 because a traced copy can pass every check and still not be a drawing.
 
 ### Stages, each checked before the next
+
+![A half-timbered house drawn stage by stage: the photo, the first loose lines, the straight-line block-in, the colour, and the finished drawing](docs/stages.png)
 
 | Stage | What Claude draws | How it is checked |
 |---|---|---|
